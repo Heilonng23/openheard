@@ -152,9 +152,6 @@
   h1, h2, h3 {
     letter-spacing: -0.02em;
   }
-  a {
-    @apply text-link;
-  }
   ::selection {
     background: color-mix(in oklch, var(--link) 35%, transparent);
   }

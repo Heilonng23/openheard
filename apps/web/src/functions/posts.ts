@@ -1,0 +1,276 @@
+import { STATUSES, activity, comment, createDb, post, postTag, vote } from "@openheard/db";
+import { createServerFn } from "@tanstack/react-start";
+import { and, desc, eq, inArray, like, or, sql } from "drizzle-orm";
+import { z } from "zod";
+
+import { requireAdmin, requireUser, sessionMiddleware } from "@/lib/session";
+
+const listInput = z.object({
+  board: z.string().optional(),
+  status: z.enum(STATUSES).optional(),
+  tag: z.string().optional(),
+  q: z.string().trim().max(120).optional(),
+  sort: z.enum(["trending", "top", "new"]).default("trending"),
+  limit: z.number().int().min(1).max(100).default(30),
+  offset: z.number().int().min(0).default(0),
+});
+export type ListInput = z.infer<typeof listInput>;
+
+export const listPosts = createServerFn({ method: "GET" })
+  .middleware([sessionMiddleware])
+  .validator((d: unknown) => listInput.parse(d ?? {}))
+  .handler(async ({ data, context }) => {
+    const db = createDb();
+    const where = and(
+      sql`${post.mergedIntoId} is null`,
+      data.board ? eq(post.boardId, data.board) : undefined,
+      data.status ? eq(post.status, data.status) : undefined,
+      data.q ? or(like(post.title, `%${data.q}%`), like(post.body, `%${data.q}%`)) : undefined,
+      data.tag
+        ? inArray(post.id, db.select({ id: postTag.postId }).from(postTag).where(eq(postTag.tagId, data.tag)))
+        : undefined,
+    );
+    // Trending: votes decayed by age, so a fresh post with 10 votes beats a
+    // year-old one with 12. Plain arithmetic only: SQLite has no pow() unless
+    // built with math functions, and D1 and libsql differ there.
+    const ageDays = sql`(julianday('now') - julianday(${post.createdAt} / 1000, 'unixepoch'))`;
+    const trending = sql`(${post.voteCount} + 1.0) / ((${ageDays} + 2.0) * (${ageDays} + 2.0))`;
+    const order =
+      data.sort === "new"
+        ? [desc(post.pinned), desc(post.createdAt)]
+        : data.sort === "top"
+          ? [desc(post.pinned), desc(post.voteCount), desc(post.createdAt)]
+          : [desc(post.pinned), desc(trending)];
+
+    const rows = await db.query.post.findMany({
+      where,
+      orderBy: order,
+      limit: data.limit,
+      offset: data.offset,
+      with: {
+        author: { columns: { id: true, name: true, image: true } },
+        tags: { with: { tag: true } },
+        votes: context.user ? { where: eq(vote.userId, context.user.id), columns: { userId: true } } : { limit: 0 },
+      },
+    });
+    const [{ total }] = await db.select({ total: sql<number>`count(*)` }).from(post).where(where);
+    return {
+      posts: rows.map((r) => ({
+        id: r.id,
+        title: r.title,
+        excerpt: r.body.length > 180 ? r.body.slice(0, 177).trimEnd() + "…" : r.body,
+        status: r.status,
+        pinned: r.pinned,
+        voteCount: r.voteCount,
+        commentCount: r.commentCount,
+        boardId: r.boardId,
+        createdAt: r.createdAt,
+        author: r.author,
+        tags: r.tags.map((t) => t.tag),
+        voted: r.votes.length > 0,
+      })),
+      total,
+    };
+  });
+
+export const getPost = createServerFn({ method: "GET" })
+  .middleware([sessionMiddleware])
+  .validator((d: unknown) => z.object({ id: z.number().int() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const db = createDb();
+    const p = await db.query.post.findFirst({
+      where: eq(post.id, data.id),
+      with: {
+        board: true,
+        author: { columns: { id: true, name: true, image: true } },
+        tags: { with: { tag: true } },
+        comments: { with: { author: { columns: { id: true, name: true, image: true, role: true } } }, orderBy: [desc(comment.createdAt)] },
+        activity: { with: { actor: { columns: { id: true, name: true } } }, orderBy: [desc(activity.createdAt)] },
+        votes: { with: { user: { columns: { id: true, name: true, image: true } } }, orderBy: [desc(vote.createdAt)], limit: 8 },
+      },
+    });
+    if (!p) return null;
+    const voted = context.user
+      ? (await db.select({ userId: vote.userId }).from(vote).where(and(eq(vote.postId, p.id), eq(vote.userId, context.user.id)))).length > 0
+      : false;
+    // Merge candidates: same board, shares a word of 5+ letters with the title.
+    const words = p.title.toLowerCase().match(/[a-z]{5,}/g) ?? [];
+    const similar = words.length
+      ? await db
+          .select({ id: post.id, title: post.title, voteCount: post.voteCount })
+          .from(post)
+          .where(and(sql`${post.id} != ${p.id}`, sql`${post.mergedIntoId} is null`, or(...words.slice(0, 4).map((w) => like(post.title, `%${w}%`)))))
+          .orderBy(desc(post.voteCount))
+          .limit(3)
+      : [];
+    const mergedInto = p.mergedIntoId
+      ? await db.query.post.findFirst({ where: eq(post.id, p.mergedIntoId), columns: { id: true, title: true } })
+      : null;
+    const mergedFrom = await db.select({ id: post.id, title: post.title, voteCount: post.voteCount }).from(post).where(eq(post.mergedIntoId, p.id));
+    return {
+      ...p,
+      tags: p.tags.map((t) => t.tag),
+      voted,
+      similar,
+      mergedInto,
+      mergedFrom,
+      timeline: [
+        ...p.comments.map((c) => ({ kind: "comment" as const, id: `c${c.id}`, at: c.createdAt, author: c.author, body: c.body })),
+        ...p.activity.map((a) => ({ kind: "activity" as const, id: `a${a.id}`, at: a.createdAt, author: a.actor, type: a.type, from: a.fromStatus, to: a.toStatus, note: a.note })),
+      ].sort((a, b) => +new Date(b.at) - +new Date(a.at)),
+    };
+  });
+
+export const createPost = createServerFn({ method: "POST" })
+  .middleware([sessionMiddleware])
+  .validator((d: unknown) =>
+    z
+      .object({
+        boardId: z.string().min(1),
+        title: z.string().trim().min(4, "Give it a title").max(140),
+        body: z.string().trim().max(5000).default(""),
+        tags: z.array(z.string()).max(5).default([]),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const u = requireUser(context.user);
+    const db = createDb();
+    const [created] = await db
+      .insert(post)
+      .values({ boardId: data.boardId, authorId: u.id, title: data.title, body: data.body, voteCount: 1 })
+      .returning({ id: post.id });
+    await db.insert(vote).values({ postId: created.id, userId: u.id });
+    if (data.tags.length) await db.insert(postTag).values(data.tags.map((tagId) => ({ postId: created.id, tagId })));
+    return { id: created.id };
+  });
+
+export const toggleVote = createServerFn({ method: "POST" })
+  .middleware([sessionMiddleware])
+  .validator((d: unknown) => z.object({ postId: z.number().int() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const u = requireUser(context.user);
+    const db = createDb();
+    const existing = await db.select().from(vote).where(and(eq(vote.postId, data.postId), eq(vote.userId, u.id)));
+    if (existing.length) {
+      await db.delete(vote).where(and(eq(vote.postId, data.postId), eq(vote.userId, u.id)));
+      await db.update(post).set({ voteCount: sql`max(${post.voteCount} - 1, 0)` }).where(eq(post.id, data.postId));
+      return { voted: false };
+    }
+    await db.insert(vote).values({ postId: data.postId, userId: u.id });
+    await db.update(post).set({ voteCount: sql`${post.voteCount} + 1` }).where(eq(post.id, data.postId));
+    return { voted: true };
+  });
+
+export const addComment = createServerFn({ method: "POST" })
+  .middleware([sessionMiddleware])
+  .validator((d: unknown) => z.object({ postId: z.number().int(), body: z.string().trim().min(1).max(5000) }).parse(d))
+  .handler(async ({ data, context }) => {
+    const u = requireUser(context.user);
+    const db = createDb();
+    await db.insert(comment).values({ postId: data.postId, authorId: u.id, body: data.body });
+    await db.update(post).set({ commentCount: sql`${post.commentCount} + 1` }).where(eq(post.id, data.postId));
+    return { ok: true };
+  });
+
+// ---- admin ----
+
+export const setStatus = createServerFn({ method: "POST" })
+  .middleware([sessionMiddleware])
+  .validator((d: unknown) => z.object({ postId: z.number().int(), status: z.enum(STATUSES), note: z.string().trim().max(2000).optional() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const u = requireAdmin(context.user);
+    const db = createDb();
+    const [current] = await db.select({ status: post.status }).from(post).where(eq(post.id, data.postId));
+    if (!current || current.status === data.status) return { ok: true };
+    await db.update(post).set({ status: data.status, statusChangedAt: new Date() }).where(eq(post.id, data.postId));
+    await db.insert(activity).values({ postId: data.postId, actorId: u.id, type: "status", fromStatus: current.status, toStatus: data.status, note: data.note || null });
+    return { ok: true };
+  });
+
+export const togglePin = createServerFn({ method: "POST" })
+  .middleware([sessionMiddleware])
+  .validator((d: unknown) => z.object({ postId: z.number().int() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const u = requireAdmin(context.user);
+    const db = createDb();
+    const [current] = await db.select({ pinned: post.pinned }).from(post).where(eq(post.id, data.postId));
+    if (!current) return { pinned: false };
+    await db.update(post).set({ pinned: !current.pinned }).where(eq(post.id, data.postId));
+    await db.insert(activity).values({ postId: data.postId, actorId: u.id, type: "pin", note: current.pinned ? "unpinned" : "pinned" });
+    return { pinned: !current.pinned };
+  });
+
+// Merge `from` into `into`: votes are summed (one per user), comments move,
+// the merged post keeps a pointer so its old URL still resolves.
+export const mergePosts = createServerFn({ method: "POST" })
+  .middleware([sessionMiddleware])
+  .validator((d: unknown) => z.object({ from: z.number().int(), into: z.number().int() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const u = requireAdmin(context.user);
+    if (data.from === data.into) throw new Error("Pick a different post");
+    const db = createDb();
+    const fromVotes = await db.select({ userId: vote.userId }).from(vote).where(eq(vote.postId, data.from));
+    const intoVotes = new Set((await db.select({ userId: vote.userId }).from(vote).where(eq(vote.postId, data.into))).map((v) => v.userId));
+    const moved = fromVotes.filter((v) => !intoVotes.has(v.userId));
+    if (moved.length) await db.insert(vote).values(moved.map((v) => ({ postId: data.into, userId: v.userId })));
+    await db.update(comment).set({ postId: data.into }).where(eq(comment.postId, data.from));
+    const [{ c }] = await db.select({ c: sql<number>`count(*)` }).from(comment).where(eq(comment.postId, data.into));
+    await db.update(post).set({ voteCount: sql`${post.voteCount} + ${moved.length}`, commentCount: c }).where(eq(post.id, data.into));
+    await db.update(post).set({ mergedIntoId: data.into, status: "closed" }).where(eq(post.id, data.from));
+    const [target] = await db.select({ title: post.title }).from(post).where(eq(post.id, data.into));
+    const [source] = await db.select({ title: post.title }).from(post).where(eq(post.id, data.from));
+    await db.insert(activity).values([
+      { postId: data.into, actorId: u.id, type: "merge", note: `merged "${source?.title}" into this, +${moved.length} votes` },
+      { postId: data.from, actorId: u.id, type: "merge", note: `merged into "${target?.title}"` },
+    ]);
+    return { ok: true, into: data.into };
+  });
+
+export const setTags = createServerFn({ method: "POST" })
+  .middleware([sessionMiddleware])
+  .validator((d: unknown) => z.object({ postId: z.number().int(), tags: z.array(z.string()).max(8) }).parse(d))
+  .handler(async ({ data, context }) => {
+    requireAdmin(context.user);
+    const db = createDb();
+    await db.delete(postTag).where(eq(postTag.postId, data.postId));
+    if (data.tags.length) await db.insert(postTag).values(data.tags.map((tagId) => ({ postId: data.postId, tagId })));
+    return { ok: true };
+  });
+
+export const setEta = createServerFn({ method: "POST" })
+  .middleware([sessionMiddleware])
+  .validator((d: unknown) => z.object({ postId: z.number().int(), eta: z.string().trim().max(40).nullable() }).parse(d))
+  .handler(async ({ data, context }) => {
+    requireAdmin(context.user);
+    await createDb().update(post).set({ eta: data.eta || null }).where(eq(post.id, data.postId));
+    return { ok: true };
+  });
+
+// Roadmap: every non-merged post grouped by status, most voted first.
+export const getRoadmap = createServerFn({ method: "GET" })
+  .middleware([sessionMiddleware])
+  .validator((d: unknown) => z.object({ board: z.string().optional() }).parse(d ?? {}))
+  .handler(async ({ data }) => {
+    const db = createDb();
+    const rows = await db.query.post.findMany({
+      where: and(sql`${post.mergedIntoId} is null`, data.board ? eq(post.boardId, data.board) : undefined, inArray(post.status, ["review", "planned", "progress", "done"])),
+      orderBy: [desc(post.pinned), desc(post.voteCount)],
+      with: { tags: { with: { tag: true } } },
+      columns: { id: true, title: true, status: true, voteCount: true, commentCount: true, eta: true, statusChangedAt: true },
+    });
+    return rows.map((r) => ({ ...r, tags: r.tags.map((t) => t.tag) }));
+  });
+
+export const searchPosts = createServerFn({ method: "GET" })
+  .validator((d: unknown) => z.object({ q: z.string().trim().min(1).max(80) }).parse(d))
+  .handler(async ({ data }) => {
+    const db = createDb();
+    return db
+      .select({ id: post.id, title: post.title, voteCount: post.voteCount, status: post.status })
+      .from(post)
+      .where(and(sql`${post.mergedIntoId} is null`, like(post.title, `%${data.q}%`)))
+      .orderBy(desc(post.voteCount))
+      .limit(8);
+  });
+

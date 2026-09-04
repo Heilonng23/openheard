@@ -1,9 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 
-import { authMiddleware } from "@/middleware/auth";
+import { sessionMiddleware } from "@/lib/session";
 
 export const getUser = createServerFn({ method: "GET" })
-  .middleware([authMiddleware])
-  .handler(async ({ context }) => {
-    return context.session;
-  });
+  .middleware([sessionMiddleware])
+  .handler(async ({ context }) => context.user);
