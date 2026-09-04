@@ -21,24 +21,45 @@ for. Self-host is the default, not the afterthought.
 
 Design rules live in [DESIGN.md](./DESIGN.md). Read it before touching UI.
 
-## Run it
+## Run it locally
+
+No Cloudflare account needed. A SQLite file stands in for D1.
 
 ```bash
 bun install
-bun run db:generate
-bun run dev
+bun run db:push:local   # creates apps/web/local.db from the schema
+bun run dev:local       # http://localhost:3001
 ```
 
-Open http://localhost:3001.
+Sign up once, that account becomes the admin. Then, if you want sample
+data to click around in:
 
-## Deploy
+```bash
+bun run db:seed
+```
+
+Keyboard on the board: `j` `k` move, `v` vote, `enter` open, `/` search,
+`c` new post.
+
+## Deploy to Cloudflare
 
 ```bash
 cd packages/infra && bunx alchemy login --configure
-bun run deploy
+cd ../.. && bun run deploy
 ```
 
-That provisions the Worker and the D1 database and applies migrations.
+That provisions the Worker and the D1 database, applies migrations and
+prints the URL. Runs on the free tier.
+
+## Status
+
+Working: board with votes, search, filters and sorting; posts with comments
+and a status timeline; admin status changes, merges, pins, tags, ETAs;
+roadmap; changelog that ships linked posts; settings for workspace, boards
+and tags.
+
+Next: email on status change, magic link sign-in, embed widget, GitHub
+issues sync, import from Canny.
 
 ## License
 

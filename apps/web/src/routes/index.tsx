@@ -116,6 +116,24 @@ function BoardPage() {
           </Button>
         </div>
 
+        <div className="-mx-5 flex gap-1.5 overflow-x-auto px-5 pb-1 md:hidden [scrollbar-width:none]">
+          <Chip active={!search.board && !search.status} onClick={() => navigate({ search: {} })}>
+            All
+          </Chip>
+          {root.boards.map((b) => (
+            <Chip key={b.id} active={search.board === b.id} onClick={() => set({ board: search.board === b.id ? undefined : b.id })}>
+              {b.name}
+            </Chip>
+          ))}
+          <span className="mx-1 w-px shrink-0 bg-border" />
+          {STATUS_ORDER.filter((s) => (root.statusCounts[s] ?? 0) > 0).map((s) => (
+            <Chip key={s} active={search.status === s} onClick={() => set({ status: search.status === s ? undefined : s })}>
+              <span className={cn("size-[7px] rounded-full", STATUS_META[s].dot)} />
+              {STATUS_META[s].label}
+            </Chip>
+          ))}
+        </div>
+
         <div className="flex gap-2.5">
           <form
             className="relative flex-1"
@@ -200,6 +218,21 @@ function BoardPage() {
 
       <NewPostDialog open={composing} onOpenChange={setComposing} boards={root.boards} tags={root.tags} defaultBoard={search.board} signedIn={signedIn} />
     </div>
+  );
+}
+
+function Chip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border bg-card px-2.5 text-xs font-medium whitespace-nowrap text-muted-foreground transition-colors",
+        active && "border-foreground/40 bg-accent text-foreground",
+      )}
+    >
+      {children}
+    </button>
   );
 }
 

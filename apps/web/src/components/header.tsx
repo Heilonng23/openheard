@@ -14,11 +14,11 @@ export default function Header() {
   const data = useLoaderData({ from: "__root__" });
   const admin = data?.user?.role === "admin";
   return (
-    <header className="flex h-14 items-center justify-between border-b px-5 md:px-7">
-      <div className="flex items-center gap-4 md:gap-7">
+    <header className="flex h-14 items-center justify-between border-b px-4 md:px-7">
+      <div className="flex items-center gap-3 md:gap-7">
         <Link to="/" className="flex items-center gap-2.5 text-[15px] font-semibold text-foreground">
           <Logo />
-          <span>openheard</span>
+          <span className="hidden sm:inline">openheard</span>
           {data?.workspace.name && data.workspace.name !== "openheard" ? (
             <span className="hidden font-normal text-muted-foreground sm:inline">/ {data.workspace.name}</span>
           ) : null}
@@ -29,7 +29,7 @@ export default function Header() {
               key={to}
               to={to}
               activeOptions={{ exact: to === "/" }}
-              className="rounded-sm px-2.5 py-1.5 text-[13.5px] font-medium text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground data-[status=active]:bg-secondary data-[status=active]:text-foreground"
+              className="rounded-sm px-2 py-1.5 text-[13px] font-medium text-muted-foreground md:px-2.5 md:text-[13.5px] transition-colors duration-150 hover:bg-accent hover:text-foreground data-[status=active]:bg-secondary data-[status=active]:text-foreground"
             >
               {label}
             </Link>
