@@ -1,0 +1,24 @@
+{
+  "name": "@openheard/auth",
+  "type": "module",
+  "exports": {
+    ".": {
+      "default": "./src/index.ts"
+    },
+    "./*": {
+      "default": "./src/*.ts"
+    }
+  },
+  "scripts": {},
+  "dependencies": {
+    "@openheard/db": "workspace:*",
+    "@openheard/env": "workspace:*",
+    "better-auth": "catalog:",
+    "dotenv": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@openheard/config": "workspace:*",
+    "typescript": "catalog:"
+  }
+}

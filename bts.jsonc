@@ -1,0 +1,28 @@
+// Better-T-Stack project metadata
+//
+// Keep this file to use the `add` command.
+// Add addons: bunx create-better-t-stack@latest add
+//
+// Docs: https://better-t-stack.dev/docs
+// Stack Builder: https://better-t-stack.dev/new
+
+{
+  "$schema": "https://r2.better-t-stack.dev/schema.json",
+  "version": "3.42.2",
+  "createdAt": "2026-09-04T01:06:17.523Z",
+  "reproducibleCommand": "bun create better-t-stack@latest openheard --frontend tanstack-start --backend self --runtime none --database sqlite --orm drizzle --api none --auth better-auth --payments none --addons none --examples none --db-setup d1 --web-deploy cloudflare --server-deploy none --git --package-manager bun --install",
+  "database": "sqlite",
+  "orm": "drizzle",
+  "backend": "self",
+  "runtime": "none",
+  "frontend": ["tanstack-start"],
+  "addons": [],
+  "examples": [],
+  "auth": "better-auth",
+  "payments": "none",
+  "packageManager": "bun",
+  "dbSetup": "d1",
+  "api": "none",
+  "webDeploy": "cloudflare",
+  "serverDeploy": "none",
+}

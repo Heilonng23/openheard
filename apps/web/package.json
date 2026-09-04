@@ -1,0 +1,44 @@
+{
+  "name": "web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "serve": "vite preview",
+    "dev:bare": "vite dev"
+  },
+  "dependencies": {
+    "@libsql/client": "catalog:",
+    "@openheard/auth": "workspace:*",
+    "@openheard/env": "workspace:*",
+    "@openheard/ui": "workspace:*",
+    "@tailwindcss/vite": "^4.3.3",
+    "@tanstack/react-form": "^1.33.2",
+    "@tanstack/react-query": "^5.101.4",
+    "@tanstack/react-router": "^1.170.18",
+    "@tanstack/react-start": "^1.168.32",
+    "better-auth": "catalog:",
+    "dotenv": "catalog:",
+    "libsql": "catalog:",
+    "lucide-react": "catalog:",
+    "next-themes": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "sonner": "catalog:",
+    "tailwindcss": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@openheard/config": "workspace:*",
+    "@tanstack/react-router-devtools": "^1.167.0",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@vitejs/plugin-react": "^6.0.4",
+    "jsdom": "^30.0.0",
+    "typescript": "catalog:",
+    "vite": "^8.1.5",
+    "web-vitals": "^6.0.1"
+  }
+}

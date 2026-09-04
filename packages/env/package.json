@@ -1,0 +1,21 @@
+{
+  "name": "@openheard/env",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./server": "./src/server.ts",
+    "./web": "./src/web.ts"
+  },
+  "dependencies": {
+    "@t3-oss/env-core": "^0.13.11",
+    "dotenv": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@openheard/config": "workspace:*",
+    "@openheard/infra": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  }
+}

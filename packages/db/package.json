@@ -1,0 +1,29 @@
+{
+  "name": "@openheard/db",
+  "type": "module",
+  "exports": {
+    ".": {
+      "default": "./src/index.ts"
+    },
+    "./*": {
+      "default": "./src/*.ts"
+    }
+  },
+  "scripts": {
+    "db:generate": "drizzle-kit generate",
+    "db:migrate:deploy": "drizzle-kit migrate"
+  },
+  "dependencies": {
+    "@libsql/client": "catalog:",
+    "@openheard/env": "workspace:*",
+    "dotenv": "catalog:",
+    "drizzle-orm": "^0.45.2",
+    "libsql": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@openheard/config": "workspace:*",
+    "drizzle-kit": "^0.31.10",
+    "typescript": "catalog:"
+  }
+}
