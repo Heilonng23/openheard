@@ -10,7 +10,10 @@
   "dependencies": {
     "@t3-oss/env-core": "^0.13.11",
     "dotenv": "catalog:",
-    "zod": "catalog:"
+    "zod": "catalog:",
+    "@libsql/client": "catalog:",
+    "drizzle-orm": "^0.45.2",
+    "@openheard/db": "workspace:*"
   },
   "devDependencies": {
     "@openheard/config": "workspace:*",

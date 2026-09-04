@@ -11,7 +11,9 @@
   },
   "scripts": {
     "db:generate": "drizzle-kit generate",
-    "db:migrate:deploy": "drizzle-kit migrate"
+    "db:migrate:deploy": "drizzle-kit migrate",
+    "db:push:local": "drizzle-kit push --config drizzle.local.config.ts",
+    "db:studio:local": "drizzle-kit studio --config drizzle.local.config.ts"
   },
   "dependencies": {
     "@libsql/client": "catalog:",

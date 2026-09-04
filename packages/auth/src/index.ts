@@ -18,6 +18,22 @@ export function createAuth() {
     emailAndPassword: {
       enabled: true,
     },
+    user: {
+      additionalFields: {
+        role: { type: "string", input: false, defaultValue: "member" },
+      },
+    },
+    databaseHooks: {
+      user: {
+        create: {
+          // First account owns the install.
+          before: async (u) => {
+            const existing = await db.select({ id: schema.user.id }).from(schema.user).limit(1);
+            return { data: { ...u, role: existing.length === 0 ? "admin" : "member" } };
+          },
+        },
+      },
+    },
     secret: env.BETTER_AUTH_SECRET,
     baseURL: env.BETTER_AUTH_URL,
     plugins: [tanstackStartCookies()],

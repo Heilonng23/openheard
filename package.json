@@ -32,7 +32,10 @@
     "dev:web": "bun run --filter web dev:bare",
     "db:generate": "bun run --filter @openheard/db db:generate",
     "deploy": "bun run --filter @openheard/infra deploy",
-    "destroy": "bun run --filter @openheard/infra destroy"
+    "destroy": "bun run --filter @openheard/infra destroy",
+    "dev:local": "OPENHEARD_LOCAL=1 bun run --filter web dev:bare",
+    "db:push:local": "bun run --filter @openheard/db db:push:local",
+    "db:seed": "OPENHEARD_LOCAL=1 bun run --filter web seed"
   },
   "dependencies": {
     "@openheard/env": "workspace:*",
