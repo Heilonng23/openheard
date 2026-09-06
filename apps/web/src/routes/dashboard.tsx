@@ -1,6 +1,6 @@
 import { ListIcon } from "@phosphor-icons/react";
 import { Outlet, createFileRoute, redirect, useLoaderData, useLocation } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { AdminRail, AdminSidebar } from "@/components/admin/sidebar";
 import { NewPostDialog } from "@/components/new-post-dialog";
@@ -24,6 +24,11 @@ function AdminLayout() {
   const root = useLoaderData({ from: "__root__" });
   const [composing, setComposing] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const openCompose = useCallback(() => setComposing(true), []);
+  useEffect(() => {
+    window.addEventListener("oh:compose", openCompose);
+    return () => window.removeEventListener("oh:compose", openCompose);
+  }, [openCompose]);
   const inSettings = pathname.startsWith("/dashboard/settings") || (pathname.startsWith("/dashboard/inbox") && !!(search as { post?: number }).post);
   const [open, setOpen] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);

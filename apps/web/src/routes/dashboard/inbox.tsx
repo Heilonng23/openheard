@@ -117,7 +117,16 @@ function Inbox() {
             {search.tag ? <Chip onClear={() => navigate({ search: (p) => ({ ...p, tag: undefined, post: undefined }) })}>{root.tags.find((t) => t.id === search.tag)?.name ?? search.tag}</Chip> : null}
           </div>
         ) : null}
-        {list.length === 0 ? <p className="px-4 py-8 text-sm text-faint">{meta ? `Nothing ${meta.label.toLowerCase()} right now.` : "No posts yet."}</p> : null}
+        {list.length === 0 ? (
+          <div className="flex flex-col items-center gap-3 px-4 py-12 text-center">
+            <p className="text-sm text-faint">{meta ? `Nothing ${meta.label.toLowerCase()} right now.` : "No posts yet."}</p>
+            {!filtered ? (
+              <Button variant="secondary" size="sm" onClick={() => window.dispatchEvent(new Event("oh:compose"))}>
+                Create the first post
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
         {list.map((p) => {
           const on = post?.id === p.id;
           const st = findStatus(statuses, p.status);
