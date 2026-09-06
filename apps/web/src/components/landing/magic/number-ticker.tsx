@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, type ComponentPropsWithoutRef } from "react"
+import { useEffect, useRef, useState, type ComponentPropsWithoutRef } from "react"
 import { useInView, useMotionValue, useSpring } from "motion/react"
 
 import { cn } from "@openheard/ui/lib/utils"
@@ -30,7 +30,21 @@ export function NumberTicker({
   })
   const isInView = useInView(ref, { once: true, margin: "0px" })
 
+  const [prefersReduced, setPrefersReduced] = useState(false)
   useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)")
+    setPrefersReduced(mq.matches)
+    const h = (e: MediaQueryListEvent) => setPrefersReduced(e.matches)
+    mq.addEventListener("change", h)
+    return () => mq.removeEventListener("change", h)
+  }, [])
+
+  useEffect(() => {
+    if (prefersReduced) {
+      motionValue.set(value)
+      return
+    }
+
     let timer: ReturnType<typeof setTimeout> | null = null
 
     if (isInView) {
@@ -44,7 +58,7 @@ export function NumberTicker({
         clearTimeout(timer)
       }
     }
-  }, [motionValue, isInView, delay, value, direction, startValue])
+  }, [motionValue, isInView, delay, value, direction, startValue, prefersReduced])
 
   useEffect(
     () =>
@@ -68,7 +82,7 @@ export function NumberTicker({
       )}
       {...props}
     >
-      {startValue}
+      {prefersReduced ? value : startValue}
     </span>
   )
 }

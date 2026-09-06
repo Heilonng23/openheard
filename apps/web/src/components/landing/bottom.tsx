@@ -1,6 +1,6 @@
 import { CaretDownIcon, CaretUpIcon, CheckIcon, PaperPlaneTiltIcon } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Button } from "@openheard/ui/components/button";
 import { cn } from "@openheard/ui/lib/utils";
@@ -16,10 +16,10 @@ import { GITHUB } from "./top";
 /* ---------------------------------------------------------------- product */
 
 const products = [
-  { id: "board", eyebrow: "Board", title: "A board users actually use.", sub: "Post, vote, comment. Duplicates merge without losing votes. Keyboard first, one accent colour, no clutter.", points: ["Public or private boards", "One vote per user, anonymous voting optional", "Tags, search, trending and top sorts"], shot: "/landing/board.png", center: true },
-  { id: "roadmap", eyebrow: "Roadmap", title: "A roadmap that stays honest.", sub: "Statuses are data. Drag a card in the dashboard and the public roadmap, the board and the changelog all agree.", points: ["Columns come from your statuses", "Vote counts on every card", "Hide it until you are ready"], shot: "/landing/dashboard-roadmap.png", center: false },
-  { id: "changelog", eyebrow: "Changelog", title: "Close the loop.", sub: "Write what shipped, link the posts, publish. Everyone who voted gets an email. RSS for the rest.", points: ["Entries link back to the requests", "Voters notified on publish", "RSS feed, version tags, drafts"], shot: "/landing/changelog.png", center: true },
-  { id: "dashboard", eyebrow: "Dashboard", title: "An inbox, not a CRM.", sub: "Every post in one list with status, board, tags and votes. Filter, pin, merge, add an internal note, move on.", points: ["Quick filters by status, board and tag", "Internal notes and reactions", "CSV import and export"], shot: "/landing/dashboard-inbox.png", center: false },
+  { id: "board", eyebrow: "Board", title: "A board users actually use.", sub: "Post, vote, comment. Duplicates merge without losing votes. Keyboard first, one accent colour, no clutter.", points: ["Public or private boards", "One vote per user, anonymous voting optional", "Tags, search, trending and top sorts"], shot: "/landing/board.png", alt: "Public feedback board showing feature requests ranked by votes", center: true },
+  { id: "roadmap", eyebrow: "Roadmap", title: "A roadmap that stays honest.", sub: "Statuses are data. Drag a card in the dashboard and the public roadmap, the board and the changelog all agree.", points: ["Columns come from your statuses", "Vote counts on every card", "Hide it until you are ready"], shot: "/landing/dashboard-roadmap.png", alt: "Dashboard roadmap view with kanban columns for Planned, In Progress and Shipped", center: false },
+  { id: "changelog", eyebrow: "Changelog", title: "Close the loop.", sub: "Write what shipped, link the posts, publish. Everyone who voted gets an email. RSS for the rest.", points: ["Entries link back to the requests", "Voters notified on publish", "RSS feed, version tags, drafts"], shot: "/landing/changelog.png", alt: "Changelog page with published entries linked to shipped requests", center: true },
+  { id: "dashboard", eyebrow: "Dashboard", title: "An inbox, not a CRM.", sub: "Every post in one list with status, board, tags and votes. Filter, pin, merge, add an internal note, move on.", points: ["Quick filters by status, board and tag", "Internal notes and reactions", "CSV import and export"], shot: "/landing/dashboard-inbox.png", alt: "Dashboard inbox showing all posts with status filters and vote counts", center: false },
 ];
 
 // Template growth section: Framed, SectionHeader, then a 2-col grid with
@@ -43,9 +43,9 @@ export function Products() {
               ))}
             </ul>
           </div>
-          <div className="overflow-hidden p-6">
+          <div className="overflow-hidden p-4 md:p-6">
             <BlurFade inView>
-              <Shot src={p.shot} alt="" className="aspect-[16/10]" imgClassName={cn("w-[150%] max-w-none", p.center && "-ml-[25%]")} />
+              <Shot src={p.shot} alt={p.alt} className="aspect-[16/10]" imgClassName={cn("w-full md:w-[150%] md:max-w-none", p.center && "md:-ml-[25%]")} />
             </BlurFade>
           </div>
         </div>
@@ -125,17 +125,17 @@ export function Bento() {
           </div>
         </Cell>
         <Cell title="A roadmap that stays honest" desc="Statuses are data. Drag a card and the board, the roadmap and the changelog agree.">
-          <div className="grid w-full max-w-[480px] grid-cols-3 gap-3">
+          <div className="grid w-full max-w-[480px] grid-cols-3 gap-2 md:gap-3">
             {columns.map(([name, dot, cards]) => (
               <div key={name} className="flex flex-col gap-2">
-                <div className="flex items-center gap-2 text-[12px] font-medium text-muted-foreground">
+                <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground md:gap-2 md:text-[12px]">
                   <span className={cn("size-2 rounded-full", dot)} />
                   {name}
                 </div>
                 {cards.map((c) => (
-                  <div key={c} className={cn("rounded-lg border bg-card p-3 text-[13px] font-medium", name === "Shipped" ? "border-status-shipped/60" : "border-border")}>
+                  <div key={c} className={cn("rounded-lg border bg-card p-2 text-[12px] font-medium md:p-3 md:text-[13px]", name === "Shipped" ? "border-status-shipped/60" : "border-border")}>
                     {c}
-                    <div className="mt-1.5 font-mono text-[11px] font-normal text-faint">▲ {c.length * 7}</div>
+                    <div className="mt-1 font-mono text-[10px] font-normal text-faint md:mt-1.5 md:text-[11px]">▲ {c.length * 7}</div>
                   </div>
                 ))}
               </div>
@@ -158,8 +158,8 @@ export function Bento() {
 
 function Cell({ title, desc, children }: { title: string; desc: string; children: React.ReactNode }) {
   return (
-    <div className="relative flex min-h-[520px] flex-col items-start justify-end p-0.5 before:absolute before:top-0 before:-left-0.5 before:z-10 before:h-screen before:w-px before:bg-border before:content-[''] after:absolute after:-top-0.5 after:left-0 after:z-10 after:h-px after:w-screen after:bg-border after:content-['']">
-      <div className="relative flex size-full h-full max-h-[380px] flex-1 items-center justify-center overflow-hidden p-6">{children}</div>
+    <div className="relative flex min-h-[400px] flex-col items-start justify-end p-0.5 md:min-h-[520px] before:absolute before:top-0 before:-left-0.5 before:z-10 before:h-screen before:w-px before:bg-border before:content-[''] after:absolute after:-top-0.5 after:left-0 after:z-10 after:h-px after:w-screen after:bg-border after:content-['']">
+      <div className="relative flex size-full h-full max-h-[320px] flex-1 items-center justify-center overflow-hidden p-4 md:max-h-[380px] md:p-6">{children}</div>
       <div className="flex flex-col gap-2 p-6">
         <h3 className="text-lg font-semibold tracking-tighter">{title}</h3>
         <p className="text-muted-foreground">{desc}</p>
@@ -190,17 +190,17 @@ export function Loop() {
             <p>None of it is configured. Turn the board on and the loop runs the same day.</p>
           </div>
         </div>
-        <dl className="flex flex-col p-6">
+        <div className="flex flex-col p-6" role="list">
           {moments.map(([n, t, d], i) => (
-            <div key={n} className={cn("flex gap-5 py-5 first:pt-0 last:pb-0", i < moments.length - 1 && "border-b border-border")}>
+            <div key={n} role="listitem" className={cn("flex gap-5 py-5 first:pt-0 last:pb-0", i < moments.length - 1 && "border-b border-border")}>
               <span className="pt-0.5 font-mono text-[13px] text-link">{n}</span>
               <div>
-                <dt className="text-[16px] font-medium">{t}</dt>
-                <dd className="mt-1 text-[14px] leading-relaxed text-muted-foreground">{d}</dd>
+                <p className="text-[16px] font-medium">{t}</p>
+                <p className="mt-1 text-[14px] leading-relaxed text-muted-foreground">{d}</p>
               </div>
             </div>
           ))}
-        </dl>
+        </div>
       </div>
     </Framed>
   );
@@ -215,17 +215,59 @@ const own = [
   ["Cloud when you want it", "Same code, we host it. Move between the two with a CSV."],
 ];
 
-// Template feature section: plain section, SectionHeader, then the slideshow
-// row: accordion list on the left, media on the right, ~450px tall.
+const OWN_ADVANCE_MS = 5000;
+
 export function Own() {
   const [active, setActive] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const startRef = useRef(Date.now());
+  const rafRef = useRef<number>(0);
+
+  const advance = useCallback(() => {
+    setActive((i) => (i + 1) % own.length);
+    setProgress(0);
+    startRef.current = Date.now();
+  }, []);
+
+  useEffect(() => {
+    if (paused) {
+      cancelAnimationFrame(rafRef.current);
+      return;
+    }
+
+    startRef.current = Date.now() - progress * OWN_ADVANCE_MS;
+
+    const tick = () => {
+      const elapsed = Date.now() - startRef.current;
+      const p = Math.min(elapsed / OWN_ADVANCE_MS, 1);
+      setProgress(p);
+      if (p >= 1) {
+        advance();
+      } else {
+        rafRef.current = requestAnimationFrame(tick);
+      }
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [paused, active, advance, progress]);
+
+  const select = (i: number) => {
+    setActive(i);
+    setProgress(0);
+    startRef.current = Date.now();
+  };
+
   return (
     <section id="own" className="relative flex w-full scroll-mt-16 flex-col items-center justify-center gap-5">
       <SectionHeader title="Self-host is not a trial. It is the full product, forever." />
-      <div className="grid w-full items-center gap-6 px-6 pb-10 md:grid-cols-[400px_1fr] md:gap-10">
+      <div className="grid w-full items-center gap-6 px-4 pb-10 md:grid-cols-[400px_1fr] md:gap-10 md:px-6" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
         <div className="flex flex-col">
           {own.map(([t, d], i) => (
-            <button key={t} type="button" onClick={() => setActive(i)} className={cn("relative flex flex-col gap-1 rounded-lg px-5 py-4 text-left transition-colors", active === i ? "bg-secondary/60" : "hover:bg-accent/40")}>
+            <button key={t} type="button" onClick={() => select(i)} className={cn("relative flex flex-col gap-1 overflow-hidden rounded-lg px-4 py-3 text-left transition-colors md:px-5 md:py-4", active === i ? "bg-secondary/60" : "hover:bg-accent/40")}>
+              {active === i && (
+                <div className="absolute inset-y-0 left-0 w-0.5 rounded-full bg-link" style={{ height: `${progress * 100}%`, transition: paused ? "none" : undefined }} />
+              )}
               <span className={cn("text-[15px] font-medium", active === i ? "text-foreground" : "text-muted-foreground")}>{t}</span>
               <Collapsible open={active === i}>
                 <span className="block pt-1 text-[14px] leading-relaxed text-muted-foreground">{d}</span>
@@ -233,7 +275,7 @@ export function Own() {
             </button>
           ))}
         </div>
-        <Terminal title="zsh — ~/openheard" className="min-h-[320px]">
+        <Terminal title="zsh — ~/openheard" className="min-h-[280px] md:min-h-[320px]">
           <TypingAnimation delay={200}>$ bunx openheard deploy</TypingAnimation>
           <AnimatedSpan delay={1600} className="pl-4 text-status-shipped">✓ Worker openheard-acme created</AnimatedSpan>
           <AnimatedSpan delay={2100} className="pl-4 text-status-shipped">✓ D1 database migrated (7 tables)</AnimatedSpan>
@@ -264,7 +306,7 @@ export function Pricing() {
             <div className="flex flex-col gap-4 p-4">
               <p className="text-sm">
                 {p.name}
-                {p.primary ? <span className="ml-2 inline-flex h-6 w-fit items-center justify-center rounded-full bg-link px-2 text-xs font-medium text-white">Popular</span> : null}
+                {p.primary ? <span className="ml-2 inline-flex h-6 w-fit items-center justify-center rounded-full bg-[#4a6ae0] px-2 text-xs font-medium text-white">Popular</span> : null}
               </p>
               <div className="mt-2 flex items-baseline">
                 <span className="text-4xl font-semibold tracking-tight tabular-nums">{p.price}</span>
@@ -296,7 +338,7 @@ export function Pricing() {
       </div>
       <p className="px-6 text-center text-[14px] text-muted-foreground">
         Self-hosting is free forever, no tier, no limits. AGPL-3.{" "}
-        <a href="#own" className="text-foreground underline-offset-4 hover:underline">
+        <a href="#own" className="text-foreground underline underline-offset-4">
           Deploy on your own Cloudflare account
         </a>
         .
@@ -323,21 +365,21 @@ export function Faq() {
   return (
     <section id="faq" className="relative flex w-full flex-col items-center justify-center gap-10 pb-10">
       <SectionHeader title="Frequently asked, plainly answered." sub="Everything else is in the docs and the README." />
-      <dl className="mx-auto grid w-full max-w-3xl gap-2 px-6 md:px-10">
+      <div className="mx-auto grid w-full max-w-3xl gap-2 px-6 md:px-10">
         {faq.map(([q, a], i) => (
           <div key={q} className="grid gap-2">
-            <dt>
+            <div>
               <button type="button" onClick={() => setOpen(open === i ? null : i)} aria-expanded={open === i} className={cn("flex w-full cursor-pointer items-center justify-between gap-6 rounded-lg border border-border bg-accent px-4 py-3.5 text-left text-[15px] font-medium", open === i && "ring-2 ring-ring/20")}>
                 {q}
-                <CaretDownIcon className={cn("size-4 shrink-0 text-faint transition-transform duration-200", open === i && "rotate-180")} />
+                <CaretDownIcon className={cn("size-4 shrink-0 text-muted-foreground transition-transform duration-200", open === i && "rotate-180")} />
               </button>
-            </dt>
+            </div>
             <Collapsible open={open === i}>
-              <dd className="rounded-lg border border-border bg-accent p-3 text-[14px] leading-relaxed font-medium text-muted-foreground">{a}</dd>
+              <div className="rounded-lg border border-border bg-accent p-3 text-[14px] leading-relaxed font-medium text-muted-foreground">{a}</div>
             </Collapsible>
           </div>
         ))}
-      </dl>
+      </div>
     </section>
   );
 }
@@ -352,8 +394,8 @@ export function Closing() {
       <div className="w-full">
         <div className="relative z-20 h-[400px] w-full overflow-hidden rounded-xl border border-border bg-card shadow-xl">
           <div aria-hidden className="absolute inset-0 [background:radial-gradient(60%_80%_at_50%_0%,rgba(110,139,255,.28),transparent_70%)]" />
-          <div className="absolute inset-0 -top-32 flex flex-col items-center justify-center md:-top-40">
-            <h2 className="max-w-xs text-center text-4xl font-medium tracking-tighter text-balance md:max-w-xl md:text-7xl">Your users have opinions.</h2>
+          <div className="absolute inset-0 -top-24 flex flex-col items-center justify-center md:-top-40">
+            <h2 className="max-w-xs text-center text-3xl font-medium tracking-tighter text-balance md:max-w-xl md:text-7xl">Your users have opinions.</h2>
             <div className="absolute bottom-10 flex flex-col items-center justify-center gap-3">
               <Button size="lg" arrow nativeButton={false} render={<Link to="/login" />}>
                 Start for free
@@ -379,14 +421,14 @@ const footerCols = [
 export function Footer() {
   return (
     <footer id="footer" className="w-full pb-0">
-      <div className="flex flex-col p-10 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col p-6 md:flex-row md:items-center md:justify-between md:p-10">
         <div className="mx-0 flex max-w-xs flex-col items-start justify-start gap-y-5">
           <Link to="/" className="flex items-center gap-2.5 text-xl font-semibold">
             <Logo size={30} />
             openheard
           </Link>
           <p className="font-medium tracking-tight text-muted-foreground">Open source feedback board. Post, vote, roadmap, changelog. Self-host or cloud.</p>
-          <p className="font-mono text-[12px] text-faint">AGPL-3.0 · © {new Date().getFullYear()} openheard</p>
+          <p className="font-mono text-[12px] text-muted-foreground">AGPL-3.0 · © {new Date().getFullYear()} openheard</p>
         </div>
         <div className="pt-5 md:w-1/2">
           <div className="flex flex-col items-start justify-start gap-y-5 md:flex-row md:items-start md:justify-between lg:pl-10">
