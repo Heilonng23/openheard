@@ -274,6 +274,27 @@ export const apiKey = sqliteTable(
   (t) => [index("api_key_workspace_idx").on(t.workspaceId)],
 );
 
+export const invite = sqliteTable(
+  "invite",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspace.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    role: text("role", { enum: ROLES }).notNull().default("member"),
+    token: text("token").notNull().unique(),
+    expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+    acceptedAt: integer("accepted_at", { mode: "timestamp_ms" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).default(now).notNull(),
+  },
+  (t) => [index("invite_workspace_idx").on(t.workspaceId), index("invite_token_idx").on(t.token)],
+);
+
+export const inviteRelations = relations(invite, ({ one }) => ({
+  workspace: one(workspace, { fields: [invite.workspaceId], references: [workspace.id] }),
+}));
+
 export const boardRelations = relations(board, ({ one, many }) => ({ workspace: one(workspace, { fields: [board.workspaceId], references: [workspace.id] }), posts: many(post) }));
 
 export const postRelations = relations(post, ({ one, many }) => ({
