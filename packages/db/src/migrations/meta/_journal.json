@@ -50,6 +50,13 @@
       "when": 1788638541094,
       "tag": "0006_daffy_ultimatum",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1788725281887,
+      "tag": "0007_superb_skullbuster",
+      "breakpoints": true
     }
   ]
 }
