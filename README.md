@@ -53,14 +53,20 @@ prints the URL. Runs on the free tier.
 
 ## Status
 
-Working: board with votes, search, filters and sorting; posts with comments
-and a status timeline; admin status changes, merges, pins, tags, ETAs;
-roadmap; changelog that ships linked posts; settings for workspace, boards
-and tags.
+Working: public board with votes, search and sorting; posts with comments and
+a status timeline; roadmap; changelog with RSS; an admin dashboard at `/dashboard`
+with an inbox, internal notes, merges, pins, tags, and settings for the
+workspace, boards, tags and team.
 
-Next: email on status change, magic link sign-in, embed widget, GitHub
-issues sync, import from Canny.
+Next: image uploads, magic link sign-in, email invites, an HTTP API with keys,
+then an MCP server, a CLI and an embeddable widget on top of it.
 
 ## License
 
-MIT
+The app (`apps/web`, `packages/db`, `packages/auth`, `packages/ui`) is
+[AGPL-3.0](./LICENSE). Self-host it freely; if you run a modified version as
+a service, publish your changes.
+
+The pieces you embed in your own product, the widget, the CLI, the MCP server
+and the API client, will ship under MIT in their own packages so they never
+touch your licence.

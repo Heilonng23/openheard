@@ -56,3 +56,8 @@ coverage
 .cache
 tmp
 temp
+/*.png
+.playwright-mcp/
+
+# Private working notes (AI-written md files, never published)
+/notes/
