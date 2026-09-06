@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { MergeDialog } from "@/components/merge-dialog";
 import { Panel } from "@/components/admin/panel";
 import { Avatar, StatusChip, TeamBadge } from "@/components/bits";
+import { DashboardErrorState, DashboardPanelSkeleton } from "@/components/states";
 import { listInbox, setBoard } from "@/functions/admin";
 import { REACTIONS, addComment, getPost, setEta as setEtaFn, setStatus, setTags, togglePin, toggleReaction } from "@/functions/posts";
 import { KIND_ICON, findStatus, useStatuses } from "@/lib/status";
@@ -33,6 +34,8 @@ export const Route = createFileRoute("/dashboard/inbox")({
   },
   head: () => ({ meta: [{ title: "Posts · openheard" }] }),
   component: Inbox,
+  errorComponent: ({ error }) => <DashboardErrorState message={(error as Error)?.message} retry="/dashboard/inbox" />,
+  pendingComponent: DashboardPanelSkeleton,
 });
 
 function Inbox() {

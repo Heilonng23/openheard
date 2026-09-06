@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { Panel } from "@/components/admin/panel";
 import { Avatar } from "@/components/bits";
+import { DashboardErrorState, DashboardPanelSkeleton } from "@/components/states";
 import { deleteChangelog, listChangelog, saveChangelog } from "@/functions/changelog";
 import { searchPosts } from "@/functions/posts";
 import { ago, fullDate } from "@/lib/time";
@@ -22,6 +23,8 @@ export const Route = createFileRoute("/dashboard/changelog")({
   loader: () => listChangelog(),
   head: () => ({ meta: [{ title: "Changelog · openheard" }] }),
   component: ChangelogPage,
+  errorComponent: ({ error }) => <DashboardErrorState message={(error as Error)?.message} retry="/dashboard/changelog" />,
+  pendingComponent: DashboardPanelSkeleton,
 });
 
 // A plain list, and a document-style editor when you open an entry.

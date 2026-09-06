@@ -36,6 +36,7 @@ import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } 
 import { CSS } from "@dnd-kit/utilities";
 
 import { Panel } from "@/components/admin/panel";
+import { DashboardErrorState, DashboardPanelSkeleton } from "@/components/states";
 import { listRoadmapAdmin } from "@/functions/admin";
 import { setStatus } from "@/functions/posts";
 import { KIND_ICON, roadmapStatuses, useStatuses } from "@/lib/status";
@@ -62,6 +63,8 @@ export const Route = createFileRoute("/dashboard/roadmap")({
   },
   head: () => ({ meta: [{ title: "Roadmap · openheard" }] }),
   component: Roadmap,
+  errorComponent: ({ error }) => <DashboardErrorState message={(error as Error)?.message} retry="/dashboard/roadmap" />,
+  pendingComponent: DashboardPanelSkeleton,
 });
 
 const GLYPH: Record<(typeof KIND_ICON)[keyof typeof KIND_ICON], Icon> = {

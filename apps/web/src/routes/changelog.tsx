@@ -8,6 +8,7 @@ import { toast } from "sonner";
 
 import { Button } from "@openheard/ui/components/button";
 import { RailLabel, Shell } from "@/components/shell";
+import { ChangelogSkeleton, ErrorState } from "@/components/states";
 import { deleteChangelog, listChangelog, saveChangelog } from "@/functions/changelog";
 import { searchPosts } from "@/functions/posts";
 import { cn } from "@openheard/ui/lib/utils";
@@ -16,6 +17,8 @@ export const Route = createFileRoute("/changelog")({
   loader: () => listChangelog(),
   head: () => ({ meta: [{ title: "Changelog · feedback" }] }),
   component: ChangelogPage,
+  errorComponent: ({ error }) => <ErrorState message={(error as Error)?.message} retry="/changelog" />,
+  pendingComponent: ChangelogSkeleton,
 });
 
 type Entry = Awaited<ReturnType<typeof listChangelog>>[number];

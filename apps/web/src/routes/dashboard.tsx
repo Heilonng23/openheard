@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 
 import { AdminRail, AdminSidebar } from "@/components/admin/sidebar";
 import { NewPostDialog } from "@/components/new-post-dialog";
+import { DashboardErrorState } from "@/components/states";
 import { getUser } from "@/functions/get-user";
 import { cn } from "@openheard/ui/lib/utils";
 
@@ -12,6 +13,7 @@ export const Route = createFileRoute("/dashboard")({
     if (user?.role !== "admin") throw redirect({ to: "/login" });
   },
   component: AdminLayout,
+  errorComponent: ({ error }) => <DashboardErrorState message={(error as Error)?.message} />,
 });
 
 // Full sidebar everywhere except settings, where it collapses to the rail so

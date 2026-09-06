@@ -2,11 +2,14 @@ import { ArrowLeftIcon } from "@phosphor-icons/react";
 import { Link, Outlet, createFileRoute, useLocation } from "@tanstack/react-router";
 
 import { Panel } from "@/components/admin/panel";
+import { DashboardErrorState, DashboardPanelSkeleton } from "@/components/states";
 import { SETTINGS_NAV } from "@/lib/admin-nav";
 import { cn } from "@openheard/ui/lib/utils";
 
 export const Route = createFileRoute("/dashboard/settings")({
   component: SettingsLayout,
+  errorComponent: ({ error }) => <DashboardErrorState message={(error as Error)?.message} retry="/dashboard/settings/general" />,
+  pendingComponent: DashboardPanelSkeleton,
 });
 
 function SettingsLayout() {

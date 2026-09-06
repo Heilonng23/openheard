@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@openheard/ui/components/button";
 import { Avatar, StatusChip, TeamBadge } from "@/components/bits";
 import { RailLabel, Shell } from "@/components/shell";
+import { ErrorState, PostSkeleton } from "@/components/states";
 import { VoteButton } from "@/components/vote-button";
 import { addComment, getPost, mergePosts, setEta } from "@/functions/posts";
 import { findStatus, roadmapStatuses, useStatuses } from "@/lib/status";
@@ -22,6 +23,8 @@ export const Route = createFileRoute("/p/$id")({
   },
   head: ({ loaderData }) => ({ meta: [{ title: loaderData ? `${loaderData.title} · feedback` : "Post" }] }),
   component: PostPage,
+  errorComponent: ({ error }) => <ErrorState message={(error as Error)?.message} />,
+  pendingComponent: PostSkeleton,
 });
 
 function PostPage() {

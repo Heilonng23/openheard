@@ -1,5 +1,6 @@
 import { Link, createFileRoute, useLoaderData, useNavigate } from "@tanstack/react-router";
 
+import { ErrorState, RoadmapSkeleton } from "@/components/states";
 import { VoteButton } from "@/components/vote-button";
 import { getRoadmap } from "@/functions/posts";
 import { roadmapStatuses } from "@/lib/status";
@@ -11,6 +12,8 @@ export const Route = createFileRoute("/roadmap")({
   loader: ({ deps }) => getRoadmap({ data: deps }),
   head: () => ({ meta: [{ title: "Roadmap · feedback" }] }),
   component: RoadmapPage,
+  errorComponent: ({ error }) => <ErrorState message={(error as Error)?.message} retry="/roadmap" />,
+  pendingComponent: RoadmapSkeleton,
 });
 
 function RoadmapPage() {
