@@ -4,8 +4,23 @@ import { DEFAULT_STATUSES, membership, status, workspace } from "@openheard/db/s
 import { env } from "@openheard/env/server";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { magicLink } from "better-auth/plugins";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { eq } from "drizzle-orm";
+
+const AUTH_FROM = { email: "hello@openheard.com", name: "openheard" };
+
+async function authSendEmail(to: string, subject: string, html: string, text: string) {
+  try {
+    if ((env as any).EMAIL) {
+      await (env as any).EMAIL.send({ to, from: AUTH_FROM, subject, html, text });
+    } else {
+      console.log(`[auth] ${subject} → ${to}\n  ${text.replace(/\n/g, "\n  ")}`);
+    }
+  } catch (err: any) {
+    console.error("[auth] email send failed:", err.message ?? err);
+  }
+}
 
 export function createAuth() {
   const db = createDb();
@@ -22,6 +37,14 @@ export function createAuth() {
     trustedOrigins: [env.BETTER_AUTH_URL, ...(raw ? [`https://*.${raw}`, `http://*.${raw}:3001`] : [])],
     emailAndPassword: {
       enabled: true,
+      sendResetPassword: async ({ user, url }) => {
+        await authSendEmail(
+          user.email,
+          "Reset your password",
+          `<p>Click to reset your password. Expires in 1 hour.</p><p><a href="${url}">${url}</a></p>`,
+          `Reset your password: ${url}`,
+        );
+      },
     },
     user: {
       additionalFields: {
@@ -56,7 +79,19 @@ export function createAuth() {
     // One cookie for every workspace subdomain in the cloud version.
     advanced: rootDomain ? { crossSubDomainCookies: { enabled: true, domain: "." + rootDomain } } : undefined,
     secret: env.BETTER_AUTH_SECRET,
-    baseURL: env.BETTER_AUTH_URL,
-    plugins: [tanstackStartCookies()],
+    baseURL: env.BETTER_AUTH_URL || undefined,
+    plugins: [
+      tanstackStartCookies(),
+      magicLink({
+        sendMagicLink: async ({ email, url }) => {
+          await authSendEmail(
+            email,
+            "Your sign-in link",
+            `<p>Click to sign in. Expires in 5 minutes.</p><p><a href="${url}">${url}</a></p>`,
+            `Sign in: ${url}`,
+          );
+        },
+      }),
+    ],
   });
 }
