@@ -313,7 +313,7 @@ export const Terminal = ({
         <span className="size-2.5 rounded-full bg-[#3a3a40]" />
         <span className="size-2.5 rounded-full bg-[#3a3a40]" />
         <span className="size-2.5 rounded-full bg-[#3a3a40]" />
-        {title ? <span className="ml-1 font-mono text-[12px] text-faint">{title}</span> : null}
+        {title ? <span className="ml-1 font-mono text-[12px] text-muted-foreground">{title}</span> : null}
       </div>
       <pre className="overflow-hidden p-4 font-mono text-[12px] leading-relaxed whitespace-pre-wrap break-words md:p-5 md:text-[13px]">
         <code className="grid gap-y-2">{wrappedChildren}</code>

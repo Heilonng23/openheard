@@ -37,7 +37,7 @@ export function Nav() {
       <motion.div initial={{ width: "70rem" }} animate={{ width: scrolled ? "800px" : "70rem" }} transition={{ duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }} className="max-w-full motion-reduce:!transition-none">
         <div className={cn("mx-auto max-w-7xl rounded-2xl transition-all duration-300 xl:px-0", scrolled ? "border border-border bg-background/75 px-2 backdrop-blur-lg" : "px-7 shadow-none")}>
           <div className="flex h-[56px] items-center justify-between p-4">
-            <Link to="/" className="flex items-center gap-2.5 text-[15px] font-semibold tracking-[-0.01em] text-foreground" aria-label="Homepage">
+            <Link to="/" className="flex items-center gap-2.5 text-[15px] font-semibold tracking-[-0.01em] text-foreground">
               <Logo size={26} />
               openheard
             </Link>
@@ -158,7 +158,7 @@ export function Hero() {
           </div>
           <picture>
             <source srcSet="/landing/board.webp" type="image/webp" />
-            <img src="/landing/board.png" alt="The openheard public board: a list of feature requests with vote counts" className="block aspect-[4/3] w-full object-cover object-top sm:aspect-[1920/1000]" fetchPriority="high" />
+            <img src="/landing/board.png" alt="The openheard public board: a list of feature requests with vote counts" width={1920} height={1080} className="block aspect-[4/3] w-full object-cover object-top sm:aspect-[1920/1000]" fetchPriority="high" />
           </picture>
           <BorderBeam size={260} duration={10} colorFrom="#6e8bff" colorTo="#6e8bff00" />
         </div>

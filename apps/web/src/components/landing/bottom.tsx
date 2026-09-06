@@ -16,10 +16,10 @@ import { GITHUB } from "./top";
 /* ---------------------------------------------------------------- product */
 
 const products = [
-  { id: "board", eyebrow: "Board", title: "A board users actually use.", sub: "Post, vote, comment. Duplicates merge without losing votes. Keyboard first, one accent colour, no clutter.", points: ["Public or private boards", "One vote per user, anonymous voting optional", "Tags, search, trending and top sorts"], shot: "/landing/board.png", center: true },
-  { id: "roadmap", eyebrow: "Roadmap", title: "A roadmap that stays honest.", sub: "Statuses are data. Drag a card in the dashboard and the public roadmap, the board and the changelog all agree.", points: ["Columns come from your statuses", "Vote counts on every card", "Hide it until you are ready"], shot: "/landing/dashboard-roadmap.png", center: false },
-  { id: "changelog", eyebrow: "Changelog", title: "Close the loop.", sub: "Write what shipped, link the posts, publish. Everyone who voted gets an email. RSS for the rest.", points: ["Entries link back to the requests", "Voters notified on publish", "RSS feed, version tags, drafts"], shot: "/landing/changelog.png", center: true },
-  { id: "dashboard", eyebrow: "Dashboard", title: "An inbox, not a CRM.", sub: "Every post in one list with status, board, tags and votes. Filter, pin, merge, add an internal note, move on.", points: ["Quick filters by status, board and tag", "Internal notes and reactions", "CSV import and export"], shot: "/landing/dashboard-inbox.png", center: false },
+  { id: "board", eyebrow: "Board", title: "A board users actually use.", sub: "Post, vote, comment. Duplicates merge without losing votes. Keyboard first, one accent colour, no clutter.", points: ["Public or private boards", "One vote per user, anonymous voting optional", "Tags, search, trending and top sorts"], shot: "/landing/board.png", alt: "Public feedback board showing feature requests ranked by votes", center: true },
+  { id: "roadmap", eyebrow: "Roadmap", title: "A roadmap that stays honest.", sub: "Statuses are data. Drag a card in the dashboard and the public roadmap, the board and the changelog all agree.", points: ["Columns come from your statuses", "Vote counts on every card", "Hide it until you are ready"], shot: "/landing/dashboard-roadmap.png", alt: "Dashboard roadmap view with kanban columns for Planned, In Progress and Shipped", center: false },
+  { id: "changelog", eyebrow: "Changelog", title: "Close the loop.", sub: "Write what shipped, link the posts, publish. Everyone who voted gets an email. RSS for the rest.", points: ["Entries link back to the requests", "Voters notified on publish", "RSS feed, version tags, drafts"], shot: "/landing/changelog.png", alt: "Changelog page with published entries linked to shipped requests", center: true },
+  { id: "dashboard", eyebrow: "Dashboard", title: "An inbox, not a CRM.", sub: "Every post in one list with status, board, tags and votes. Filter, pin, merge, add an internal note, move on.", points: ["Quick filters by status, board and tag", "Internal notes and reactions", "CSV import and export"], shot: "/landing/dashboard-inbox.png", alt: "Dashboard inbox showing all posts with status filters and vote counts", center: false },
 ];
 
 // Template growth section: Framed, SectionHeader, then a 2-col grid with
@@ -45,7 +45,7 @@ export function Products() {
           </div>
           <div className="overflow-hidden p-4 md:p-6">
             <BlurFade inView>
-              <Shot src={p.shot} alt="" className="aspect-[16/10]" imgClassName={cn("w-full md:w-[150%] md:max-w-none", p.center && "md:-ml-[25%]")} />
+              <Shot src={p.shot} alt={p.alt} className="aspect-[16/10]" imgClassName={cn("w-full md:w-[150%] md:max-w-none", p.center && "md:-ml-[25%]")} />
             </BlurFade>
           </div>
         </div>
@@ -190,17 +190,17 @@ export function Loop() {
             <p>None of it is configured. Turn the board on and the loop runs the same day.</p>
           </div>
         </div>
-        <dl className="flex flex-col p-6">
+        <div className="flex flex-col p-6" role="list">
           {moments.map(([n, t, d], i) => (
-            <div key={n} className={cn("flex gap-5 py-5 first:pt-0 last:pb-0", i < moments.length - 1 && "border-b border-border")}>
+            <div key={n} role="listitem" className={cn("flex gap-5 py-5 first:pt-0 last:pb-0", i < moments.length - 1 && "border-b border-border")}>
               <span className="pt-0.5 font-mono text-[13px] text-link">{n}</span>
               <div>
-                <dt className="text-[16px] font-medium">{t}</dt>
-                <dd className="mt-1 text-[14px] leading-relaxed text-muted-foreground">{d}</dd>
+                <p className="text-[16px] font-medium">{t}</p>
+                <p className="mt-1 text-[14px] leading-relaxed text-muted-foreground">{d}</p>
               </div>
             </div>
           ))}
-        </dl>
+        </div>
       </div>
     </Framed>
   );
@@ -306,7 +306,7 @@ export function Pricing() {
             <div className="flex flex-col gap-4 p-4">
               <p className="text-sm">
                 {p.name}
-                {p.primary ? <span className="ml-2 inline-flex h-6 w-fit items-center justify-center rounded-full bg-link px-2 text-xs font-medium text-white">Popular</span> : null}
+                {p.primary ? <span className="ml-2 inline-flex h-6 w-fit items-center justify-center rounded-full bg-[#4a6ae0] px-2 text-xs font-medium text-white">Popular</span> : null}
               </p>
               <div className="mt-2 flex items-baseline">
                 <span className="text-4xl font-semibold tracking-tight tabular-nums">{p.price}</span>
@@ -338,7 +338,7 @@ export function Pricing() {
       </div>
       <p className="px-6 text-center text-[14px] text-muted-foreground">
         Self-hosting is free forever, no tier, no limits. AGPL-3.{" "}
-        <a href="#own" className="text-foreground underline-offset-4 hover:underline">
+        <a href="#own" className="text-foreground underline underline-offset-4">
           Deploy on your own Cloudflare account
         </a>
         .
@@ -365,21 +365,21 @@ export function Faq() {
   return (
     <section id="faq" className="relative flex w-full flex-col items-center justify-center gap-10 pb-10">
       <SectionHeader title="Frequently asked, plainly answered." sub="Everything else is in the docs and the README." />
-      <dl className="mx-auto grid w-full max-w-3xl gap-2 px-6 md:px-10">
+      <div className="mx-auto grid w-full max-w-3xl gap-2 px-6 md:px-10">
         {faq.map(([q, a], i) => (
           <div key={q} className="grid gap-2">
-            <dt>
+            <div>
               <button type="button" onClick={() => setOpen(open === i ? null : i)} aria-expanded={open === i} className={cn("flex w-full cursor-pointer items-center justify-between gap-6 rounded-lg border border-border bg-accent px-4 py-3.5 text-left text-[15px] font-medium", open === i && "ring-2 ring-ring/20")}>
                 {q}
-                <CaretDownIcon className={cn("size-4 shrink-0 text-faint transition-transform duration-200", open === i && "rotate-180")} />
+                <CaretDownIcon className={cn("size-4 shrink-0 text-muted-foreground transition-transform duration-200", open === i && "rotate-180")} />
               </button>
-            </dt>
+            </div>
             <Collapsible open={open === i}>
-              <dd className="rounded-lg border border-border bg-accent p-3 text-[14px] leading-relaxed font-medium text-muted-foreground">{a}</dd>
+              <div className="rounded-lg border border-border bg-accent p-3 text-[14px] leading-relaxed font-medium text-muted-foreground">{a}</div>
             </Collapsible>
           </div>
         ))}
-      </dl>
+      </div>
     </section>
   );
 }
@@ -428,7 +428,7 @@ export function Footer() {
             openheard
           </Link>
           <p className="font-medium tracking-tight text-muted-foreground">Open source feedback board. Post, vote, roadmap, changelog. Self-host or cloud.</p>
-          <p className="font-mono text-[12px] text-faint">AGPL-3.0 · © {new Date().getFullYear()} openheard</p>
+          <p className="font-mono text-[12px] text-muted-foreground">AGPL-3.0 · © {new Date().getFullYear()} openheard</p>
         </div>
         <div className="pt-5 md:w-1/2">
           <div className="flex flex-col items-start justify-start gap-y-5 md:flex-row md:items-start md:justify-between lg:pl-10">

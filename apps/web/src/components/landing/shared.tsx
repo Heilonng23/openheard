@@ -65,7 +65,7 @@ export function Shot({ src, alt = "", className, imgClassName }: { src: string; 
     <div className={cn("relative overflow-hidden rounded-xl border border-input bg-card", className)}>
       <picture>
         <source srcSet={webp} type="image/webp" />
-        <img src={src} alt={alt} className={cn("block w-full", imgClassName)} loading="lazy" decoding="async" />
+        <img src={src} alt={alt} width={1920} height={1080} className={cn("block w-full", imgClassName)} loading="lazy" decoding="async" />
       </picture>
     </div>
   );
