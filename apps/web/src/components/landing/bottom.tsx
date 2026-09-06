@@ -1,6 +1,6 @@
 import { CaretDownIcon, CaretUpIcon, CheckIcon, PaperPlaneTiltIcon } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Button } from "@openheard/ui/components/button";
 import { cn } from "@openheard/ui/lib/utils";
@@ -215,17 +215,59 @@ const own = [
   ["Cloud when you want it", "Same code, we host it. Move between the two with a CSV."],
 ];
 
-// Template feature section: plain section, SectionHeader, then the slideshow
-// row: accordion list on the left, media on the right, ~450px tall.
+const OWN_ADVANCE_MS = 5000;
+
 export function Own() {
   const [active, setActive] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const startRef = useRef(Date.now());
+  const rafRef = useRef<number>(0);
+
+  const advance = useCallback(() => {
+    setActive((i) => (i + 1) % own.length);
+    setProgress(0);
+    startRef.current = Date.now();
+  }, []);
+
+  useEffect(() => {
+    if (paused) {
+      cancelAnimationFrame(rafRef.current);
+      return;
+    }
+
+    startRef.current = Date.now() - progress * OWN_ADVANCE_MS;
+
+    const tick = () => {
+      const elapsed = Date.now() - startRef.current;
+      const p = Math.min(elapsed / OWN_ADVANCE_MS, 1);
+      setProgress(p);
+      if (p >= 1) {
+        advance();
+      } else {
+        rafRef.current = requestAnimationFrame(tick);
+      }
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [paused, active, advance, progress]);
+
+  const select = (i: number) => {
+    setActive(i);
+    setProgress(0);
+    startRef.current = Date.now();
+  };
+
   return (
     <section id="own" className="relative flex w-full scroll-mt-16 flex-col items-center justify-center gap-5">
       <SectionHeader title="Self-host is not a trial. It is the full product, forever." />
-      <div className="grid w-full items-center gap-6 px-4 pb-10 md:grid-cols-[400px_1fr] md:gap-10 md:px-6">
+      <div className="grid w-full items-center gap-6 px-4 pb-10 md:grid-cols-[400px_1fr] md:gap-10 md:px-6" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
         <div className="flex flex-col">
           {own.map(([t, d], i) => (
-            <button key={t} type="button" onClick={() => setActive(i)} className={cn("relative flex flex-col gap-1 rounded-lg px-4 py-3 text-left transition-colors md:px-5 md:py-4", active === i ? "bg-secondary/60" : "hover:bg-accent/40")}>
+            <button key={t} type="button" onClick={() => select(i)} className={cn("relative flex flex-col gap-1 overflow-hidden rounded-lg px-4 py-3 text-left transition-colors md:px-5 md:py-4", active === i ? "bg-secondary/60" : "hover:bg-accent/40")}>
+              {active === i && (
+                <div className="absolute inset-y-0 left-0 w-0.5 rounded-full bg-link" style={{ height: `${progress * 100}%`, transition: paused ? "none" : undefined }} />
+              )}
               <span className={cn("text-[15px] font-medium", active === i ? "text-foreground" : "text-muted-foreground")}>{t}</span>
               <Collapsible open={active === i}>
                 <span className="block pt-1 text-[14px] leading-relaxed text-muted-foreground">{d}</span>
