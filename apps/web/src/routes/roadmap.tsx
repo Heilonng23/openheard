@@ -10,7 +10,14 @@ export const Route = createFileRoute("/roadmap")({
   validateSearch: (s: Record<string, unknown>) => ({ board: typeof s.board === "string" ? s.board : undefined }),
   loaderDeps: ({ search }) => search,
   loader: ({ deps }) => getRoadmap({ data: deps }),
-  head: () => ({ meta: [{ title: "Roadmap · feedback" }] }),
+  head: () => ({
+    meta: [
+      { title: "Roadmap" },
+      { property: "og:title", content: "Roadmap" },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: RoadmapPage,
   errorComponent: ({ error }) => <ErrorState message={(error as Error)?.message} retry="/roadmap" />,
   pendingComponent: RoadmapSkeleton,

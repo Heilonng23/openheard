@@ -15,7 +15,14 @@ import { cn } from "@openheard/ui/lib/utils";
 
 export const Route = createFileRoute("/changelog")({
   loader: () => listChangelog(),
-  head: () => ({ meta: [{ title: "Changelog · feedback" }] }),
+  head: () => ({
+    meta: [
+      { title: "Changelog" },
+      { property: "og:title", content: "Changelog" },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: ChangelogPage,
   errorComponent: ({ error }) => <ErrorState message={(error as Error)?.message} retry="/changelog" />,
   pendingComponent: ChangelogSkeleton,

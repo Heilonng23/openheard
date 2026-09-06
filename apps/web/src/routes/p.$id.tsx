@@ -21,7 +21,21 @@ export const Route = createFileRoute("/p/$id")({
     if (!post) throw notFound();
     return post;
   },
-  head: ({ loaderData }) => ({ meta: [{ title: loaderData ? `${loaderData.title} · feedback` : "Post" }] }),
+  head: ({ loaderData }) => ({
+    meta: [
+      { title: loaderData ? loaderData.title : "Post" },
+      ...(loaderData
+        ? [
+            { property: "og:title", content: loaderData.title },
+            { property: "og:description", content: loaderData.body ? loaderData.body.slice(0, 200) : `${loaderData.voteCount} votes` },
+            { property: "og:type", content: "article" },
+            { name: "twitter:card", content: "summary" },
+            { name: "twitter:title", content: loaderData.title },
+            { name: "twitter:description", content: loaderData.body ? loaderData.body.slice(0, 200) : `${loaderData.voteCount} votes` },
+          ]
+        : []),
+    ],
+  }),
   component: PostPage,
   errorComponent: ({ error }) => <ErrorState message={(error as Error)?.message} />,
   pendingComponent: PostSkeleton,
