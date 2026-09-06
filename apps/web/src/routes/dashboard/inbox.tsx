@@ -50,7 +50,7 @@ function Inbox() {
 
   return (
     <Panel title={meta ? meta.label : "Posts"} className="flex">
-      <div className={cn("flex shrink-0 flex-col overflow-auto", post ? "w-[400px] border-r" : "w-full")}>
+      <div className={cn("flex shrink-0 flex-col overflow-auto", post ? "hidden w-[400px] border-r md:flex" : "w-full")}>
         <div className="flex items-center gap-1.5 px-3 pt-3 pb-2.5">
           <DropdownMenu>
             <DropdownMenuTrigger className="inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-[13px] text-muted-foreground outline-none hover:bg-accent hover:text-foreground">
