@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { Panel } from "@/components/admin/panel";
 import { Avatar } from "@/components/bits";
+import { DashboardErrorState, DashboardPanelSkeleton } from "@/components/states";
 import { deleteChangelog, listChangelog, saveChangelog } from "@/functions/changelog";
 import { searchPosts } from "@/functions/posts";
 import { ago, fullDate } from "@/lib/time";
@@ -22,6 +23,8 @@ export const Route = createFileRoute("/dashboard/changelog")({
   loader: () => listChangelog(),
   head: () => ({ meta: [{ title: "Changelog · openheard" }] }),
   component: ChangelogPage,
+  errorComponent: ({ error }) => <DashboardErrorState message={(error as Error)?.message} retry="/dashboard/changelog" />,
+  pendingComponent: DashboardPanelSkeleton,
 });
 
 // A plain list, and a document-style editor when you open an entry.
@@ -172,6 +175,7 @@ function Editor({ entry, onClose }: { entry: Entry | null; onClose: () => void }
                 value={version}
                 onChange={(e) => setVersion(e.target.value)}
                 placeholder="v1.0"
+                aria-label="Version"
                 className="h-7 w-24 rounded-md border border-transparent bg-transparent px-2 font-mono text-[12px] text-muted-foreground outline-none placeholder:text-faint hover:border-input focus:border-ring/60"
               />
               <button type="button" onClick={() => toast("Covers land with image support")} className="inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-[12px] text-faint hover:bg-accent hover:text-foreground">
@@ -189,6 +193,7 @@ function Editor({ entry, onClose }: { entry: Entry | null; onClose: () => void }
                 }
               }}
               placeholder="What shipped?"
+              aria-label="Entry title"
               className="w-full bg-transparent text-[32px] font-semibold tracking-[-0.02em] outline-none placeholder:text-faint"
             />
             <textarea
@@ -196,6 +201,7 @@ function Editor({ entry, onClose }: { entry: Entry | null; onClose: () => void }
               value={body}
               onChange={(e) => setBody(e.target.value)}
               placeholder="Start writing. What changed, why it matters, what to do about it."
+              aria-label="Entry body"
               className="min-h-[280px] w-full resize-none bg-transparent text-[16px] leading-[1.65] text-foreground/90 outline-none placeholder:text-faint"
             />
 
@@ -220,6 +226,7 @@ function Editor({ entry, onClose }: { entry: Entry | null; onClose: () => void }
                       onBlur={() => setTimeout(() => setLinking(false), 150)}
                       onKeyDown={(e) => e.key === "Escape" && setLinking(false)}
                       placeholder="Search posts"
+                      aria-label="Search posts to link"
                       className="h-7 w-56 rounded-full border border-input bg-card px-3 text-[13px] outline-none placeholder:text-faint focus:border-ring/60"
                     />
                     {results.length ? (

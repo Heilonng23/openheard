@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@openheard/ui/components/button";
 import { Avatar, StatusChip, TeamBadge } from "@/components/bits";
 import { RailLabel, Shell } from "@/components/shell";
+import { ErrorState, PostSkeleton } from "@/components/states";
 import { VoteButton } from "@/components/vote-button";
 import { addComment, getPost, mergePosts, setEta } from "@/functions/posts";
 import { findStatus, roadmapStatuses, useStatuses } from "@/lib/status";
@@ -20,8 +21,24 @@ export const Route = createFileRoute("/p/$id")({
     if (!post) throw notFound();
     return post;
   },
-  head: ({ loaderData }) => ({ meta: [{ title: loaderData ? `${loaderData.title} · feedback` : "Post" }] }),
+  head: ({ loaderData }) => ({
+    meta: [
+      { title: loaderData ? loaderData.title : "Post" },
+      ...(loaderData
+        ? [
+            { property: "og:title", content: loaderData.title },
+            { property: "og:description", content: loaderData.body ? loaderData.body.slice(0, 200) : `${loaderData.voteCount} votes` },
+            { property: "og:type", content: "article" },
+            { name: "twitter:card", content: "summary" },
+            { name: "twitter:title", content: loaderData.title },
+            { name: "twitter:description", content: loaderData.body ? loaderData.body.slice(0, 200) : `${loaderData.voteCount} votes` },
+          ]
+        : []),
+    ],
+  }),
   component: PostPage,
+  errorComponent: ({ error }) => <ErrorState message={(error as Error)?.message} />,
+  pendingComponent: PostSkeleton,
 });
 
 function PostPage() {
@@ -42,12 +59,12 @@ function PostPage() {
       await addComment({ data: { postId: p.id, body: reply } });
       setReply("");
       setExpanded(false);
-      await router.invalidate();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not comment");
     } finally {
       setBusy(false);
     }
+    router.invalidate();
   }
 
   const comments = p.timeline.filter((t) => t.kind === "comment").length;
@@ -201,6 +218,7 @@ function PostPage() {
             onChange={(e) => setReply(e.target.value)}
             onFocus={() => setExpanded(true)}
             placeholder={root.user ? "Add a comment" : "Sign in to comment"}
+            aria-label="Add a comment"
             rows={1}
             className={cn("w-full resize-none bg-transparent text-sm leading-relaxed text-foreground outline-none transition-[height] duration-150 ease-out placeholder:text-faint motion-reduce:transition-none", expanded || reply ? "h-[76px]" : "h-[24px]")}
             onKeyDown={(e) => {
@@ -261,6 +279,7 @@ function EtaEditor({ postId, value }: { postId: number; value: string | null }) 
       onChange={(e) => setV(e.target.value)}
       onBlur={() => v !== (value ?? "") && setEta({ data: { postId, eta: v } }).then(() => router.invalidate())}
       placeholder="not set"
+      aria-label="ETA"
       className="-mx-1 w-24 rounded-sm border border-transparent bg-transparent px-1 text-right text-[13px] outline-none placeholder:text-faint hover:border-input focus:border-ring"
     />
   );

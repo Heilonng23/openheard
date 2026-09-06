@@ -58,12 +58,12 @@ export function NewPostDialog({
     if (title.trim().length < 4) return toast("Give it a title first");
     setBusy(true);
     try {
-      const { id } = await createPost({ data: { boardId: board?.id ?? "", title, body, tags: [] } });
+      const result = await createPost({ data: { boardId: board?.id ?? "", title, body, tags: [] } });
       onOpenChange(false);
       setTitle("");
       setBody("");
-      toast.success("Posted. You are the first vote.");
-      navigate({ to: "/p/$id", params: { id: String(id) } });
+      toast.success(result.pending ? "Submitted! An admin will review it shortly." : "Posted. You are the first vote.");
+      navigate({ to: "/p/$id", params: { id: String(result.id) } });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not post");
     } finally {
@@ -102,6 +102,7 @@ export function NewPostDialog({
             }}
             maxLength={140}
             placeholder="What would make this better?"
+            aria-label="Post title"
             className="w-full bg-transparent text-xl font-semibold tracking-[-0.02em] text-foreground outline-none placeholder:text-faint"
           />
           <textarea
@@ -111,6 +112,7 @@ export function NewPostDialog({
             onKeyDown={onKey}
             rows={3}
             placeholder="What are you trying to do? Any workaround you use today?"
+            aria-label="Post details"
             className="w-full resize-none bg-transparent text-[14px] leading-[1.55] text-muted-foreground outline-none placeholder:text-faint"
           />
         </div>

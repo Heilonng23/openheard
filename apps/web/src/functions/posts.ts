@@ -1,11 +1,15 @@
 import { activity, comment, commentReaction, createDb, post, postTag, status, vote } from "@openheard/db";
 
-import { assertStatus, statusOfKind } from "@/lib/status-db";
+import { assertStatus, listStatuses, statusOfKind } from "@/lib/status-db";
 import { createServerFn } from "@tanstack/react-start";
 import { and, desc, eq, inArray, like, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { requireAdmin, requireUser, sessionMiddleware } from "@/lib/session";
+
+function escapeLike(s: string) {
+  return s.replace(/[%_\\]/g, (c) => `\\${c}`);
+}
 
 // Every mutation checks the post is in this workspace before touching it.
 async function ownPost(db: ReturnType<typeof createDb>, postId: number, workspaceId: string) {
@@ -29,12 +33,17 @@ export const listPosts = createServerFn({ method: "GET" })
   .validator((d: unknown) => listInput.parse(d ?? {}))
   .handler(async ({ data, context }) => {
     const db = createDb();
+    const isAdmin = context.user?.role === "admin";
+    const reviewKeys = context.workspace.requireApproval && !isAdmin
+      ? (await listStatuses(db, context.workspace.id)).filter((s) => s.kind === "review").map((s) => s.key)
+      : [];
     const where = and(
       eq(post.workspaceId, context.workspace.id),
       sql`${post.mergedIntoId} is null`,
+      reviewKeys.length ? sql`${post.status} not in (${sql.join(reviewKeys.map((k) => sql`${k}`), sql`, `)})` : undefined,
       data.board ? eq(post.boardId, data.board) : undefined,
       data.status ? eq(post.status, data.status) : undefined,
-      data.q ? or(like(post.title, `%${data.q}%`), like(post.body, `%${data.q}%`)) : undefined,
+      data.q ? or(like(post.title, `%${escapeLike(data.q)}%`), like(post.body, `%${escapeLike(data.q)}%`)) : undefined,
       data.tag
         ? inArray(post.id, db.select({ id: postTag.postId }).from(postTag).where(eq(postTag.tagId, data.tag)))
         : undefined,
@@ -112,7 +121,7 @@ export const getPost = createServerFn({ method: "GET" })
       ? await db
           .select({ id: post.id, title: post.title, voteCount: post.voteCount })
           .from(post)
-          .where(and(eq(post.workspaceId, p.workspaceId), sql`${post.id} != ${p.id}`, sql`${post.mergedIntoId} is null`, or(...words.slice(0, 4).map((w) => like(post.title, `%${w}%`)))))
+          .where(and(eq(post.workspaceId, p.workspaceId), sql`${post.id} != ${p.id}`, sql`${post.mergedIntoId} is null`, or(...words.slice(0, 4).map((w) => like(post.title, `%${escapeLike(w)}%`)))))
           .orderBy(desc(post.voteCount))
           .limit(3)
       : [];
@@ -167,13 +176,18 @@ export const createPost = createServerFn({ method: "POST" })
     const u = requireUser(context.user);
     if (context.workspace.whoCanPost === "members" && u.role === "guest") throw new Error("Only team members can post on this board");
     const db = createDb();
+    let initialStatus = "open";
+    if (context.workspace.requireApproval && u.role !== "admin") {
+      const reviewStatus = await statusOfKind(db, context.workspace.id, "review");
+      if (reviewStatus) initialStatus = reviewStatus.key;
+    }
     const [created] = await db
       .insert(post)
-      .values({ workspaceId: context.workspace.id, boardId: data.boardId, authorId: u.id, title: data.title, body: data.body, voteCount: 1 })
+      .values({ workspaceId: context.workspace.id, boardId: data.boardId, authorId: u.id, title: data.title, body: data.body, voteCount: 1, status: initialStatus })
       .returning({ id: post.id });
     await db.insert(vote).values({ postId: created.id, userId: u.id });
     if (data.tags.length) await db.insert(postTag).values(data.tags.map((tagId) => ({ postId: created.id, tagId })));
-    return { id: created.id };
+    return { id: created.id, pending: initialStatus !== "open" };
   });
 
 export const toggleVote = createServerFn({ method: "POST" })
@@ -314,8 +328,13 @@ export const getRoadmap = createServerFn({ method: "GET" })
   .validator((d: unknown) => z.object({ board: z.string().optional() }).parse(d ?? {}))
   .handler(async ({ data, context }) => {
     const db = createDb();
+    const roadmapFilter = and(eq(status.workspaceId, context.workspace.id), eq(status.onRoadmap, true));
+    const isAdmin = context.user?.role === "admin";
+    const statusFilter = context.workspace.requireApproval && !isAdmin
+      ? and(roadmapFilter, sql`${status.kind} != 'review'`)
+      : roadmapFilter;
     const rows = await db.query.post.findMany({
-      where: and(eq(post.workspaceId, context.workspace.id), sql`${post.mergedIntoId} is null`, data.board ? eq(post.boardId, data.board) : undefined, inArray(post.status, db.select({ key: status.key }).from(status).where(and(eq(status.workspaceId, context.workspace.id), eq(status.onRoadmap, true))))),
+      where: and(eq(post.workspaceId, context.workspace.id), sql`${post.mergedIntoId} is null`, data.board ? eq(post.boardId, data.board) : undefined, inArray(post.status, db.select({ key: status.key }).from(status).where(statusFilter))),
       orderBy: [desc(post.pinned), desc(post.voteCount)],
       with: {
         tags: { with: { tag: true } },
@@ -335,11 +354,12 @@ export const searchPosts = createServerFn({ method: "GET" })
     // posts" still finds "Slack notification when a post changes status".
     const words = data.q.toLowerCase().match(/[a-z0-9]{4,}/g) ?? [];
     const terms = words.length ? words.slice(0, 5) : [data.q.toLowerCase()];
-    const hits = sql.join(terms.map((w) => sql`(lower(${post.title}) like ${"%" + w + "%"})`), sql` + `);
+    const escaped = terms.map(escapeLike);
+    const hits = sql.join(escaped.map((w) => sql`(lower(${post.title}) like ${"%" + w + "%"} escape '\\')`), sql` + `);
     return db
       .select({ id: post.id, title: post.title, voteCount: post.voteCount, status: post.status })
       .from(post)
-      .where(and(eq(post.workspaceId, context.workspace.id), sql`${post.mergedIntoId} is null`, or(...terms.map((w) => like(post.title, `%${w}%`)))))
+      .where(and(eq(post.workspaceId, context.workspace.id), sql`${post.mergedIntoId} is null`, or(...escaped.map((w) => like(post.title, `%${w}%`)))))
       .orderBy(desc(hits), desc(post.voteCount))
       .limit(8);
   });

@@ -8,14 +8,24 @@ import { toast } from "sonner";
 
 import { Button } from "@openheard/ui/components/button";
 import { RailLabel, Shell } from "@/components/shell";
+import { ChangelogSkeleton, ErrorState } from "@/components/states";
 import { deleteChangelog, listChangelog, saveChangelog } from "@/functions/changelog";
 import { searchPosts } from "@/functions/posts";
 import { cn } from "@openheard/ui/lib/utils";
 
 export const Route = createFileRoute("/changelog")({
   loader: () => listChangelog(),
-  head: () => ({ meta: [{ title: "Changelog · feedback" }] }),
+  head: () => ({
+    meta: [
+      { title: "Changelog" },
+      { property: "og:title", content: "Changelog" },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: ChangelogPage,
+  errorComponent: ({ error }) => <ErrorState message={(error as Error)?.message} retry="/changelog" />,
+  pendingComponent: ChangelogSkeleton,
 });
 
 type Entry = Awaited<ReturnType<typeof listChangelog>>[number];
@@ -43,6 +53,7 @@ function ChangelogPage() {
           Post idea
         </Button>
       )}
+      {entries.length > 0 ? (
       <section className="flex flex-col gap-2.5 px-2.5">
         <RailLabel>Get updates</RailLabel>
         <p className="-mt-1 text-[13px] leading-[1.5] text-muted-foreground">One email when something ships. No digest, no marketing.</p>
@@ -53,7 +64,7 @@ function ChangelogPage() {
           }}
           className="flex h-[34px] items-center gap-1.5 rounded-lg border border-input bg-card pr-1 pl-2.5 focus-within:border-ring/60"
         >
-          <input type="email" placeholder="you@company.com" className="min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-faint" />
+          <input type="email" placeholder="you@company.com" aria-label="Email address" className="min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-faint" />
           <button type="submit" className="inline-flex size-[26px] items-center justify-center rounded-md bg-accent text-foreground hover:bg-input" aria-label="Subscribe">
             <ArrowRightIcon weight="bold" className="size-3" />
           </button>
@@ -62,6 +73,7 @@ function ChangelogPage() {
           <RssIcon className="size-3.5" /> RSS feed
         </a>
       </section>
+      ) : null}
     </>
   );
 
@@ -182,10 +194,10 @@ function EntryDialog({ entry, onClose }: { entry: Entry | null | "new"; onClose:
           <DialogDescription>Publishing marks every linked post as shipped and notifies its voters.</DialogDescription>
         </DialogHeader>
         <div className="grid grid-cols-[minmax(0,1fr)_120px] gap-2">
-          <Input placeholder="What shipped" value={title} onChange={(ev) => setTitle(ev.target.value)} className="h-10 text-[14px] font-semibold" />
-          <Input placeholder="v0.4.0" value={version} onChange={(ev) => setVersion(ev.target.value)} className="h-10 font-mono" />
+          <Input placeholder="What shipped" value={title} onChange={(ev) => setTitle(ev.target.value)} aria-label="Entry title" className="h-10 text-[14px] font-semibold" />
+          <Input placeholder="v0.4.0" value={version} onChange={(ev) => setVersion(ev.target.value)} aria-label="Version" className="h-10 font-mono" />
         </div>
-        <Textarea placeholder="Why it matters, in a few sentences." value={body} onChange={(ev) => setBody(ev.target.value)} className="min-h-36" />
+        <Textarea placeholder="Why it matters, in a few sentences." value={body} onChange={(ev) => setBody(ev.target.value)} aria-label="Entry body" className="min-h-36" />
         <div className="flex flex-col gap-2">
           <span className="text-xs text-muted-foreground">Posts this closes</span>
           <div className="flex flex-wrap gap-1.5">
@@ -195,7 +207,7 @@ function EntryDialog({ entry, onClose }: { entry: Entry | null | "new"; onClose:
               </button>
             ))}
           </div>
-          <Input placeholder="Search posts to link" value={q} onChange={(ev) => setQ(ev.target.value)} />
+          <Input placeholder="Search posts to link" value={q} onChange={(ev) => setQ(ev.target.value)} aria-label="Search posts to link" />
           {results.length ? (
             <div className="flex max-h-40 flex-col overflow-auto rounded-md border">
               {results

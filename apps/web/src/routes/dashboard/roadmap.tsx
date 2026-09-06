@@ -36,6 +36,7 @@ import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } 
 import { CSS } from "@dnd-kit/utilities";
 
 import { Panel } from "@/components/admin/panel";
+import { DashboardErrorState, DashboardPanelSkeleton } from "@/components/states";
 import { listRoadmapAdmin } from "@/functions/admin";
 import { setStatus } from "@/functions/posts";
 import { KIND_ICON, roadmapStatuses, useStatuses } from "@/lib/status";
@@ -62,6 +63,8 @@ export const Route = createFileRoute("/dashboard/roadmap")({
   },
   head: () => ({ meta: [{ title: "Roadmap · openheard" }] }),
   component: Roadmap,
+  errorComponent: ({ error }) => <DashboardErrorState message={(error as Error)?.message} retry="/dashboard/roadmap" />,
+  pendingComponent: DashboardPanelSkeleton,
 });
 
 const GLYPH: Record<(typeof KIND_ICON)[keyof typeof KIND_ICON], Icon> = {
@@ -192,7 +195,15 @@ function Roadmap() {
     }
   }
 
+  function onDragCancel() {
+    setDraggingId(null);
+    dragOriginalStatus.current = null;
+    setPosts(serverPosts);
+  }
+
   const draggingPost = draggingId != null ? posts.find((p) => p.id === draggingId) : null;
+
+  const [liveRegionContainer, setLiveRegionContainer] = useState<HTMLElement | null>(null);
 
   return (
     <Panel
@@ -203,6 +214,7 @@ function Roadmap() {
         </span>
       }
     >
+      <div ref={setLiveRegionContainer} className="sr-only" />
       <div className="flex flex-col gap-0 h-full">
         {/* Toolbar */}
         <div className="flex items-center gap-1.5 px-5 pt-3 pb-2.5 shrink-0">
@@ -241,7 +253,7 @@ function Roadmap() {
         </div>
 
         {/* Kanban columns */}
-        <DndContext sensors={sensors} collisionDetection={collisionDetection} onDragStart={onDragStart} onDragOver={onDragOver} onDragEnd={onDragEnd}>
+        <DndContext sensors={sensors} collisionDetection={collisionDetection} onDragStart={onDragStart} onDragOver={onDragOver} onDragEnd={onDragEnd} onDragCancel={onDragCancel} accessibility={liveRegionContainer ? { container: liveRegionContainer } : undefined}>
           <div className="flex flex-1 gap-0 overflow-x-auto px-5 pb-5">
             {columns.map((col) => {
               const items = grouped(col);

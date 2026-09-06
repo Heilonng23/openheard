@@ -30,6 +30,7 @@ export function Panel({ title, children, className, actions }: { title: ReactNod
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 placeholder="Search posts"
+                aria-label="Search posts"
                 className="h-[30px] w-[220px] rounded-lg border bg-card pr-10 pl-7 text-[13px] outline-none placeholder:text-faint focus:border-ring/60"
               />
               <Kbd className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2">⌘K</Kbd>

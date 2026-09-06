@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { MergeDialog } from "@/components/merge-dialog";
 import { Panel } from "@/components/admin/panel";
 import { Avatar, StatusChip, TeamBadge } from "@/components/bits";
+import { DashboardErrorState, DashboardPanelSkeleton } from "@/components/states";
 import { listInbox, setBoard } from "@/functions/admin";
 import { REACTIONS, addComment, getPost, setEta as setEtaFn, setStatus, setTags, togglePin, toggleReaction } from "@/functions/posts";
 import { KIND_ICON, findStatus, useStatuses } from "@/lib/status";
@@ -33,6 +34,8 @@ export const Route = createFileRoute("/dashboard/inbox")({
   },
   head: () => ({ meta: [{ title: "Posts · openheard" }] }),
   component: Inbox,
+  errorComponent: ({ error }) => <DashboardErrorState message={(error as Error)?.message} retry="/dashboard/inbox" />,
+  pendingComponent: DashboardPanelSkeleton,
 });
 
 function Inbox() {
@@ -47,7 +50,7 @@ function Inbox() {
 
   return (
     <Panel title={meta ? meta.label : "Posts"} className="flex">
-      <div className={cn("flex shrink-0 flex-col overflow-auto", post ? "w-[400px] border-r" : "w-full")}>
+      <div className={cn("flex shrink-0 flex-col overflow-auto", post ? "hidden w-[400px] border-r md:flex" : "w-full")}>
         <div className="flex items-center gap-1.5 px-3 pt-3 pb-2.5">
           <DropdownMenu>
             <DropdownMenuTrigger className="inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-[13px] text-muted-foreground outline-none hover:bg-accent hover:text-foreground">
@@ -114,7 +117,16 @@ function Inbox() {
             {search.tag ? <Chip onClear={() => navigate({ search: (p) => ({ ...p, tag: undefined, post: undefined }) })}>{root.tags.find((t) => t.id === search.tag)?.name ?? search.tag}</Chip> : null}
           </div>
         ) : null}
-        {list.length === 0 ? <p className="px-4 py-8 text-sm text-faint">{meta ? `Nothing ${meta.label.toLowerCase()} right now.` : "No posts yet."}</p> : null}
+        {list.length === 0 ? (
+          <div className="flex flex-col items-center gap-3 px-4 py-12 text-center">
+            <p className="text-sm text-faint">{meta ? `Nothing ${meta.label.toLowerCase()} right now.` : "No posts yet."}</p>
+            {!filtered ? (
+              <Button variant="secondary" size="sm" onClick={() => window.dispatchEvent(new Event("oh:compose"))}>
+                Create the first post
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
         {list.map((p) => {
           const on = post?.id === p.id;
           const st = findStatus(statuses, p.status);
@@ -285,6 +297,7 @@ function Detail({ post: p, onClose }: { post: PostData; onClose: () => void }) {
                 onChange={(e) => setEta(e.target.value)}
                 onBlur={() => eta !== (p.eta ?? "") && run(() => setEtaFn({ data: { postId: p.id, eta } }), "ETA saved")}
                 placeholder="none"
+                aria-label="ETA"
                 className="h-6 w-20 rounded-md border border-transparent bg-transparent px-1.5 font-mono text-[12px] text-foreground outline-none placeholder:text-faint hover:border-input focus:border-ring/60"
               />
             </span>
@@ -352,6 +365,7 @@ function Detail({ post: p, onClose }: { post: PostData; onClose: () => void }) {
               onChange={(e) => setReply(e.target.value)}
               rows={1}
               placeholder={internal ? "Internal note, only the team sees this" : "Reply as the team"}
+              aria-label={internal ? "Internal note" : "Reply to post"}
               className={cn("w-full resize-none bg-transparent text-[13px] leading-relaxed outline-none transition-[height] duration-150 ease-out placeholder:text-faint motion-reduce:transition-none", reply ? "h-[72px]" : "h-[22px] focus:h-[44px]")}
               onKeyDown={(e) => (e.metaKey || e.ctrlKey) && e.key === "Enter" && send()}
             />
