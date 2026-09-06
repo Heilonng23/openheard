@@ -1,0 +1,1 @@
+ALTER TABLE `comment` ADD `internal` integer DEFAULT false NOT NULL;

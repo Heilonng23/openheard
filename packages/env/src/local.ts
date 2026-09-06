@@ -16,5 +16,7 @@ export const env = {
   DB: undefined,
   DB_LOCAL: drizzle(createClient({ url }), { schema }),
   BETTER_AUTH_URL: process.env.BETTER_AUTH_URL ?? "http://localhost:3001",
+  // Workspaces live on subdomains of this. *.localhost resolves to loopback in every browser.
+  ROOT_DOMAIN: process.env.ROOT_DOMAIN ?? "localhost",
   BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET ?? "dev-secret-change-me-please-32chars",
 } as unknown as Env & { DB_LOCAL: ReturnType<typeof drizzle> };

@@ -8,6 +8,48 @@
       "when": 1788549937130,
       "tag": "0000_tense_raider",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1788623735697,
+      "tag": "0001_funny_triathlon",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1788633602629,
+      "tag": "0002_parched_ricochet",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1788635520891,
+      "tag": "0003_bright_firebird",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1788635750817,
+      "tag": "0004_volatile_jocasta",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1788636042467,
+      "tag": "0005_smart_vivisector",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1788638541094,
+      "tag": "0006_daffy_ultimatum",
+      "breakpoints": true
     }
   ]
 }

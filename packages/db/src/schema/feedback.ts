@@ -5,19 +5,26 @@ import { user } from "./auth";
 
 const now = sql`(cast(unixepoch('subsecond') * 1000 as integer))`;
 
-export const STATUSES = ["open", "review", "planned", "progress", "done", "closed"] as const;
-export type Status = (typeof STATUSES)[number];
+// Every status has a "kind" that tells the app what it means, regardless of
+// what the workspace calls it. Kinds are fixed; statuses are per workspace.
+export const STATUS_KINDS = ["open", "review", "planned", "progress", "done", "closed"] as const;
+export type StatusKind = (typeof STATUS_KINDS)[number];
+// Legacy alias: post.status holds the status key, which for the default set
+// equals the kind.
+export const STATUSES = STATUS_KINDS;
+export type Status = string;
 
-export const STATUS_LABEL: Record<Status, string> = {
-  open: "Open",
-  review: "Under review",
-  planned: "Planned",
-  progress: "In progress",
-  done: "Shipped",
-  closed: "Closed",
-};
+export const DEFAULT_STATUSES: { key: string; label: string; color: string; kind: StatusKind; onRoadmap: boolean }[] = [
+  { key: "open", label: "Pending", color: "#f2b53d", kind: "open", onRoadmap: false },
+  { key: "review", label: "Under review", color: "#b08cff", kind: "review", onRoadmap: true },
+  { key: "planned", label: "Planned", color: "#f2b53d", kind: "planned", onRoadmap: true },
+  { key: "progress", label: "In progress", color: "#6e8bff", kind: "progress", onRoadmap: true },
+  { key: "done", label: "Shipped", color: "#3ecf8e", kind: "done", onRoadmap: true },
+  { key: "closed", label: "Closed", color: "#7a7a85", kind: "closed", onRoadmap: false },
+];
 
-// One install, one workspace. Multi-tenant is a later problem.
+// A workspace is one public board plus its team. The id doubles as the
+// subdomain slug in the cloud version. Self-hosted installs use "default".
 export const workspace = sqliteTable("workspace", {
   id: text("id").primaryKey().default("default"),
   name: text("name").notNull().default("openheard"),
@@ -25,10 +32,67 @@ export const workspace = sqliteTable("workspace", {
   theme: text("theme").notNull().default("dark"),
   poweredBy: integer("powered_by", { mode: "boolean" }).notNull().default(true),
   requireApproval: integer("require_approval", { mode: "boolean" }).notNull().default(false),
+  // Branding. Accent is a hex; null means the openheard blue.
+  accent: text("accent"),
+  logoUrl: text("logo_url"),
+  // Access. Who may post, whether logged-out visitors can vote, which public
+  // tabs exist.
+  whoCanPost: text("who_can_post", { enum: ["anyone", "members"] }).notNull().default("anyone"),
+  anonymousVoting: integer("anonymous_voting", { mode: "boolean" }).notNull().default(false),
+  showRoadmap: integer("show_roadmap", { mode: "boolean" }).notNull().default(true),
+  showChangelog: integer("show_changelog", { mode: "boolean" }).notNull().default(true),
+  // App-side default: SQLite cannot ALTER TABLE ADD a column with a function default.
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .notNull()
+    .default(sql`0`)
+    .$defaultFn(() => new Date()),
 });
+
+export const ROLES = ["admin", "member"] as const;
+export type Role = (typeof ROLES)[number];
+
+// Who belongs to which workspace, and as what. One account, many workspaces.
+export const membership = sqliteTable(
+  "membership",
+  {
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspace.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    role: text("role", { enum: ROLES }).notNull().default("member"),
+    // Email preferences, per workspace. Sending lands with an email provider.
+    notifyNewPost: integer("notify_new_post", { mode: "boolean" }).notNull().default(true),
+    notifyComment: integer("notify_comment", { mode: "boolean" }).notNull().default(true),
+    notifyStatus: integer("notify_status", { mode: "boolean" }).notNull().default(false),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).default(now).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.workspaceId, t.userId] }), index("membership_user_idx").on(t.userId)],
+);
+
+export const status = sqliteTable(
+  "status",
+  {
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspace.id, { onDelete: "cascade" }),
+    key: text("key").notNull(),
+    label: text("label").notNull(),
+    color: text("color").notNull(),
+    kind: text("kind", { enum: STATUS_KINDS }).notNull(),
+    position: integer("position").notNull().default(0),
+    onRoadmap: integer("on_roadmap", { mode: "boolean" }).notNull().default(true),
+  },
+  (t) => [primaryKey({ columns: [t.workspaceId, t.key] })],
+);
 
 export const board = sqliteTable("board", {
   id: text("id").primaryKey(),
+  workspaceId: text("workspace_id")
+    .notNull()
+    .default("default")
+    .references(() => workspace.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   description: text("description"),
   position: integer("position").notNull().default(0),
@@ -37,6 +101,10 @@ export const board = sqliteTable("board", {
 
 export const tag = sqliteTable("tag", {
   id: text("id").primaryKey(),
+  workspaceId: text("workspace_id")
+    .notNull()
+    .default("default")
+    .references(() => workspace.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
 });
 
@@ -44,13 +112,17 @@ export const post = sqliteTable(
   "post",
   {
     id: integer("id").primaryKey({ autoIncrement: true }),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .default("default")
+      .references(() => workspace.id, { onDelete: "cascade" }),
     boardId: text("board_id")
       .notNull()
       .references(() => board.id, { onDelete: "cascade" }),
     authorId: text("author_id").references(() => user.id, { onDelete: "set null" }),
     title: text("title").notNull(),
     body: text("body").notNull().default(""),
-    status: text("status", { enum: STATUSES }).notNull().default("open"),
+    status: text("status").notNull().default("open"),
     pinned: integer("pinned", { mode: "boolean" }).notNull().default(false),
     voteCount: integer("vote_count").notNull().default(0),
     commentCount: integer("comment_count").notNull().default(0),
@@ -64,6 +136,7 @@ export const post = sqliteTable(
     statusChangedAt: integer("status_changed_at", { mode: "timestamp_ms" }).default(now).notNull(),
   },
   (t) => [
+    index("post_workspace_idx").on(t.workspaceId),
     index("post_board_idx").on(t.boardId),
     index("post_status_idx").on(t.status),
     index("post_votes_idx").on(t.voteCount),
@@ -106,9 +179,27 @@ export const comment = sqliteTable(
       .references(() => post.id, { onDelete: "cascade" }),
     authorId: text("author_id").references(() => user.id, { onDelete: "set null" }),
     body: text("body").notNull(),
+    // Internal notes are written by the team and only shown in the dashboard.
+    internal: integer("internal", { mode: "boolean" }).notNull().default(false),
     createdAt: integer("created_at", { mode: "timestamp_ms" }).default(now).notNull(),
   },
   (t) => [index("comment_post_idx").on(t.postId)],
+);
+
+// Emoji reactions on comments. One row per user per emoji per comment.
+export const commentReaction = sqliteTable(
+  "comment_reaction",
+  {
+    commentId: integer("comment_id")
+      .notNull()
+      .references(() => comment.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    emoji: text("emoji").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).default(now).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.commentId, t.userId, t.emoji] })],
 );
 
 // Status changes, merges and pins. Rendered inline with comments as a timeline.
@@ -131,6 +222,10 @@ export const activity = sqliteTable(
 
 export const changelogEntry = sqliteTable("changelog_entry", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  workspaceId: text("workspace_id")
+    .notNull()
+    .default("default")
+    .references(() => workspace.id, { onDelete: "cascade" }),
   title: text("title").notNull(),
   body: text("body").notNull().default(""),
   version: text("version"),
@@ -152,7 +247,34 @@ export const changelogPost = sqliteTable(
   (t) => [primaryKey({ columns: [t.entryId, t.postId] }), uniqueIndex("changelog_post_uidx").on(t.entryId, t.postId)],
 );
 
-export const boardRelations = relations(board, ({ many }) => ({ posts: many(post) }));
+export const workspaceRelations = relations(workspace, ({ many }) => ({ members: many(membership), boards: many(board) }));
+
+export const membershipRelations = relations(membership, ({ one }) => ({
+  workspace: one(workspace, { fields: [membership.workspaceId], references: [workspace.id] }),
+  user: one(user, { fields: [membership.userId], references: [user.id] }),
+}));
+
+// API keys for the HTTP API, MCP and CLI. Only the hash is stored; the plain
+// key is shown once at creation.
+export const apiKey = sqliteTable(
+  "api_key",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspace.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    prefix: text("prefix").notNull(),
+    hash: text("hash").notNull(),
+    createdBy: text("created_by").references(() => user.id, { onDelete: "set null" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).default(now).notNull(),
+    lastUsedAt: integer("last_used_at", { mode: "timestamp_ms" }),
+    revokedAt: integer("revoked_at", { mode: "timestamp_ms" }),
+  },
+  (t) => [index("api_key_workspace_idx").on(t.workspaceId)],
+);
+
+export const boardRelations = relations(board, ({ one, many }) => ({ workspace: one(workspace, { fields: [board.workspaceId], references: [workspace.id] }), posts: many(post) }));
 
 export const postRelations = relations(post, ({ one, many }) => ({
   board: one(board, { fields: [post.boardId], references: [board.id] }),
@@ -173,9 +295,15 @@ export const voteRelations = relations(vote, ({ one }) => ({
   user: one(user, { fields: [vote.userId], references: [user.id] }),
 }));
 
-export const commentRelations = relations(comment, ({ one }) => ({
+export const commentRelations = relations(comment, ({ one, many }) => ({
   post: one(post, { fields: [comment.postId], references: [post.id] }),
   author: one(user, { fields: [comment.authorId], references: [user.id] }),
+  reactions: many(commentReaction),
+}));
+
+export const commentReactionRelations = relations(commentReaction, ({ one }) => ({
+  comment: one(comment, { fields: [commentReaction.commentId], references: [comment.id] }),
+  user: one(user, { fields: [commentReaction.userId], references: [user.id] }),
 }));
 
 export const activityRelations = relations(activity, ({ one }) => ({

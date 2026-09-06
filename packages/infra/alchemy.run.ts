@@ -8,7 +8,8 @@ config({ path: "./.env" });
 config({ path: "../../apps/web/.env" });
 
 export const db = Cloudflare.D1.Database("database", {
-  migrations: "../../packages/db/src/migrations",
+  // flat .sql copies; drizzle-kit's own out dir (src/migrations) has meta/ which Alchemy rejects
+  migrations: "../../packages/db/migrations",
 });
 
 export const web = Cloudflare.Website.Vite("web", {
