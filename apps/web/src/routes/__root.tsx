@@ -1,5 +1,5 @@
 import { Toaster } from "@openheard/ui/components/sonner";
-import { HeadContent, Outlet, Scripts, createRootRouteWithContext } from "@tanstack/react-router";
+import { HeadContent, Outlet, Scripts, createRootRouteWithContext, useLocation } from "@tanstack/react-router";
 
 import Footer from "../components/footer";
 import Header from "../components/header";
@@ -26,27 +26,36 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
   notFoundComponent: () => (
     <main className="mx-auto max-w-3xl px-8 py-24 text-center">
       <h1 className="text-xl font-semibold">Nothing here</h1>
-      <p className="mt-2 text-muted-foreground">That page does not exist. The board is one click back.</p>
+      <p className="mt-2 text-muted-foreground">That page or workspace does not exist.</p>
     </main>
   ),
 });
 
 function RootDocument() {
   const data = Route.useLoaderData();
-  const theme = data?.workspace.theme === "light" ? "" : "dark";
+  const { pathname } = useLocation();
+  const admin = pathname.startsWith("/dashboard");
+  const marketing = pathname === "/landing";
+  const theme = data?.workspace.theme === "light" && !admin && !marketing ? "" : "dark";
+  // Workspace accent applies to the public board only; the dashboard keeps ours.
+  const accent = !admin && data?.workspace.accent ? ({ "--link": data.workspace.accent, "--ring": data.workspace.accent } as React.CSSProperties) : undefined;
   return (
-    <html lang="en" className={theme}>
+    <html lang="en" className={theme} style={accent}>
       <head>
         <HeadContent />
       </head>
       <body>
-        <div className="flex min-h-svh flex-col">
-          <Header />
-          <div className="flex flex-1 flex-col">
-            <Outlet />
+        {admin || marketing ? (
+          <Outlet />
+        ) : (
+          <div className="flex min-h-svh flex-col">
+            <Header />
+            <div className="flex flex-1 flex-col">
+              <Outlet />
+            </div>
+            <Footer />
           </div>
-          <Footer />
-        </div>
+        )}
         <Toaster position="bottom-right" />
         <Scripts />
       </body>

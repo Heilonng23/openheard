@@ -8,6 +8,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@openheard/ui/components/dropdown-menu";
+import { GearSixIcon } from "@phosphor-icons/react";
 import { Link, useLoaderData, useRouter } from "@tanstack/react-router";
 
 import { authClient } from "@/lib/auth-client";
@@ -37,10 +38,15 @@ export default function UserMenu() {
       <DropdownMenuContent align="end" className="min-w-48">
         <DropdownMenuGroup>
           <DropdownMenuLabel>
-            <div className="text-[13px] font-medium text-foreground">{user.name}</div>
+            <div className="text-[13px] font-semibold text-foreground">{user.name}</div>
             <div className="truncate">{user.email}</div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
+          {user.role === "admin" ? (
+            <DropdownMenuItem render={<Link to="/dashboard" />}>
+              <GearSixIcon className="size-4" /> Dashboard
+            </DropdownMenuItem>
+          ) : null}
           <DropdownMenuItem
             onClick={() =>
               authClient.signOut({ fetchOptions: { onSuccess: () => router.invalidate().then(() => router.navigate({ to: "/" })) } })

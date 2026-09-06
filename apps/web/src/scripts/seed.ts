@@ -17,6 +17,9 @@ async function main() {
     process.exit(1);
   }
   const admin = users.find((u) => u.role === "admin") ?? users[0];
+  await db.insert(schema.workspace).values({ id: "default", name: "acme" }).onConflictDoNothing();
+  await db.insert(schema.membership).values({ workspaceId: "default", userId: admin.id, role: "admin" }).onConflictDoNothing();
+  await db.insert(schema.status).values(schema.DEFAULT_STATUSES.map((d, i) => ({ workspaceId: "default", ...d, position: i }))).onConflictDoNothing();
 
   const people = [
     ["Sarah Chen", "sarah@relay.io"],
@@ -33,7 +36,6 @@ async function main() {
   }
   const members = (await db.select().from(schema.user)).filter((u) => u.id !== admin.id).map((u) => u.id);
 
-  await db.insert(schema.workspace).values({ id: "default", name: "acme" }).onConflictDoNothing();
   await db
     .insert(schema.board)
     .values([
@@ -47,7 +49,7 @@ async function main() {
 
   type Seed = { board: string; title: string; body: string; status: schema.Status; votes: number; tags: string[]; days: number; pinned?: boolean; eta?: string };
   const posts: Seed[] = [
-    { board: "features", title: "Import boards from Canny", body: "We have three years of posts in Canny and switching means losing that history. A one-click import that keeps votes, authors and comments would make the move a no-brainer. Even a CSV path would be fine, as long as the vote counts survive.", status: "progress", votes: 142, tags: ["migration"], days: 2, pinned: true, eta: "v0.4" },
+    { board: "features", title: "Import our old feedback board", body: "We have three years of posts in our old tool and switching means losing that history. A one-click import that keeps votes, authors and comments would make the move a no-brainer. Even a CSV path would be fine, as long as the vote counts survive.", status: "progress", votes: 142, tags: ["migration"], days: 2, pinned: true, eta: "v0.4" },
     { board: "integrations", title: "Slack notification when a post changes status", body: "Post to a channel when something moves to planned or shipped so the team sees it without opening the board.", status: "planned", votes: 89, tags: ["integrations"], days: 5 },
     { board: "features", title: "Public API for posts and votes", body: "Read posts, create them from our own app, and sync votes. Webhooks for changes would be enough to start.", status: "review", votes: 67, tags: ["api"], days: 7 },
     { board: "features", title: "Embed widget that matches our dark theme", body: "The floating widget is light only. A dark variant and a way to pass our accent color.", status: "planned", votes: 56, tags: ["widget", "theming"], days: 8 },

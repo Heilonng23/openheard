@@ -1,14 +1,12 @@
-import { Button } from "@openheard/ui/components/button";
-import { Input } from "@openheard/ui/components/input";
-import { Label } from "@openheard/ui/components/label";
+import { EnvelopeSimpleIcon, LockSimpleIcon, UserIcon } from "@phosphor-icons/react";
 import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { Button } from "@openheard/ui/components/button";
 import Logo from "@/components/logo";
 import { getUser } from "@/functions/get-user";
 import { authClient } from "@/lib/auth-client";
-import { cn } from "@openheard/ui/lib/utils";
 
 export const Route = createFileRoute("/login")({
   beforeLoad: async () => {
@@ -18,6 +16,8 @@ export const Route = createFileRoute("/login")({
   component: LoginPage,
 });
 
+// Email and password, styled like the magic link frame. Magic links land once
+// an email provider is wired up; the shape of this page does not change.
 function LoginPage() {
   const router = useRouter();
   const [mode, setMode] = useState<"in" | "up">("in");
@@ -45,44 +45,60 @@ function LoginPage() {
 
   return (
     <main className="flex flex-1 items-center justify-center px-5 py-16">
-      <div className="flex w-full max-w-[360px] flex-col gap-6">
-        <div className="flex flex-col items-center gap-3">
-          <Logo size={36} />
-          <h1 className="text-lg font-semibold">{mode === "in" ? "Welcome back" : "Create an account"}</h1>
+      <div className="flex w-full max-w-[380px] flex-col items-center gap-6">
+        <Logo size={40} />
+        <div className="flex flex-col items-center gap-1.5 text-center">
+          <h1 className="text-[22px] font-semibold tracking-[-0.02em]">{mode === "in" ? "Sign in to openheard" : "Create your account"}</h1>
+          <p className="text-sm text-muted-foreground">Vote and comment as yourself.</p>
         </div>
-        <div className="flex gap-0.5 rounded-md border bg-card p-[3px]">
-          {(["in", "up"] as const).map((m) => (
-            <button
-              key={m}
-              type="button"
-              onClick={() => setMode(m)}
-              className={cn("flex-1 rounded-[5px] py-1.5 text-xs font-medium text-muted-foreground transition-colors", mode === m && "bg-accent text-foreground")}
-            >
-              {m === "in" ? "Sign in" : "Sign up"}
-            </button>
-          ))}
-        </div>
-        <form onSubmit={submit} className="flex flex-col gap-4 rounded-xl border bg-card p-5">
+
+        <form onSubmit={submit} className="flex w-full flex-col gap-2.5">
           {mode === "up" ? (
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="name">Name</Label>
-              <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required autoComplete="name" />
-            </div>
+            <Field icon={<UserIcon className="size-[15px]" />}>
+              <input value={name} onChange={(e) => setName(e.target.value)} required autoComplete="name" placeholder="Your name" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-faint" />
+            </Field>
           ) : null}
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="email">Email</Label>
-            <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="password">Password</Label>
-            <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} autoComplete={mode === "in" ? "current-password" : "new-password"} />
-          </div>
-          <Button type="submit" className="mt-1 h-9" disabled={busy}>
-            {busy ? "One moment…" : mode === "in" ? "Sign in" : "Create account"}
+          <Field icon={<EnvelopeSimpleIcon className="size-[15px]" />}>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" placeholder="you@company.com" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-faint" />
+          </Field>
+          <Field icon={<LockSimpleIcon className="size-[15px]" />}>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={8}
+              autoComplete={mode === "in" ? "current-password" : "new-password"}
+              placeholder="Password"
+              className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-faint"
+            />
+          </Field>
+          <Button type="submit" full arrow size="lg" disabled={busy} className="mt-1">
+            {busy ? "One moment" : mode === "in" ? "Sign in" : "Create account"}
           </Button>
         </form>
-        <p className="text-center text-xs text-muted-foreground">The first account on a fresh install becomes the admin.</p>
+
+        <div className="flex w-full items-center gap-3">
+          <span className="h-px flex-1 bg-border" />
+          <span className="font-mono text-[11px] text-faint">or</span>
+          <span className="h-px flex-1 bg-border" />
+        </div>
+
+        <Button variant="secondary" full size="lg" onClick={() => setMode(mode === "in" ? "up" : "in")} className="font-semibold">
+          {mode === "in" ? "Create an account" : "I already have an account"}
+        </Button>
+
+        <p className="text-center text-xs text-faint">The first account on a fresh install becomes the admin.</p>
       </div>
     </main>
+  );
+}
+
+function Field({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <label className="flex h-10 items-center gap-2.5 rounded-lg border border-input bg-card px-3 text-faint transition-colors focus-within:border-ring/60 focus-within:ring-1 focus-within:ring-ring/40">
+      {icon}
+      {children}
+    </label>
   );
 }

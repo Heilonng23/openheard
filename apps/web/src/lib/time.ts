@@ -27,3 +27,9 @@ export function longDate(date: Date | number | string): string {
 export function fullDate(date: Date | number | string): string {
   return new Date(date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
+
+// "3d ago", or "just now" when it is fresh. For sentences, not meta rows.
+export function since(date: Date | number | string): string {
+  const a = ago(date);
+  return a === "now" ? "just now" : `${a} ago`;
+}

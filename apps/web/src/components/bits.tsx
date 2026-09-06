@@ -1,25 +1,36 @@
-import type { Status } from "@openheard/db/schema/feedback";
 import { cn } from "@openheard/ui/lib/utils";
 
-import { STATUS_META } from "@/lib/status";
+import { findStatus, tint, useStatuses } from "@/lib/status";
 
-export function StatusPill({ status, className }: { status: Status; className?: string }) {
-  const m = STATUS_META[status];
+// Dot + label on a 15% tint of the status colour. Used on the post page and in timelines.
+export function StatusChip({ status, className }: { status: string; className?: string }) {
+  const m = findStatus(useStatuses(), status);
   return (
-    <span className={cn("inline-flex h-[22px] items-center gap-1.5 rounded-full border bg-secondary px-2 text-xs font-medium text-muted-foreground", className)}>
-      <span className={cn("size-[7px] rounded-full", m.dot)} />
+    <span className={cn("inline-flex h-[22px] items-center gap-1.5 rounded-full px-2.5 pl-2 text-xs font-semibold", className)} style={{ background: tint(m.color), color: m.color }}>
+      <span className="size-[7px] rounded-full" style={{ background: m.color }} />
       {m.label}
     </span>
   );
 }
 
-export function StatusDot({ status, className }: { status: Status; className?: string }) {
-  return <span className={cn("inline-block size-[7px] rounded-full", STATUS_META[status].dot, className)} />;
+// Dot + muted label, for list rows.
+export function StatusLabel({ status, className }: { status: string; className?: string }) {
+  const m = findStatus(useStatuses(), status);
+  return (
+    <span className={cn("inline-flex items-center gap-1.5 font-semibold", className)}>
+      <span className="size-[7px] rounded-full" style={{ background: m.color }} />
+      {m.label}
+    </span>
+  );
+}
+
+export function StatusDot({ color, className }: { color: string; className?: string }) {
+  return <span className={cn("inline-block size-[7px] rounded-full", className)} style={{ background: color }} />;
 }
 
 export function TagChip({ children, active, className }: { children: React.ReactNode; active?: boolean; className?: string }) {
   return (
-    <span className={cn("inline-flex h-5 items-center rounded-[5px] border bg-secondary px-1.5 text-[11.5px] text-muted-foreground", active && "border-foreground/40 text-foreground", className)}>
+    <span className={cn("inline-flex h-5 items-center rounded-md border bg-secondary px-1.5 text-[12px] text-muted-foreground", active && "border-foreground/40 text-foreground", className)}>
       {children}
     </span>
   );
@@ -27,7 +38,7 @@ export function TagChip({ children, active, className }: { children: React.React
 
 export function Kbd({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <kbd className={cn("inline-flex h-[18px] min-w-[18px] items-center justify-center rounded border bg-secondary px-1 font-mono text-[10.5px] text-muted-foreground", className)}>
+    <kbd className={cn("inline-flex h-[18px] min-w-[18px] items-center justify-center rounded border bg-secondary px-1 font-mono text-[11px] text-muted-foreground", className)}>
       {children}
     </kbd>
   );
@@ -53,7 +64,7 @@ export function Avatar({ name, image, size = 26, className }: { name: string; im
 }
 
 export function TeamBadge() {
-  return <span className="inline-flex h-[18px] items-center rounded-full border border-link/30 bg-link/10 px-1.5 text-[10.5px] font-medium text-link">team</span>;
+  return <span className="inline-flex h-[18px] items-center rounded-full bg-link/10 px-1.5 text-[11px] font-semibold text-link">team</span>;
 }
 
 export function Mono({ children, className }: { children: React.ReactNode; className?: string }) {
