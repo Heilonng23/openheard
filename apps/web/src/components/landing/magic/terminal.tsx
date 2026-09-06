@@ -76,6 +76,7 @@ export const AnimatedSpan = ({
     amount: 0.3,
     once: true,
   })
+  const prefersReduced = usePrefersReducedMotion()
 
   const sequence = useSequence()
   const itemIndex = useItemIndex()
@@ -91,12 +92,18 @@ export const AnimatedSpan = ({
 
   const shouldAnimate = sequence ? hasStarted : startOnView ? isInView : true
 
+  useEffect(() => {
+    if (prefersReduced && sequence && itemIndex !== null) {
+      sequence.completeItem(itemIndex)
+    }
+  }, [prefersReduced, sequence, itemIndex])
+
   return (
     <motion.div
       ref={elementRef}
-      initial={{ opacity: 0, y: -5 }}
-      animate={shouldAnimate ? { opacity: 1, y: 0 } : { opacity: 0, y: -5 }}
-      transition={{ duration: 0.3, delay: sequence ? 0 : delay / 1000 }}
+      initial={prefersReduced ? { opacity: 1, y: 0 } : { opacity: 0, y: -5 }}
+      animate={prefersReduced || shouldAnimate ? { opacity: 1, y: 0 } : { opacity: 0, y: -5 }}
+      transition={prefersReduced ? { duration: 0 } : { duration: 0.3, delay: sequence ? 0 : delay / 1000 }}
       className={cn("grid text-sm font-normal tracking-tight", className)}
       onAnimationComplete={() => {
         if (!sequence) return
@@ -119,6 +126,18 @@ interface TypingAnimationProps extends Omit<MotionProps, "children"> {
   startOnView?: boolean
 }
 
+function usePrefersReducedMotion() {
+  const [reduced, setReduced] = useState(false)
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)")
+    setReduced(mq.matches)
+    const h = (e: MediaQueryListEvent) => setReduced(e.matches)
+    mq.addEventListener("change", h)
+    return () => mq.removeEventListener("change", h)
+  }, [])
+  return reduced
+}
+
 export const TypingAnimation = ({
   children,
   className,
@@ -136,6 +155,7 @@ export const TypingAnimation = ({
     Component
   ] as TerminalTypingMotionComponent
 
+  const prefersReduced = usePrefersReducedMotion()
   const [displayedText, setDisplayedText] = useState<string>("")
   const [started, setStarted] = useState(false)
   const elementRef = useRef<HTMLElement | null>(null)
@@ -187,6 +207,16 @@ export const TypingAnimation = ({
   ])
 
   useEffect(() => {
+    if (started && prefersReduced) {
+      setDisplayedText(children)
+      const completeItem = sequenceCompleteItemRef.current
+      const currentItemIndex = sequenceItemIndexRef.current
+      if (completeItem && currentItemIndex !== null) {
+        completeItem(currentItemIndex)
+      }
+      return
+    }
+
     let typingEffect: ReturnType<typeof setInterval> | null = null
 
     if (started) {
@@ -213,7 +243,7 @@ export const TypingAnimation = ({
         clearInterval(typingEffect)
       }
     }
-  }, [children, duration, started])
+  }, [children, duration, started, prefersReduced])
 
   return (
     <MotionComponent

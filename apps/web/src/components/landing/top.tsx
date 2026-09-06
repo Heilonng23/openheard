@@ -34,7 +34,7 @@ export function Nav() {
 
   return (
     <header className={cn("sticky z-50 mx-4 flex justify-center transition-all duration-300 md:mx-0", scrolled ? "top-6" : "top-4 mx-0")}>
-      <motion.div initial={{ width: "70rem" }} animate={{ width: scrolled ? "800px" : "70rem" }} transition={{ duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }} className="max-w-full">
+      <motion.div initial={{ width: "70rem" }} animate={{ width: scrolled ? "800px" : "70rem" }} transition={{ duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }} className="max-w-full motion-reduce:!transition-none">
         <div className={cn("mx-auto max-w-7xl rounded-2xl transition-all duration-300 xl:px-0", scrolled ? "border border-border bg-background/75 px-2 backdrop-blur-lg" : "px-7 shadow-none")}>
           <div className="flex h-[56px] items-center justify-between p-4">
             <Link to="/" className="flex items-center gap-2.5 text-[15px] font-semibold tracking-[-0.01em] text-foreground" aria-label="Homepage">

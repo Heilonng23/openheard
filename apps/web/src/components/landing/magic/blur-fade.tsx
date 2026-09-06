@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import {
   AnimatePresence,
   motion,
@@ -47,6 +47,20 @@ export function BlurFade({
   const ref = useRef(null)
   const inViewResult = useInView(ref, { once: true, margin: inViewMargin })
   const isInView = !inView || inViewResult
+
+  const [prefersReduced, setPrefersReduced] = useState(false)
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)")
+    setPrefersReduced(mq.matches)
+    const h = (e: MediaQueryListEvent) => setPrefersReduced(e.matches)
+    mq.addEventListener("change", h)
+    return () => mq.removeEventListener("change", h)
+  }, [])
+
+  if (prefersReduced) {
+    return <div ref={ref} className={className}>{children}</div>
+  }
+
   const defaultVariants: Variants = {
     hidden: {
       [direction === "left" || direction === "right" ? "x" : "y"]:
