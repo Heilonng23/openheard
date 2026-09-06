@@ -1,6 +1,6 @@
 import { activity, comment, commentReaction, createDb, post, postTag, status, vote } from "@openheard/db";
 
-import { assertStatus, statusOfKind } from "@/lib/status-db";
+import { assertStatus, listStatuses, statusOfKind } from "@/lib/status-db";
 import { createServerFn } from "@tanstack/react-start";
 import { and, desc, eq, inArray, like, or, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -29,9 +29,14 @@ export const listPosts = createServerFn({ method: "GET" })
   .validator((d: unknown) => listInput.parse(d ?? {}))
   .handler(async ({ data, context }) => {
     const db = createDb();
+    const isAdmin = context.user?.role === "admin";
+    const reviewKeys = context.workspace.requireApproval && !isAdmin
+      ? (await listStatuses(db, context.workspace.id)).filter((s) => s.kind === "review").map((s) => s.key)
+      : [];
     const where = and(
       eq(post.workspaceId, context.workspace.id),
       sql`${post.mergedIntoId} is null`,
+      reviewKeys.length ? sql`${post.status} not in (${sql.join(reviewKeys.map((k) => sql`${k}`), sql`, `)})` : undefined,
       data.board ? eq(post.boardId, data.board) : undefined,
       data.status ? eq(post.status, data.status) : undefined,
       data.q ? or(like(post.title, `%${data.q}%`), like(post.body, `%${data.q}%`)) : undefined,
@@ -167,13 +172,18 @@ export const createPost = createServerFn({ method: "POST" })
     const u = requireUser(context.user);
     if (context.workspace.whoCanPost === "members" && u.role === "guest") throw new Error("Only team members can post on this board");
     const db = createDb();
+    let initialStatus = "open";
+    if (context.workspace.requireApproval && u.role !== "admin") {
+      const reviewStatus = await statusOfKind(db, context.workspace.id, "review");
+      if (reviewStatus) initialStatus = reviewStatus.key;
+    }
     const [created] = await db
       .insert(post)
-      .values({ workspaceId: context.workspace.id, boardId: data.boardId, authorId: u.id, title: data.title, body: data.body, voteCount: 1 })
+      .values({ workspaceId: context.workspace.id, boardId: data.boardId, authorId: u.id, title: data.title, body: data.body, voteCount: 1, status: initialStatus })
       .returning({ id: post.id });
     await db.insert(vote).values({ postId: created.id, userId: u.id });
     if (data.tags.length) await db.insert(postTag).values(data.tags.map((tagId) => ({ postId: created.id, tagId })));
-    return { id: created.id };
+    return { id: created.id, pending: initialStatus !== "open" };
   });
 
 export const toggleVote = createServerFn({ method: "POST" })
@@ -314,8 +324,13 @@ export const getRoadmap = createServerFn({ method: "GET" })
   .validator((d: unknown) => z.object({ board: z.string().optional() }).parse(d ?? {}))
   .handler(async ({ data, context }) => {
     const db = createDb();
+    const roadmapFilter = and(eq(status.workspaceId, context.workspace.id), eq(status.onRoadmap, true));
+    const isAdmin = context.user?.role === "admin";
+    const statusFilter = context.workspace.requireApproval && !isAdmin
+      ? and(roadmapFilter, sql`${status.kind} != 'review'`)
+      : roadmapFilter;
     const rows = await db.query.post.findMany({
-      where: and(eq(post.workspaceId, context.workspace.id), sql`${post.mergedIntoId} is null`, data.board ? eq(post.boardId, data.board) : undefined, inArray(post.status, db.select({ key: status.key }).from(status).where(and(eq(status.workspaceId, context.workspace.id), eq(status.onRoadmap, true))))),
+      where: and(eq(post.workspaceId, context.workspace.id), sql`${post.mergedIntoId} is null`, data.board ? eq(post.boardId, data.board) : undefined, inArray(post.status, db.select({ key: status.key }).from(status).where(statusFilter))),
       orderBy: [desc(post.pinned), desc(post.voteCount)],
       with: {
         tags: { with: { tag: true } },
