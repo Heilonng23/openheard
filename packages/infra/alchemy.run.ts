@@ -12,6 +12,8 @@ export const db = Cloudflare.D1.Database("database", {
   migrations: "../../packages/db/migrations",
 });
 
+export const email = Cloudflare.Email.SendEmail("EMAIL");
+
 export const web = Cloudflare.Website.Vite("web", {
   rootDir: "../../apps/web",
   compatibility: {
@@ -19,8 +21,10 @@ export const web = Cloudflare.Website.Vite("web", {
   },
   env: {
     DB: db,
+    EMAIL: email,
     BETTER_AUTH_SECRET: Config.redacted("BETTER_AUTH_SECRET"),
-    BETTER_AUTH_URL: Cloudflare.Worker.URL,
+    BETTER_AUTH_URL: Config.string("BETTER_AUTH_URL").pipe(Config.withDefault("")),
+    ROOT_DOMAIN: Config.string("ROOT_DOMAIN").pipe(Config.withDefault("")),
   },
   dev: {
     port: 3001,

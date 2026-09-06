@@ -56,7 +56,7 @@ export function createAuth() {
     // One cookie for every workspace subdomain in the cloud version.
     advanced: rootDomain ? { crossSubDomainCookies: { enabled: true, domain: "." + rootDomain } } : undefined,
     secret: env.BETTER_AUTH_SECRET,
-    baseURL: env.BETTER_AUTH_URL,
+    baseURL: env.BETTER_AUTH_URL || undefined,
     plugins: [tanstackStartCookies()],
   });
 }
