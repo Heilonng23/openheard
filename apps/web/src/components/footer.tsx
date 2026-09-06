@@ -26,6 +26,9 @@ export default function Footer() {
           </a>
         </span>
       ) : null}
+      <a href="https://github.com/Heilonng23/openheard" className="text-faint hover:text-muted-foreground">
+        Source
+      </a>
     </footer>
   );
 }
