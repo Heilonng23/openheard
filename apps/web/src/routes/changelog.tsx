@@ -53,6 +53,7 @@ function ChangelogPage() {
           Post idea
         </Button>
       )}
+      {entries.length > 0 ? (
       <section className="flex flex-col gap-2.5 px-2.5">
         <RailLabel>Get updates</RailLabel>
         <p className="-mt-1 text-[13px] leading-[1.5] text-muted-foreground">One email when something ships. No digest, no marketing.</p>
@@ -72,6 +73,7 @@ function ChangelogPage() {
           <RssIcon className="size-3.5" /> RSS feed
         </a>
       </section>
+      ) : null}
     </>
   );
 
