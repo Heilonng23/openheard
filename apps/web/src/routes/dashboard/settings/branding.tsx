@@ -52,7 +52,7 @@ function Branding() {
               </button>
             ))}
           </span>
-          <input value={accent} onChange={(e) => setAccent(e.target.value)} className="h-8 w-24 rounded-lg border border-input bg-card px-2.5 font-mono text-[12px] outline-none focus:border-ring/60" />
+          <input value={accent} onChange={(e) => setAccent(e.target.value)} aria-label="Accent color" className="h-8 w-24 rounded-lg border border-input bg-card px-2.5 font-mono text-[12px] outline-none focus:border-ring/60" />
         </div>
       </Row>
       <Row label="Preview" help="A voted pill in your accent.">

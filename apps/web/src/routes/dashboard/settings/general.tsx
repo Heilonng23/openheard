@@ -41,10 +41,10 @@ function General() {
       <PageHead title="General" sub="What visitors see at the top of every public page." />
       <SectionHead title="Workspace" />
       <Row label="Name" help="Shown next to the logo and in the page title.">
-        <input value={name} onChange={(e) => setName(e.target.value)} className={input} />
+        <input value={name} onChange={(e) => setName(e.target.value)} aria-label="Workspace name" className={input} />
       </Row>
       <Row label="Tagline" help="One line under the board title. Leave empty to hide.">
-        <input value={tagline} onChange={(e) => setTagline(e.target.value)} className={input} />
+        <input value={tagline} onChange={(e) => setTagline(e.target.value)} aria-label="Tagline" className={input} />
       </Row>
       <div className="flex items-center justify-end gap-3 border-t pt-4">
         <span className="text-xs text-faint">{dirty ? "Unsaved changes" : "Saved"}</span>

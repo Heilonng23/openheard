@@ -63,7 +63,7 @@ function ChangelogPage() {
           }}
           className="flex h-[34px] items-center gap-1.5 rounded-lg border border-input bg-card pr-1 pl-2.5 focus-within:border-ring/60"
         >
-          <input type="email" placeholder="you@company.com" className="min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-faint" />
+          <input type="email" placeholder="you@company.com" aria-label="Email address" className="min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-faint" />
           <button type="submit" className="inline-flex size-[26px] items-center justify-center rounded-md bg-accent text-foreground hover:bg-input" aria-label="Subscribe">
             <ArrowRightIcon weight="bold" className="size-3" />
           </button>
@@ -192,10 +192,10 @@ function EntryDialog({ entry, onClose }: { entry: Entry | null | "new"; onClose:
           <DialogDescription>Publishing marks every linked post as shipped and notifies its voters.</DialogDescription>
         </DialogHeader>
         <div className="grid grid-cols-[minmax(0,1fr)_120px] gap-2">
-          <Input placeholder="What shipped" value={title} onChange={(ev) => setTitle(ev.target.value)} className="h-10 text-[14px] font-semibold" />
-          <Input placeholder="v0.4.0" value={version} onChange={(ev) => setVersion(ev.target.value)} className="h-10 font-mono" />
+          <Input placeholder="What shipped" value={title} onChange={(ev) => setTitle(ev.target.value)} aria-label="Entry title" className="h-10 text-[14px] font-semibold" />
+          <Input placeholder="v0.4.0" value={version} onChange={(ev) => setVersion(ev.target.value)} aria-label="Version" className="h-10 font-mono" />
         </div>
-        <Textarea placeholder="Why it matters, in a few sentences." value={body} onChange={(ev) => setBody(ev.target.value)} className="min-h-36" />
+        <Textarea placeholder="Why it matters, in a few sentences." value={body} onChange={(ev) => setBody(ev.target.value)} aria-label="Entry body" className="min-h-36" />
         <div className="flex flex-col gap-2">
           <span className="text-xs text-muted-foreground">Posts this closes</span>
           <div className="flex flex-wrap gap-1.5">
@@ -205,7 +205,7 @@ function EntryDialog({ entry, onClose }: { entry: Entry | null | "new"; onClose:
               </button>
             ))}
           </div>
-          <Input placeholder="Search posts to link" value={q} onChange={(ev) => setQ(ev.target.value)} />
+          <Input placeholder="Search posts to link" value={q} onChange={(ev) => setQ(ev.target.value)} aria-label="Search posts to link" />
           {results.length ? (
             <div className="flex max-h-40 flex-col overflow-auto rounded-md border">
               {results

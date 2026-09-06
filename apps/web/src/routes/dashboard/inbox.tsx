@@ -288,6 +288,7 @@ function Detail({ post: p, onClose }: { post: PostData; onClose: () => void }) {
                 onChange={(e) => setEta(e.target.value)}
                 onBlur={() => eta !== (p.eta ?? "") && run(() => setEtaFn({ data: { postId: p.id, eta } }), "ETA saved")}
                 placeholder="none"
+                aria-label="ETA"
                 className="h-6 w-20 rounded-md border border-transparent bg-transparent px-1.5 font-mono text-[12px] text-foreground outline-none placeholder:text-faint hover:border-input focus:border-ring/60"
               />
             </span>
@@ -355,6 +356,7 @@ function Detail({ post: p, onClose }: { post: PostData; onClose: () => void }) {
               onChange={(e) => setReply(e.target.value)}
               rows={1}
               placeholder={internal ? "Internal note, only the team sees this" : "Reply as the team"}
+              aria-label={internal ? "Internal note" : "Reply to post"}
               className={cn("w-full resize-none bg-transparent text-[13px] leading-relaxed outline-none transition-[height] duration-150 ease-out placeholder:text-faint motion-reduce:transition-none", reply ? "h-[72px]" : "h-[22px] focus:h-[44px]")}
               onKeyDown={(e) => (e.metaKey || e.ctrlKey) && e.key === "Enter" && send()}
             />
