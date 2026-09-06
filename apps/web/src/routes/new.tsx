@@ -37,7 +37,7 @@ function NewWorkspace() {
     setBusy(true);
     try {
       const { id } = await createWorkspace({ data: { name, slug: finalSlug } });
-      window.location.href = workspaceUrl(id, rootDomain, "/dashboard");
+      window.location.href = workspaceUrl(id, rootDomain, "/welcome");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not create workspace");
       setBusy(false);
