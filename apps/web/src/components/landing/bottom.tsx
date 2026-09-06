@@ -43,9 +43,9 @@ export function Products() {
               ))}
             </ul>
           </div>
-          <div className="overflow-hidden p-6">
+          <div className="overflow-hidden p-4 md:p-6">
             <BlurFade inView>
-              <Shot src={p.shot} alt="" className="aspect-[16/10]" imgClassName={cn("w-[150%] max-w-none", p.center && "-ml-[25%]")} />
+              <Shot src={p.shot} alt="" className="aspect-[16/10]" imgClassName={cn("w-full md:w-[150%] md:max-w-none", p.center && "md:-ml-[25%]")} />
             </BlurFade>
           </div>
         </div>
@@ -125,17 +125,17 @@ export function Bento() {
           </div>
         </Cell>
         <Cell title="A roadmap that stays honest" desc="Statuses are data. Drag a card and the board, the roadmap and the changelog agree.">
-          <div className="grid w-full max-w-[480px] grid-cols-3 gap-3">
+          <div className="grid w-full max-w-[480px] grid-cols-3 gap-2 md:gap-3">
             {columns.map(([name, dot, cards]) => (
               <div key={name} className="flex flex-col gap-2">
-                <div className="flex items-center gap-2 text-[12px] font-medium text-muted-foreground">
+                <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground md:gap-2 md:text-[12px]">
                   <span className={cn("size-2 rounded-full", dot)} />
                   {name}
                 </div>
                 {cards.map((c) => (
-                  <div key={c} className={cn("rounded-lg border bg-card p-3 text-[13px] font-medium", name === "Shipped" ? "border-status-shipped/60" : "border-border")}>
+                  <div key={c} className={cn("rounded-lg border bg-card p-2 text-[12px] font-medium md:p-3 md:text-[13px]", name === "Shipped" ? "border-status-shipped/60" : "border-border")}>
                     {c}
-                    <div className="mt-1.5 font-mono text-[11px] font-normal text-faint">▲ {c.length * 7}</div>
+                    <div className="mt-1 font-mono text-[10px] font-normal text-faint md:mt-1.5 md:text-[11px]">▲ {c.length * 7}</div>
                   </div>
                 ))}
               </div>
@@ -158,8 +158,8 @@ export function Bento() {
 
 function Cell({ title, desc, children }: { title: string; desc: string; children: React.ReactNode }) {
   return (
-    <div className="relative flex min-h-[520px] flex-col items-start justify-end p-0.5 before:absolute before:top-0 before:-left-0.5 before:z-10 before:h-screen before:w-px before:bg-border before:content-[''] after:absolute after:-top-0.5 after:left-0 after:z-10 after:h-px after:w-screen after:bg-border after:content-['']">
-      <div className="relative flex size-full h-full max-h-[380px] flex-1 items-center justify-center overflow-hidden p-6">{children}</div>
+    <div className="relative flex min-h-[400px] flex-col items-start justify-end p-0.5 md:min-h-[520px] before:absolute before:top-0 before:-left-0.5 before:z-10 before:h-screen before:w-px before:bg-border before:content-[''] after:absolute after:-top-0.5 after:left-0 after:z-10 after:h-px after:w-screen after:bg-border after:content-['']">
+      <div className="relative flex size-full h-full max-h-[320px] flex-1 items-center justify-center overflow-hidden p-4 md:max-h-[380px] md:p-6">{children}</div>
       <div className="flex flex-col gap-2 p-6">
         <h3 className="text-lg font-semibold tracking-tighter">{title}</h3>
         <p className="text-muted-foreground">{desc}</p>
@@ -222,10 +222,10 @@ export function Own() {
   return (
     <section id="own" className="relative flex w-full scroll-mt-16 flex-col items-center justify-center gap-5">
       <SectionHeader title="Self-host is not a trial. It is the full product, forever." />
-      <div className="grid w-full items-center gap-6 px-6 pb-10 md:grid-cols-[400px_1fr] md:gap-10">
+      <div className="grid w-full items-center gap-6 px-4 pb-10 md:grid-cols-[400px_1fr] md:gap-10 md:px-6">
         <div className="flex flex-col">
           {own.map(([t, d], i) => (
-            <button key={t} type="button" onClick={() => setActive(i)} className={cn("relative flex flex-col gap-1 rounded-lg px-5 py-4 text-left transition-colors", active === i ? "bg-secondary/60" : "hover:bg-accent/40")}>
+            <button key={t} type="button" onClick={() => setActive(i)} className={cn("relative flex flex-col gap-1 rounded-lg px-4 py-3 text-left transition-colors md:px-5 md:py-4", active === i ? "bg-secondary/60" : "hover:bg-accent/40")}>
               <span className={cn("text-[15px] font-medium", active === i ? "text-foreground" : "text-muted-foreground")}>{t}</span>
               <Collapsible open={active === i}>
                 <span className="block pt-1 text-[14px] leading-relaxed text-muted-foreground">{d}</span>
@@ -233,7 +233,7 @@ export function Own() {
             </button>
           ))}
         </div>
-        <Terminal title="zsh — ~/openheard" className="min-h-[320px]">
+        <Terminal title="zsh — ~/openheard" className="min-h-[280px] md:min-h-[320px]">
           <TypingAnimation delay={200}>$ bunx openheard deploy</TypingAnimation>
           <AnimatedSpan delay={1600} className="pl-4 text-status-shipped">✓ Worker openheard-acme created</AnimatedSpan>
           <AnimatedSpan delay={2100} className="pl-4 text-status-shipped">✓ D1 database migrated (7 tables)</AnimatedSpan>
@@ -352,8 +352,8 @@ export function Closing() {
       <div className="w-full">
         <div className="relative z-20 h-[400px] w-full overflow-hidden rounded-xl border border-border bg-card shadow-xl">
           <div aria-hidden className="absolute inset-0 [background:radial-gradient(60%_80%_at_50%_0%,rgba(110,139,255,.28),transparent_70%)]" />
-          <div className="absolute inset-0 -top-32 flex flex-col items-center justify-center md:-top-40">
-            <h2 className="max-w-xs text-center text-4xl font-medium tracking-tighter text-balance md:max-w-xl md:text-7xl">Your users have opinions.</h2>
+          <div className="absolute inset-0 -top-24 flex flex-col items-center justify-center md:-top-40">
+            <h2 className="max-w-xs text-center text-3xl font-medium tracking-tighter text-balance md:max-w-xl md:text-7xl">Your users have opinions.</h2>
             <div className="absolute bottom-10 flex flex-col items-center justify-center gap-3">
               <Button size="lg" arrow nativeButton={false} render={<Link to="/login" />}>
                 Start for free
@@ -379,7 +379,7 @@ const footerCols = [
 export function Footer() {
   return (
     <footer id="footer" className="w-full pb-0">
-      <div className="flex flex-col p-10 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col p-6 md:flex-row md:items-center md:justify-between md:p-10">
         <div className="mx-0 flex max-w-xs flex-col items-start justify-start gap-y-5">
           <Link to="/" className="flex items-center gap-2.5 text-xl font-semibold">
             <Logo size={30} />

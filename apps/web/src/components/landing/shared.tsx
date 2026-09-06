@@ -17,22 +17,22 @@ import { cn } from "@openheard/ui/lib/utils";
 
 export function Page({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <div className={cn("relative mx-auto max-w-7xl border-x border-border", className)}>
-      <div aria-hidden className="absolute top-0 left-6 z-10 block h-full w-px border-l border-border" />
-      <div aria-hidden className="absolute top-0 right-6 z-10 block h-full w-px border-r border-border" />
+    <div className={cn("relative mx-auto max-w-7xl md:border-x md:border-border", className)}>
+      <div aria-hidden className="absolute top-0 left-6 z-10 hidden h-full w-px border-l border-border md:block" />
+      <div aria-hidden className="absolute top-0 right-6 z-10 hidden h-full w-px border-r border-border md:block" />
       {children}
     </div>
   );
 }
 
 function Stripes({ side }: { side: "left" | "right" }) {
-  return <div aria-hidden className={cn("absolute top-0 h-full w-4 bg-[size:10px_10px] text-foreground/5 [background-image:repeating-linear-gradient(315deg,currentColor_0_1px,#0000_0_50%)] md:w-14", side === "left" ? "-left-4 md:-left-14" : "-right-4 md:-right-14")} />;
+  return <div aria-hidden className={cn("absolute top-0 hidden h-full w-14 bg-[size:10px_10px] text-foreground/5 [background-image:repeating-linear-gradient(315deg,currentColor_0_1px,#0000_0_50%)] md:block", side === "left" ? "-left-14" : "-right-14")} />;
 }
 
 export function Framed({ id, children, className }: { id?: string; children: ReactNode; className?: string }) {
   return (
-    <section id={id} className={cn("relative flex w-full scroll-mt-16 flex-col items-center justify-center px-5 md:px-10", className)}>
-      <div className="relative mx-5 w-full border-x border-border md:mx-10">
+    <section id={id} className={cn("relative flex w-full scroll-mt-16 flex-col items-center justify-center px-0 md:px-10", className)}>
+      <div className="relative w-full border-x border-border md:mx-10">
         <Stripes side="left" />
         <Stripes side="right" />
         {children}
@@ -43,7 +43,7 @@ export function Framed({ id, children, className }: { id?: string; children: Rea
 
 export function SectionHeader({ title, sub, eyebrow, className }: { title: ReactNode; sub?: ReactNode; eyebrow?: string; className?: string }) {
   return (
-    <div className={cn("h-full w-full border-b border-border p-10 md:p-14", className)}>
+    <div className={cn("h-full w-full border-b border-border p-6 md:p-14", className)}>
       <div className="mx-auto flex max-w-xl flex-col items-center justify-center gap-2 text-center">
         {eyebrow ? <Eyebrow className="mb-2">{eyebrow}</Eyebrow> : null}
         <h2 className="text-3xl font-medium tracking-tighter text-balance md:text-4xl">{title}</h2>
