@@ -96,7 +96,7 @@ function AttachmentTitle({ className, ...props }: React.ComponentProps<"span">) 
     <span
       data-slot="attachment-title"
       className={cn(
-        "block max-w-full min-w-0 truncate font-medium group-data-[state=processing]/attachment:shimmer group-data-[state=uploading]/attachment:shimmer",
+        "block max-w-full min-w-0 truncate font-semibold group-data-[state=processing]/attachment:shimmer group-data-[state=uploading]/attachment:shimmer",
         className,
       )}
       {...props}

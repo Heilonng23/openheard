@@ -6,6 +6,10 @@
 
 @custom-variant dark (&:is(.dark *));
 
+@theme inline {
+  --color-faint: var(--faint);
+}
+
 :root {
   /* light: warm white, same rules */
   --background: #f7f5f0;
@@ -27,6 +31,7 @@
   --input: #e3e0d8;
   --ring: #6e8bff;
   --link: #4f6ef5;
+  --faint: #8a8a91;
   --status-review: #7f6fc4;
   --status-planned: #a8883f;
   --status-progress: #4f6ef5;
@@ -69,11 +74,12 @@
   --input: #2a2a30;
   --ring: #6e8bff;
   --link: #6e8bff;
-  --status-review: #a99bd6;
-  --status-planned: #cdb37a;
+  --faint: #63636b;
+  --status-review: #b08cff;
+  --status-planned: #f2b53d;
   --status-progress: #6e8bff;
-  --status-shipped: #7fb894;
-  --status-closed: #63636b;
+  --status-shipped: #3ecf8e;
+  --status-closed: #7a7a85;
   --sidebar: #0d0d0f;
   --sidebar-foreground: #ededf0;
   --sidebar-primary: #ffffff;
@@ -154,5 +160,31 @@
   }
   ::selection {
     background: color-mix(in oklch, var(--link) 35%, transparent);
+  }
+}
+
+@utility scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+
+  &:hover,
+  &:focus-within {
+    scrollbar-color: var(--input) transparent;
+  }
+
+  &::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 9999px;
+  }
+  &:hover::-webkit-scrollbar-thumb,
+  &:focus-within::-webkit-scrollbar-thumb {
+    background: var(--input);
   }
 }
