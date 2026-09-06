@@ -59,12 +59,12 @@ function PostPage() {
       await addComment({ data: { postId: p.id, body: reply } });
       setReply("");
       setExpanded(false);
-      await router.invalidate();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not comment");
     } finally {
       setBusy(false);
     }
+    router.invalidate();
   }
 
   const comments = p.timeline.filter((t) => t.kind === "comment").length;
