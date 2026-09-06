@@ -60,9 +60,13 @@ export function Eyebrow({ children, className }: { children: ReactNode; classNam
 // Product screenshot in a hairline frame. Crops from the top-left so the
 // header and first rows of the real app are what you see.
 export function Shot({ src, alt = "", className, imgClassName }: { src: string; alt?: string; className?: string; imgClassName?: string }) {
+  const webp = src.replace(/\.png$/, ".webp");
   return (
     <div className={cn("relative overflow-hidden rounded-xl border border-input bg-card", className)}>
-      <img src={src} alt={alt} className={cn("block w-full", imgClassName)} loading="lazy" decoding="async" />
+      <picture>
+        <source srcSet={webp} type="image/webp" />
+        <img src={src} alt={alt} className={cn("block w-full", imgClassName)} loading="lazy" decoding="async" />
+      </picture>
     </div>
   );
 }

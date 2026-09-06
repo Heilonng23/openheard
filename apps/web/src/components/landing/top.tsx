@@ -156,7 +156,10 @@ export function Hero() {
             <span className="size-2.5 rounded-full bg-[#2a2a30]" />
             <span className="mx-auto rounded-md bg-background px-3 py-0.5 font-mono text-[11px] text-faint">feedback.acme.com</span>
           </div>
-          <img src="/landing/board.png" alt="The openheard public board: a list of feature requests with vote counts" className="block aspect-[4/3] w-full object-cover object-top sm:aspect-[1920/1000]" fetchPriority="high" />
+          <picture>
+            <source srcSet="/landing/board.webp" type="image/webp" />
+            <img src="/landing/board.png" alt="The openheard public board: a list of feature requests with vote counts" className="block aspect-[4/3] w-full object-cover object-top sm:aspect-[1920/1000]" fetchPriority="high" />
+          </picture>
           <BorderBeam size={260} duration={10} colorFrom="#6e8bff" colorTo="#6e8bff00" />
         </div>
       </BlurFade>
