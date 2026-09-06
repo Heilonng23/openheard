@@ -2,6 +2,7 @@ import { Toaster } from "@openheard/ui/components/sonner";
 import { HeadContent, Outlet, Scripts, createRootRouteWithContext, useLocation } from "@tanstack/react-router";
 
 import Footer from "../components/footer";
+import { Landing } from "../components/landing/page";
 import Header from "../components/header";
 import { getWorkspace } from "../functions/workspace";
 import appCss from "../index.css?url";
@@ -35,7 +36,9 @@ function RootDocument() {
   const data = Route.useLoaderData();
   const { pathname } = useLocation();
   const admin = pathname.startsWith("/dashboard");
-  const marketing = pathname === "/landing";
+  // /landing previews the marketing page anywhere; on the cloud root domain
+  // the marketing page is the home page.
+  const marketing = pathname === "/landing" || (!!data?.marketing && pathname === "/");
   const theme = data?.workspace.theme === "light" && !admin && !marketing ? "" : "dark";
   // Workspace accent applies to the public board only; the dashboard keeps ours.
   const accent = !admin && data?.workspace.accent ? ({ "--link": data.workspace.accent, "--ring": data.workspace.accent } as React.CSSProperties) : undefined;
@@ -45,7 +48,9 @@ function RootDocument() {
         <HeadContent />
       </head>
       <body>
-        {admin || marketing ? (
+        {data?.marketing && pathname === "/" ? (
+          <Landing />
+        ) : admin || marketing ? (
           <Outlet />
         ) : (
           <div className="flex min-h-svh flex-col">

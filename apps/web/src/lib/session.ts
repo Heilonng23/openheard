@@ -29,9 +29,21 @@ export function workspaceSlugFromHost(host: string, rootDomainValue: string | nu
   return "default";
 }
 
+// The bare root domain (and www) is the marketing site in the cloud, not a
+// board. Self-hosted installs have no ROOT_DOMAIN and are never marketing.
+export function isMarketingHost(host: string, rootDomainValue: string | null): boolean {
+  if (!rootDomainValue || rootDomainValue === "localhost") return false;
+  const h = host.toLowerCase().split(":")[0]!;
+  const root = rootDomainValue.toLowerCase();
+  return h === root || h === "www." + root;
+}
+
 export const sessionMiddleware = createMiddleware().server(async ({ next, request }) => {
   const db = createDb();
-  const slug = workspaceSlugFromHost(request.headers.get("host") ?? "", await rootDomain());
+  const host = request.headers.get("host") ?? "";
+  const root = await rootDomain();
+  const marketing = isMarketingHost(host, root);
+  const slug = workspaceSlugFromHost(host, root);
   let [ws] = await db.select().from(workspace).where(eq(workspace.id, slug)).limit(1);
   if (!ws && slug === "default") {
     // Fresh install: the default workspace has to exist before anyone can
@@ -53,10 +65,10 @@ export const sessionMiddleware = createMiddleware().server(async ({ next, reques
       .limit(1);
     user = { id: session.user.id, name: session.user.name, email: session.user.email, role: m?.role ?? "guest", image: session.user.image };
   }
-  return next({ context: { user, workspace: ws } });
+  return next({ context: { user, workspace: ws, marketing } });
 });
 
-export type Ctx = { user: SessionUser | null; workspace: Workspace };
+export type Ctx = { user: SessionUser | null; workspace: Workspace; marketing: boolean };
 
 export function requireUser(user: SessionUser | null): SessionUser {
   if (!user) throw new Error("Sign in to do that");

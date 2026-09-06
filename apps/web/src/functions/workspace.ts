@@ -27,6 +27,7 @@ export const getWorkspace = createServerFn({ method: "GET" })
     return {
       workspace: ws,
       rootDomain: await rootDomain(),
+      marketing: context.marketing,
       boards,
       tags,
       statuses,
