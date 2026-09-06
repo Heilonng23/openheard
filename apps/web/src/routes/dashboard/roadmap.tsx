@@ -195,7 +195,15 @@ function Roadmap() {
     }
   }
 
+  function onDragCancel() {
+    setDraggingId(null);
+    dragOriginalStatus.current = null;
+    setPosts(serverPosts);
+  }
+
   const draggingPost = draggingId != null ? posts.find((p) => p.id === draggingId) : null;
+
+  const [liveRegionContainer, setLiveRegionContainer] = useState<HTMLElement | null>(null);
 
   return (
     <Panel
@@ -206,6 +214,7 @@ function Roadmap() {
         </span>
       }
     >
+      <div ref={setLiveRegionContainer} className="sr-only" />
       <div className="flex flex-col gap-0 h-full">
         {/* Toolbar */}
         <div className="flex items-center gap-1.5 px-5 pt-3 pb-2.5 shrink-0">
@@ -244,7 +253,7 @@ function Roadmap() {
         </div>
 
         {/* Kanban columns */}
-        <DndContext sensors={sensors} collisionDetection={collisionDetection} onDragStart={onDragStart} onDragOver={onDragOver} onDragEnd={onDragEnd}>
+        <DndContext sensors={sensors} collisionDetection={collisionDetection} onDragStart={onDragStart} onDragOver={onDragOver} onDragEnd={onDragEnd} onDragCancel={onDragCancel} accessibility={liveRegionContainer ? { container: liveRegionContainer } : undefined}>
           <div className="flex flex-1 gap-0 overflow-x-auto px-5 pb-5">
             {columns.map((col) => {
               const items = grouped(col);
