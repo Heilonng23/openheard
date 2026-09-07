@@ -174,7 +174,7 @@ export const createPost = createServerFn({ method: "POST" })
   .validator((d: unknown) =>
     z
       .object({
-        boardId: z.string().min(1),
+        boardId: z.string().min(1, "Pick a board first"),
         title: z.string().trim().min(4, "Give it a title").max(140),
         body: z.string().trim().max(5000).default(""),
         tags: z.array(z.string()).max(5).default([]),

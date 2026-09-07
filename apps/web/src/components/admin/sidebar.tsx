@@ -13,17 +13,19 @@ import {
   MegaphoneIcon,
   PlusIcon,
   SidebarSimpleIcon,
+  SignOutIcon,
   SpinnerGapIcon,
   SquaresFourIcon,
   TagIcon,
   TrayIcon,
   XCircleIcon,
 } from "@phosphor-icons/react";
-import { Link, useLoaderData, useLocation } from "@tanstack/react-router";
+import { Link, useLoaderData, useLocation, useRouter } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { useState } from "react";
 
 import Logo from "@/components/logo";
+import { authClient } from "@/lib/auth-client";
 import { myWorkspaces } from "@/functions/admin";
 import { workspaceUrl } from "@/lib/workspace-url";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@openheard/ui/components/dropdown-menu";
@@ -133,16 +135,41 @@ export function AdminSidebar({ onNewPost, onCollapse }: { onNewPost?: () => void
 
       <div className="flex-1" />
 
-      <div className="flex flex-col gap-0.5 border-t pt-3">
+      <AccountMenu>
         <Item to="/" icon={ArrowSquareOutIcon} label="Public board" />
         <Item to="/dashboard/settings/general" icon={GearSixIcon} label="Settings" />
-        <div className="flex h-9 items-center gap-2 px-2">
-          <span className="size-[22px] rounded-full border border-input bg-accent" />
-          <span className="flex-1 truncate text-[13px]">{root.user?.name}</span>
-          <CaretDownIcon className="size-3 text-faint" />
-        </div>
-      </div>
+      </AccountMenu>
     </aside>
+  );
+}
+
+function AccountMenu({ children }: { children: ReactNode }) {
+  const root = useLoaderData({ from: "__root__" });
+  const router = useRouter();
+  return (
+    <div className="flex flex-col gap-0.5 border-t pt-3">
+      {children}
+      <DropdownMenu>
+        <DropdownMenuTrigger className="flex h-9 w-full items-center gap-2 rounded-md px-2 outline-none hover:bg-accent/60 focus-visible:ring-1 focus-visible:ring-ring">
+          <span className="size-[22px] rounded-full border border-input bg-accent" />
+          <span className="flex-1 truncate text-left text-[13px]">{root.user?.name}</span>
+          <CaretDownIcon className="size-3 text-faint" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" side="top" className="min-w-48">
+          <DropdownMenuItem
+            onClick={() =>
+              authClient.signOut({
+                fetchOptions: {
+                  onSuccess: () => router.invalidate().then(() => router.navigate({ to: "/login" })),
+                },
+              })
+            }
+          >
+            <SignOutIcon className="size-4" /> Sign out
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   );
 }
 
@@ -238,6 +265,7 @@ function Item({
 export function AdminRail({ onExpand, onNewPost }: { onExpand?: () => void; onNewPost?: () => void }) {
   const { pathname, search } = useLocation();
   const root = useLoaderData({ from: "__root__" });
+  const router = useRouter();
   const statuses = useStatuses();
   const status = (search as { status?: string }).status ?? "";
   const inInbox = pathname.startsWith("/dashboard/inbox");
@@ -284,7 +312,22 @@ export function AdminRail({ onExpand, onNewPost }: { onExpand?: () => void; onNe
       <Link to="/dashboard/settings/general" title="Settings" className={cls(pathname.startsWith("/dashboard/settings"))}>
         <GearSixIcon className="size-[17px]" />
       </Link>
-      <span className="mt-1.5 size-7 shrink-0 rounded-full border border-input bg-accent" title={root.user?.name} />
+      <DropdownMenu>
+        <DropdownMenuTrigger className="mt-1.5 inline-flex size-7 shrink-0 items-center justify-center rounded-full border border-input bg-accent outline-none focus-visible:ring-1 focus-visible:ring-ring" title={root.user?.name} />
+        <DropdownMenuContent align="start" side="right" className="min-w-40">
+          <DropdownMenuItem
+            onClick={() =>
+              authClient.signOut({
+                fetchOptions: {
+                  onSuccess: () => router.invalidate().then(() => router.navigate({ to: "/login" })),
+                },
+              })
+            }
+          >
+            <SignOutIcon className="size-4" /> Sign out
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </aside>
   );
 }
