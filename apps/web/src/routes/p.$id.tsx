@@ -2,6 +2,7 @@ import { ArrowLeftIcon, ArrowsMergeIcon, LinkIcon, PaperclipIcon } from "@phosph
 import { Link, createFileRoute, notFound, useLoaderData, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
+import { openSignIn } from "@/lib/pending-action";
 
 import { Button } from "@openheard/ui/components/button";
 import { Avatar, StatusChip, TeamBadge } from "@/components/bits";
@@ -52,7 +53,14 @@ function PostPage() {
 
   async function submitReply(e: React.FormEvent) {
     e.preventDefault();
-    if (!root.user) return toast("Sign in to comment", { action: { label: "Sign in", onClick: () => router.navigate({ to: "/login" }) } });
+    if (!root.user) {
+      if (reply.trim()) {
+        openSignIn({ type: "comment", postId: p.id, body: reply.trim() });
+      } else {
+        openSignIn({ type: "comment", postId: p.id, body: "" });
+      }
+      return;
+    }
     if (!reply.trim()) return;
     setBusy(true);
     try {
@@ -216,7 +224,13 @@ function PostPage() {
           <textarea
             value={reply}
             onChange={(e) => setReply(e.target.value)}
-            onFocus={() => setExpanded(true)}
+            onFocus={() => {
+              if (!root.user) {
+                openSignIn({ type: "comment", postId: p.id, body: "" });
+                return;
+              }
+              setExpanded(true);
+            }}
             placeholder={root.user ? "Add a comment" : "Sign in to comment"}
             aria-label="Add a comment"
             rows={1}

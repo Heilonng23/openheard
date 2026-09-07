@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { createPost, searchPosts } from "@/functions/posts";
+import { openSignIn } from "@/lib/pending-action";
 import { findStatus, useStatuses } from "@/lib/status";
 
 import { Button } from "@openheard/ui/components/button";
@@ -52,7 +53,8 @@ export function NewPostDialog({
 
   async function submit() {
     if (!signedIn) {
-      toast("Sign in to post", { action: { label: "Sign in", onClick: () => navigate({ to: "/login" }) } });
+      onOpenChange(false);
+      openSignIn({ type: "compose" });
       return;
     }
     if (title.trim().length < 4) return toast("Give it a title first");

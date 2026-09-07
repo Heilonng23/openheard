@@ -1,11 +1,12 @@
 import { CaretUpIcon } from "@phosphor-icons/react";
-import { useLocation, useNavigate, useRouter } from "@tanstack/react-router";
+import { useRouter } from "@tanstack/react-router";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { toggleAnonVote, toggleVote } from "@/functions/posts";
 import { getAnonToken, getAnonVotes, setAnonVoted } from "@/lib/anon-vote";
+import { openSignIn } from "@/lib/pending-action";
 import { useOptimisticVote } from "@/lib/use-optimistic-vote";
 import { cn } from "@openheard/ui/lib/utils";
 
@@ -43,8 +44,6 @@ export function VoteButton({
   className?: string;
 }) {
   const router = useRouter();
-  const navigate = useNavigate();
-  const location = useLocation();
   const reduced = useReducedMotion();
 
   const [anonVoted, setAnonVotedState] = useState(false);
@@ -77,7 +76,7 @@ export function VoteButton({
     e.preventDefault();
     e.stopPropagation();
     if (!signedIn && !anonymousVoting) {
-      navigate({ to: "/login", search: { redirect: location.pathname } });
+      openSignIn({ type: "vote", postId });
       return;
     }
     like.toggle();
