@@ -5,13 +5,23 @@ import { toast } from "sonner";
 
 import { Button } from "@openheard/ui/components/button";
 import Logo from "@/components/logo";
+import { myWorkspaces } from "@/functions/admin";
 import { getUser } from "@/functions/get-user";
 import { getWorkspaceMemberCount } from "@/functions/invites";
 import { authClient } from "@/lib/auth-client";
+import { workspaceUrl } from "@/lib/workspace-url";
+
+type Search = { redirect?: string };
 
 export const Route = createFileRoute("/login")({
-  beforeLoad: async () => {
-    if (await getUser()) throw redirect({ to: "/" });
+  validateSearch: (s: Record<string, unknown>): Search => ({
+    redirect: typeof s.redirect === "string" ? s.redirect : undefined,
+  }),
+  beforeLoad: async ({ search }) => {
+    const user = await getUser();
+    if (!user) return;
+    if ((search as Search).redirect) throw redirect({ to: (search as Search).redirect! });
+    throw redirect({ to: "/" });
   },
   loader: () => getWorkspaceMemberCount(),
   head: () => ({ meta: [{ title: "Sign in · feedback" }] }),
@@ -21,6 +31,7 @@ export const Route = createFileRoute("/login")({
 function LoginPage() {
   const router = useRouter();
   const root = useLoaderData({ from: "__root__" });
+  const search = Route.useSearch();
   const memberCount = Route.useLoaderData();
   const [mode, setMode] = useState<"in" | "up" | "magic">("in");
   const [name, setName] = useState("");
@@ -31,14 +42,34 @@ function LoginPage() {
 
   const wsName = root.workspace?.name ?? "openheard";
 
+  async function afterAuth() {
+    await router.invalidate();
+    if (search.redirect) {
+      router.navigate({ to: search.redirect });
+      return;
+    }
+    if (!root.marketing) {
+      router.navigate({ to: "/" });
+      return;
+    }
+    try {
+      const workspaces = await myWorkspaces();
+      const own = workspaces.filter((w) => w.id !== "default");
+      if (own.length === 1) {
+        window.location.href = workspaceUrl(own[0]!.id, root.rootDomain, "/");
+        return;
+      }
+      router.navigate({ to: "/new" });
+    } catch {
+      router.navigate({ to: "/new" });
+    }
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     const opts = {
-      onSuccess: async () => {
-        await router.invalidate();
-        router.navigate({ to: "/" });
-      },
+      onSuccess: afterAuth,
       onError: (err: { error: { message?: string; statusText: string } }) => {
         toast.error(err.error.message || err.error.statusText);
       },
@@ -51,8 +82,9 @@ function LoginPage() {
   async function sendMagicLink(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
+    const callbackURL = search.redirect ?? (root.marketing ? "/new" : "/");
     await authClient.signIn.magicLink(
-      { email, callbackURL: "/" },
+      { email, callbackURL },
       {
         onSuccess: () => {
           setMagicSent(true);
