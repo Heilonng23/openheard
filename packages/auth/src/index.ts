@@ -13,7 +13,8 @@ const AUTH_FROM = { email: "hello@openheard.com", name: "openheard" };
 async function authSendEmail(to: string, subject: string, html: string, text: string) {
   try {
     if ((env as any).EMAIL) {
-      await (env as any).EMAIL.send({ to, from: AUTH_FROM, subject, html, text });
+      const result = await (env as any).EMAIL.send({ to, from: AUTH_FROM, subject, html, text });
+      console.log(`[auth] email sent: ${subject} → ${to}`, result?.messageId ?? "");
     } else {
       console.log(`[auth] ${subject} → ${to}\n  ${text.replace(/\n/g, "\n  ")}`);
     }
@@ -34,7 +35,7 @@ export function createAuth() {
       provider: "sqlite",
       schema: schema,
     }),
-    trustedOrigins: [env.BETTER_AUTH_URL, ...(raw ? [`https://*.${raw}`, `http://*.${raw}:3001`] : [])],
+    trustedOrigins: [env.BETTER_AUTH_URL, ...(raw ? [`https://*.${raw}`, `http://*.${raw}`, `http://*.${raw}:*`] : [])],
     emailAndPassword: {
       enabled: true,
       sendResetPassword: async ({ user, url }) => {
@@ -83,12 +84,23 @@ export function createAuth() {
     plugins: [
       tanstackStartCookies(),
       magicLink({
-        sendMagicLink: async ({ email, url }) => {
+        sendMagicLink: async ({ email, url }, ctx?) => {
+          let link = url;
+          // Better Auth builds the link from baseURL (the apex). Rewrite the
+          // origin to the workspace subdomain that actually made the request so
+          // the verify redirect lands on the correct host.
+          if (ctx?.request?.url) {
+            const reqOrigin = new URL(ctx.request.url).origin;
+            const baseOrigin = new URL(ctx.context.baseURL).origin;
+            if (reqOrigin !== baseOrigin) {
+              link = url.replace(baseOrigin, reqOrigin);
+            }
+          }
           await authSendEmail(
             email,
             "Your sign-in link",
-            `<p>Click to sign in. Expires in 5 minutes.</p><p><a href="${url}">${url}</a></p>`,
-            `Sign in: ${url}`,
+            `<p>Click to sign in. Expires in 5 minutes.</p><p><a href="${link}">${link}</a></p>`,
+            `Sign in: ${link}`,
           );
         },
       }),
