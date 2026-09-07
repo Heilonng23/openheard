@@ -34,7 +34,8 @@ export async function sendEmail(to: string, subject: string, html: string, text:
       console.log(`[email] No EMAIL binding — logging instead\n  To: ${to}\n  Subject: ${subject}\n  ${text.replace(/\n/g, "\n  ")}`);
       return;
     }
-    await (env as any).EMAIL.send({ to, from: FROM, subject, html, text });
+    const result = await (env as any).EMAIL.send({ to, from: FROM, subject, html, text });
+    console.log(`[email] sent: ${subject} → ${to}`, result?.messageId ?? "");
   } catch (err: any) {
     console.error("[email] send failed:", err.message ?? err);
   }
