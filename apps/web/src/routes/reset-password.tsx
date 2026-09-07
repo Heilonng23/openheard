@@ -1,7 +1,6 @@
 import { EnvelopeSimpleIcon, LockSimpleIcon } from "@phosphor-icons/react";
 import { createFileRoute, Link, useSearch } from "@tanstack/react-router";
 import { useState } from "react";
-import { toast } from "sonner";
 import { z } from "zod";
 
 import { Button } from "@openheard/ui/components/button";
@@ -47,20 +46,22 @@ function RequestForm() {
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
+  const [error, setError] = useState("");
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    setError("");
     setBusy(true);
     await authClient.requestPasswordReset(
       { email, redirectTo: "/reset-password" },
       {
         onSuccess: () => setSent(true),
         onError: (err: { error: { message?: string; statusText: string } }) => {
-          toast.error(err.error.message || err.error.statusText);
+          setError(err.error.message || err.error.statusText);
+          setBusy(false);
         },
       },
     );
-    setBusy(false);
   }
 
   if (sent) {
@@ -83,8 +84,9 @@ function RequestForm() {
       </div>
       <form onSubmit={submit} className="flex w-full flex-col gap-2.5">
         <Field icon={<EnvelopeSimpleIcon className="size-[15px]" />}>
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" placeholder="you@company.com" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-faint" />
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required disabled={busy} autoComplete="email" placeholder="you@company.com" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-faint disabled:opacity-60" />
         </Field>
+        {error ? <p className="text-[13px] text-red-400">{error}</p> : null}
         <Button type="submit" full arrow size="lg" disabled={busy} className="mt-1">
           {busy ? "Sending…" : "Send reset link"}
         </Button>
@@ -100,20 +102,22 @@ function NewPasswordForm({ token }: { token: string }) {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
+  const [error, setError] = useState("");
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    setError("");
     setBusy(true);
     await authClient.resetPassword(
       { newPassword: password, token },
       {
         onSuccess: () => setDone(true),
         onError: (err: { error: { message?: string; statusText: string } }) => {
-          toast.error(err.error.message || err.error.statusText);
+          setError(err.error.message || err.error.statusText);
+          setBusy(false);
         },
       },
     );
-    setBusy(false);
   }
 
   if (done) {
@@ -136,8 +140,9 @@ function NewPasswordForm({ token }: { token: string }) {
       </div>
       <form onSubmit={submit} className="flex w-full flex-col gap-2.5">
         <Field icon={<LockSimpleIcon className="size-[15px]" />}>
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} autoComplete="new-password" placeholder="New password" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-faint" />
+          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required disabled={busy} minLength={8} autoComplete="new-password" placeholder="New password" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-faint disabled:opacity-60" />
         </Field>
+        {error ? <p className="text-[13px] text-red-400">{error}</p> : null}
         <Button type="submit" full arrow size="lg" disabled={busy} className="mt-1">
           {busy ? "Updating…" : "Set new password"}
         </Button>

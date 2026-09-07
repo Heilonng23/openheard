@@ -1,7 +1,6 @@
 import { EnvelopeSimpleIcon, LockSimpleIcon, MagicWandIcon, UserIcon } from "@phosphor-icons/react";
 import { createFileRoute, Link, redirect, useLoaderData, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
-import { toast } from "sonner";
 
 import { Button } from "@openheard/ui/components/button";
 import Logo from "@/components/logo";
@@ -38,6 +37,7 @@ function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
   const [magicSent, setMagicSent] = useState(false);
 
   const wsName = root.workspace?.name ?? "openheard";
@@ -65,22 +65,22 @@ function LoginPage() {
     }
   }
 
+  function onError(err: { error: { message?: string; statusText: string } }) {
+    setError(err.error.message || err.error.statusText);
+    setBusy(false);
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    setError("");
     setBusy(true);
-    const opts = {
-      onSuccess: afterAuth,
-      onError: (err: { error: { message?: string; statusText: string } }) => {
-        toast.error(err.error.message || err.error.statusText);
-      },
-    };
-    if (mode === "in") await authClient.signIn.email({ email, password }, opts);
-    else if (mode === "up") await authClient.signUp.email({ name, email, password }, opts);
-    setBusy(false);
+    if (mode === "in") await authClient.signIn.email({ email, password }, { onSuccess: afterAuth, onError });
+    else if (mode === "up") await authClient.signUp.email({ name, email, password }, { onSuccess: afterAuth, onError });
   }
 
   async function sendMagicLink(e: React.FormEvent) {
     e.preventDefault();
+    setError("");
     setBusy(true);
     const callbackURL = search.redirect ?? (root.marketing ? "/new" : "/");
     await authClient.signIn.magicLink(
@@ -88,14 +88,11 @@ function LoginPage() {
       {
         onSuccess: () => {
           setMagicSent(true);
-          toast.success("Check your email for the sign-in link");
+          setBusy(false);
         },
-        onError: (err: { error: { message?: string; statusText: string } }) => {
-          toast.error(err.error.message || err.error.statusText);
-        },
+        onError,
       },
     );
-    setBusy(false);
   }
 
   return (
@@ -121,8 +118,9 @@ function LoginPage() {
           ) : (
             <form onSubmit={sendMagicLink} className="flex w-full flex-col gap-2.5">
               <Field icon={<EnvelopeSimpleIcon className="size-[15px]" />}>
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" placeholder="you@company.com" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-faint" />
+                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required disabled={busy} autoComplete="email" placeholder="you@company.com" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-faint disabled:opacity-60" />
               </Field>
+              {error ? <p className="text-[13px] text-red-400">{error}</p> : null}
               <Button type="submit" full arrow size="lg" disabled={busy} className="mt-1">
                 {busy ? "Sending…" : "Email me a link"}
               </Button>
@@ -132,11 +130,11 @@ function LoginPage() {
           <form onSubmit={submit} className="flex w-full flex-col gap-2.5">
             {mode === "up" ? (
               <Field icon={<UserIcon className="size-[15px]" />}>
-                <input value={name} onChange={(e) => setName(e.target.value)} required autoComplete="name" placeholder="Your name" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-faint" />
+                <input value={name} onChange={(e) => setName(e.target.value)} required disabled={busy} autoComplete="name" placeholder="Your name" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-faint disabled:opacity-60" />
               </Field>
             ) : null}
             <Field icon={<EnvelopeSimpleIcon className="size-[15px]" />}>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" placeholder="you@company.com" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-faint" />
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required disabled={busy} autoComplete="email" placeholder="you@company.com" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-faint disabled:opacity-60" />
             </Field>
             <Field icon={<LockSimpleIcon className="size-[15px]" />}>
               <input
@@ -144,14 +142,16 @@ function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                disabled={busy}
                 minLength={8}
                 autoComplete={mode === "in" ? "current-password" : "new-password"}
                 placeholder="Password"
-                className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-faint"
+                className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-faint disabled:opacity-60"
               />
             </Field>
+            {error ? <p className="text-[13px] text-red-400">{error}</p> : null}
             <Button type="submit" full arrow size="lg" disabled={busy} className="mt-1">
-              {busy ? "One moment" : mode === "in" ? "Sign in" : "Create account"}
+              {busy ? (mode === "in" ? "Signing in…" : "Creating account…") : mode === "in" ? "Sign in" : "Create account"}
             </Button>
             {mode === "in" ? (
               <Link to="/reset-password" className="self-end text-xs text-faint hover:text-foreground">
@@ -169,11 +169,11 @@ function LoginPage() {
 
         <div className="flex w-full flex-col gap-2">
           {mode !== "magic" ? (
-            <Button variant="secondary" full size="lg" onClick={() => setMode("magic")} className="font-semibold">
+            <Button variant="secondary" full size="lg" disabled={busy} onClick={() => { setError(""); setMode("magic"); }} className="font-semibold">
               <MagicWandIcon className="mr-1.5 size-4" /> Email me a link
             </Button>
           ) : null}
-          <Button variant="secondary" full size="lg" onClick={() => setMode(mode === "up" ? "in" : mode === "magic" ? "in" : "up")} className="font-semibold">
+          <Button variant="secondary" full size="lg" disabled={busy} onClick={() => { setError(""); setMode(mode === "up" ? "in" : mode === "magic" ? "in" : "up"); }} className="font-semibold">
             {mode === "up" ? "I already have an account" : mode === "magic" ? "Sign in with password" : "Create an account"}
           </Button>
         </div>
