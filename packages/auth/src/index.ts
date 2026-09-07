@@ -30,12 +30,18 @@ export function createAuth() {
   const raw = (env as unknown as { ROOT_DOMAIN?: string }).ROOT_DOMAIN;
   const rootDomain = raw && raw !== "localhost" ? raw : undefined;
 
+  const googleId = (env as unknown as { GOOGLE_CLIENT_ID?: string }).GOOGLE_CLIENT_ID;
+  const googleSecret = (env as unknown as { GOOGLE_CLIENT_SECRET?: string }).GOOGLE_CLIENT_SECRET;
+
   return betterAuth({
     database: drizzleAdapter(db, {
       provider: "sqlite",
       schema: schema,
     }),
     trustedOrigins: [env.BETTER_AUTH_URL, ...(raw ? [`https://*.${raw}`, `http://*.${raw}`, `http://*.${raw}:*`] : [])],
+    ...(googleId && googleSecret
+      ? { socialProviders: { google: { clientId: googleId, clientSecret: googleSecret } } }
+      : {}),
     emailAndPassword: {
       enabled: true,
       sendResetPassword: async ({ user, url }) => {
