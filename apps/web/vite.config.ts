@@ -11,9 +11,23 @@ export default defineConfig({
     port: 3001,
   },
   build: {
+    modulePreload: { polyfill: false },
     rollupOptions: {
       // resolved by workerd at runtime; node builds cannot bundle it
       external: local ? [] : ["cloudflare:workers"],
+    },
+    rolldownOptions: {
+      external: local ? [] : ["cloudflare:workers"],
+      output: {
+        codeSplitting: {
+          groups: [
+            {
+              name: "react-vendor",
+              test: /[\\/]node_modules[\\/](react|react-dom)[\\/]/,
+            },
+          ],
+        },
+      },
     },
   },
   resolve: {
@@ -26,5 +40,5 @@ export default defineConfig({
     // native sqlite driver stays external in local mode
     external: ["@libsql/client", "libsql"],
   },
-  plugins: [tailwindcss(), tanstackStart(), viteReact()],
+  plugins: [tailwindcss(), tanstackStart(), viteReact({ compiler: true })],
 });

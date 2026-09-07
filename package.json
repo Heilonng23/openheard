@@ -46,6 +46,7 @@
     "@cloudflare/workers-types": "^5.20260728.1",
     "@openheard/config": "workspace:*",
     "@types/node": "catalog:",
+    "oxc-transform-react": "^0.149.0",
     "typescript": "catalog:"
   },
   "packageManager": "bun@1.3.11"
