@@ -134,7 +134,7 @@ function AttachmentActions({ className, ...props }: React.ComponentProps<"div">)
 function AttachmentAction({
   className,
   variant,
-  size = "icon-xs",
+  size = "icon-sm",
   type = "button",
   ...props
 }: React.ComponentProps<typeof Button>) {

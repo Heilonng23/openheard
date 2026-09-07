@@ -12,6 +12,6 @@ jobs:
         with:
           bun-version: 1.3.11
       - run: bun install --frozen-lockfile
-      - run: bun run check-types
       - name: build
         run: bun run --filter web build
+      - run: bun run check-types
