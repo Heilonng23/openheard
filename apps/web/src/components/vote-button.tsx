@@ -4,27 +4,23 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { BURST_EASE, SPARKS } from "@/components/interior/like-burst";
+import { useValueFlash } from "@/components/interior/value-flash";
 import { toggleAnonVote, toggleVote } from "@/functions/posts";
 import { getAnonToken, getAnonVotes, setAnonVoted } from "@/lib/anon-vote";
 import { useOptimisticVote } from "@/lib/use-optimistic-vote";
 import { cn } from "@openheard/ui/lib/utils";
 
-const EASE = [0.23, 1, 0.32, 1] as const;
 const CELL = { type: "spring", stiffness: 520, damping: 34, mass: 0.45 } as const;
 const FLIP = { type: "spring", stiffness: 260, damping: 34, mass: 0.8 } as const;
 const INSTANT = { duration: 0 } as const;
-
-const SPARKS = Array.from({ length: 8 }, (_, i) => {
-  const h = (((i + 1) * 2654435761) % 997) / 997;
-  const angle = (i / 8) * Math.PI * 2 - Math.PI / 2 + (h - 0.5) * 0.4;
-  const distance = 14 + h * 8;
-  return { x: Math.round(Math.cos(angle) * distance * 10) / 10, y: Math.round(Math.sin(angle) * distance * 10) / 10, size: h > 0.5 ? 4 : 3, delay: Math.round(h * 50) / 1000 };
-});
+const FLASH_SETTLE = { type: "spring", stiffness: 260, damping: 34, mass: 0.8 } as const;
+const FLASH_LIFT = { type: "spring", stiffness: 380, damping: 26, mass: 0.7 } as const;
+const FLASH_CLEAR = { duration: 0.16, ease: [0.4, 0, 1, 1] } as const;
+const FLASH_CELL = { type: "spring", stiffness: 520, damping: 34, mass: 0.45 } as const;
 
 const fmt = (n: number) => new Intl.NumberFormat("en-US").format(n);
 
-// The signature interaction. Optimistic, rapid taps collapse into one request,
-// the count flips in place with its width reserved, a small burst on vote.
 export function VoteButton({
   postId,
   count,
@@ -73,6 +69,8 @@ export function VoteButton({
     onError: (err) => toast.error(err instanceof Error ? err.message : "Could not vote"),
   });
 
+  const flash = useValueFlash(like.count, { hold: 600 });
+
   function onClick(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
@@ -90,7 +88,37 @@ export function VoteButton({
   const shown = fmt(like.count);
 
   const countCell = (cls: string) => (
-    <span aria-hidden className={cn("grid overflow-hidden font-mono leading-none font-semibold tabular-nums", cls)}>
+    <motion.span
+      aria-hidden
+      initial={false}
+      animate={{ scale: reduced ? 1 : flash.flashing ? 1.05 : 1 }}
+      transition={reduced ? INSTANT : flash.flashing ? FLASH_LIFT : FLASH_SETTLE}
+      className={cn("relative grid overflow-hidden font-mono leading-none font-semibold tabular-nums", cls)}
+    >
+      {flash.flashing && flash.direction ? (
+        <motion.span
+          aria-hidden
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={reduced ? INSTANT : FLASH_CELL}
+          className={cn(
+            "pointer-events-none absolute inset-0 rounded-[4px]",
+            on ? "bg-link/12" : "bg-muted-foreground/12",
+          )}
+        />
+      ) : flash.direction ? (
+        <motion.span
+          aria-hidden
+          initial={{ opacity: 1 }}
+          animate={{ opacity: 0 }}
+          transition={reduced ? INSTANT : FLASH_CLEAR}
+          className={cn(
+            "pointer-events-none absolute inset-0 rounded-[4px]",
+            on ? "bg-link/12" : "bg-muted-foreground/12",
+          )}
+        />
+      ) : null}
       <span className="invisible col-start-1 row-start-1">{widest}</span>
       <AnimatePresence initial={false}>
         <motion.span
@@ -104,7 +132,7 @@ export function VoteButton({
           {shown}
         </motion.span>
       </AnimatePresence>
-    </span>
+    </motion.span>
   );
 
   const sparks =
@@ -117,7 +145,7 @@ export function VoteButton({
             style={{ width: s.size, height: s.size, marginLeft: -s.size / 2, marginTop: -s.size / 2 }}
             initial={{ x: 0, y: 0, scale: 0.6, opacity: 0.9 }}
             animate={{ x: s.x, y: s.y, scale: 1, opacity: 0 }}
-            transition={{ duration: 0.44, delay: s.delay, ease: EASE }}
+            transition={{ duration: 0.44, delay: s.delay, ease: BURST_EASE }}
           />
         ))}
       </span>
