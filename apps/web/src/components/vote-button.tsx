@@ -1,9 +1,11 @@
 import { CaretUpIcon } from "@phosphor-icons/react";
-import { useNavigate, useRouter } from "@tanstack/react-router";
+import { useLocation, useNavigate, useRouter } from "@tanstack/react-router";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import { toggleVote } from "@/functions/posts";
+import { toggleAnonVote, toggleVote } from "@/functions/posts";
+import { getAnonToken, getAnonVotes, setAnonVoted } from "@/lib/anon-vote";
 import { useOptimisticVote } from "@/lib/use-optimistic-vote";
 import { cn } from "@openheard/ui/lib/utils";
 
@@ -28,6 +30,7 @@ export function VoteButton({
   count,
   voted,
   signedIn,
+  anonymousVoting = false,
   size = "md",
   className,
 }: {
@@ -35,17 +38,36 @@ export function VoteButton({
   count: number;
   voted: boolean;
   signedIn: boolean;
+  anonymousVoting?: boolean;
   size?: "sm" | "md" | "lg";
   className?: string;
 }) {
   const router = useRouter();
   const navigate = useNavigate();
+  const location = useLocation();
   const reduced = useReducedMotion();
+
+  const [anonVoted, setAnonVotedState] = useState(false);
+  useEffect(() => {
+    if (!signedIn && anonymousVoting) {
+      setAnonVotedState(getAnonVotes().has(postId));
+    }
+  }, [signedIn, anonymousVoting, postId]);
+
+  const effectiveVoted = signedIn ? voted : anonymousVoting ? anonVoted : false;
+
   const like = useOptimisticVote({
-    initialVoted: voted,
+    initialVoted: effectiveVoted,
     initialCount: count,
     onCommit: async () => {
-      await toggleVote({ data: { postId } });
+      if (signedIn) {
+        await toggleVote({ data: { postId } });
+      } else {
+        const token = getAnonToken();
+        const result = await toggleAnonVote({ data: { postId, anonToken: token } });
+        setAnonVoted(postId, result.voted);
+        setAnonVotedState(result.voted);
+      }
       router.invalidate();
     },
     onError: (err) => toast.error(err instanceof Error ? err.message : "Could not vote"),
@@ -54,8 +76,8 @@ export function VoteButton({
   function onClick(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    if (!signedIn) {
-      toast("Sign in to vote", { action: { label: "Sign in", onClick: () => navigate({ to: "/login" }) } });
+    if (!signedIn && !anonymousVoting) {
+      navigate({ to: "/login", search: { redirect: location.pathname } });
       return;
     }
     like.toggle();

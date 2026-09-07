@@ -181,7 +181,7 @@ function PostPage() {
             </span>
           </div>
         </div>
-        <VoteButton postId={p.id} count={p.voteCount} voted={p.voted} signedIn={!!root.user} size="lg" />
+        <VoteButton postId={p.id} count={p.voteCount} voted={p.voted} signedIn={!!root.user} anonymousVoting={root.workspace?.anonymousVoting} size="lg" />
       </div>
 
       {p.body ? <div className="max-w-[640px] whitespace-pre-wrap text-[14px] leading-[1.65] text-muted-foreground">{p.body}</div> : null}
