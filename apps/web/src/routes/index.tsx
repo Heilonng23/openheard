@@ -6,6 +6,7 @@ import { Button } from "@openheard/ui/components/button";
 import { Avatar, StatusLabel } from "@/components/bits";
 import { NewPostDialog } from "@/components/new-post-dialog";
 import { RailItem, RailLabel, Shell } from "@/components/shell";
+import { FeedSkeleton } from "@/components/states";
 import { VoteButton } from "@/components/vote-button";
 import { listPosts } from "@/functions/posts";
 import { getWorkspace } from "@/functions/workspace";
@@ -35,6 +36,7 @@ export const Route = createFileRoute("/")({
     return data;
   },
   component: BoardPage,
+  pendingComponent: FeedSkeleton,
 });
 
 function BoardPage() {

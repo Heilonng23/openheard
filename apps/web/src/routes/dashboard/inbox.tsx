@@ -2,7 +2,8 @@ import { Button } from "@openheard/ui/components/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@openheard/ui/components/dropdown-menu";
 import type { Icon } from "@phosphor-icons/react";
 import { ArrowSquareOutIcon, ArrowsMergeIcon, CaretDownIcon, CaretUpIcon, ChatCircleIcon, CheckCircleIcon, CheckIcon, CircleDashedIcon, CircleHalfIcon, CircleIcon, FunnelSimpleIcon, GlobeSimpleIcon, LockSimpleIcon, PaperclipIcon, PlusIcon, PushPinIcon, SmileyIcon, SortAscendingIcon, SpinnerGapIcon, XCircleIcon, XIcon } from "@phosphor-icons/react";
-import { Link, createFileRoute, useLoaderData, useNavigate, useRouter } from "@tanstack/react-router";
+import { Await, Link, createFileRoute, defer, useLoaderData, useNavigate, useRouter } from "@tanstack/react-router";
+import { Suspense } from "react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -29,8 +30,10 @@ export const Route = createFileRoute("/dashboard/inbox")({
   loaderDeps: ({ search }) => search,
   loader: async ({ deps }) => {
     const list = await listInbox({ data: { status: deps.status, sort: deps.sort ?? "new", board: deps.board, tag: deps.tag } });
-    const post = deps.post ? await getPost({ data: { id: deps.post } }) : null;
-    return { list, post };
+    return {
+      list,
+      post: deps.post ? defer(getPost({ data: { id: deps.post } })) : null,
+    };
   },
   head: () => ({ meta: [{ title: "Posts · openheard" }] }),
   component: Inbox,
@@ -39,7 +42,7 @@ export const Route = createFileRoute("/dashboard/inbox")({
 });
 
 function Inbox() {
-  const { list, post } = Route.useLoaderData();
+  const { list, post: deferredPost } = Route.useLoaderData();
   const search = Route.useSearch();
   const navigate = useNavigate({ from: "/dashboard/inbox" });
   const root = useLoaderData({ from: "__root__" });
@@ -47,10 +50,11 @@ function Inbox() {
   const meta = search.status ? findStatus(statuses, search.status) : null;
   const sort = search.sort ?? "new";
   const filtered = !!(search.status || search.board || search.tag);
+  const hasPost = !!search.post;
 
   return (
     <Panel title={meta ? meta.label : "Posts"} className="flex">
-      <div className={cn("flex shrink-0 flex-col overflow-auto", post ? "hidden w-[400px] border-r md:flex" : "w-full")}>
+      <div className={cn("flex shrink-0 flex-col overflow-auto", hasPost ? "hidden w-[400px] border-r md:flex" : "w-full")}>
         <div className="flex items-center gap-1.5 px-3 pt-3 pb-2.5">
           <DropdownMenu>
             <DropdownMenuTrigger className="inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-[13px] text-muted-foreground outline-none hover:bg-accent hover:text-foreground">
@@ -128,7 +132,7 @@ function Inbox() {
           </div>
         ) : null}
         {list.map((p) => {
-          const on = post?.id === p.id;
+          const on = search.post === p.id;
           const st = findStatus(statuses, p.status);
           const G = GLYPH[KIND_ICON[st.kind]];
           const filled = st.kind === "done" || st.kind === "closed";
@@ -137,9 +141,9 @@ function Inbox() {
               key={p.id}
               to="/dashboard/inbox"
               search={{ ...search, post: on ? undefined : p.id }}
-              className={cn("shrink-0 border-t", on ? "bg-card" : "hover:bg-card/60", post ? "flex flex-col gap-1.5 px-4 py-3.5" : "flex h-13 items-center gap-3.5 px-5")}
+              className={cn("shrink-0 border-t", on ? "bg-card" : "hover:bg-card/60", hasPost ? "flex flex-col gap-1.5 px-4 py-3.5" : "flex h-13 items-center gap-3.5 px-5")}
             >
-              {post ? (
+              {hasPost ? (
                 <>
                   <div className="flex items-start gap-2">
                     <G weight={filled ? "fill" : "regular"} className="mt-0.5 size-3.5 shrink-0" style={{ color: st.color }} />
@@ -191,7 +195,13 @@ function Inbox() {
         })}
       </div>
 
-      {post ? <Detail key={post.id} post={post} onClose={() => navigate({ search: (p) => ({ ...p, post: undefined }) })} /> : null}
+      {deferredPost ? (
+        <Suspense fallback={<DashboardPanelSkeleton />}>
+          <Await promise={deferredPost}>
+            {(post) => post ? <Detail key={post.id} post={post} onClose={() => navigate({ search: (p) => ({ ...p, post: undefined }) })} /> : null}
+          </Await>
+        </Suspense>
+      ) : null}
     </Panel>
   );
 }

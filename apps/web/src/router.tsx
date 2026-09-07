@@ -8,8 +8,10 @@ export const getRouter = () => {
     routeTree,
     scrollRestoration: true,
     defaultPreload: "intent",
-    defaultStaleTime: 30_000,
-    context: {},
+    defaultPendingMs: 200,
+    defaultPendingMinMs: 300,
+    defaultStaleTime: 60_000,
+    context: { user: null },
     defaultPendingComponent: () => <Loader />,
     defaultNotFoundComponent: () => (
       <main className="mx-auto max-w-3xl px-8 py-24 text-center">
