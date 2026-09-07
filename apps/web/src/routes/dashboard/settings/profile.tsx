@@ -1,4 +1,4 @@
-import { Button } from "@openheard/ui/components/button";
+import { LoadingButton } from "@openheard/ui/components/interior/loading-button";
 import { createFileRoute, useLoaderData, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -18,20 +18,11 @@ function Profile() {
   const router = useRouter();
   const me = root.user!;
   const [name, setName] = useState(me.name);
-  const [busy, setBusy] = useState(false);
   const dirty = name.trim() !== me.name;
 
   async function save() {
-    setBusy(true);
-    try {
-      await saveProfile({ data: { name } });
-      await router.invalidate();
-      toast.success("Saved");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not save");
-    } finally {
-      setBusy(false);
-    }
+    await saveProfile({ data: { name } });
+    await router.invalidate();
   }
 
   return (
@@ -49,9 +40,9 @@ function Profile() {
       </Row>
       <div className="flex items-center justify-end gap-3 border-t pt-4">
         <span className="text-xs text-faint">{dirty ? "Unsaved changes" : "Saved"}</span>
-        <Button arrow size="sm" disabled={!dirty || busy} onClick={save}>
+        <LoadingButton onAction={save} disabled={!dirty} successLabel="Saved" onError={(err) => toast.error(err instanceof Error ? err.message : "Could not save")}>
           Save
-        </Button>
+        </LoadingButton>
       </div>
     </>
   );
