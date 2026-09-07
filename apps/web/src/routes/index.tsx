@@ -143,7 +143,7 @@ function BoardPage() {
                       </span>
                     </div>
                   </div>
-                  <VoteButton postId={p.id} count={p.voteCount} voted={p.voted} signedIn={signedIn} className="group-data-focused/row:border-input" />
+                  <VoteButton postId={p.id} count={p.voteCount} voted={p.voted} signedIn={signedIn} anonymousVoting={root.workspace.anonymousVoting} className="group-data-focused/row:border-input" />
                 </Link>
               </li>
             );

@@ -1,4 +1,4 @@
-import { activity, comment, commentReaction, createDb, post, postTag, status, vote } from "@openheard/db";
+import { activity, anonymousVote, comment, commentReaction, createDb, post, postTag, status, vote } from "@openheard/db";
 
 import { assertStatus, listStatuses, statusOfKind } from "@/lib/status-db";
 import { createServerFn } from "@tanstack/react-start";
@@ -204,6 +204,27 @@ export const toggleVote = createServerFn({ method: "POST" })
       return { voted: false };
     }
     await db.insert(vote).values({ postId: data.postId, userId: u.id });
+    await db.update(post).set({ voteCount: sql`${post.voteCount} + 1` }).where(eq(post.id, data.postId));
+    return { voted: true };
+  });
+
+export const toggleAnonVote = createServerFn({ method: "POST" })
+  .middleware([sessionMiddleware])
+  .validator((d: unknown) => z.object({ postId: z.number().int(), anonToken: z.string().min(16).max(64) }).parse(d))
+  .handler(async ({ data, context }) => {
+    if (!context.workspace.anonymousVoting) throw new Error("Anonymous voting is not enabled");
+    const db = createDb();
+    await ownPost(db, data.postId, context.workspace.id);
+    const existing = await db
+      .select()
+      .from(anonymousVote)
+      .where(and(eq(anonymousVote.postId, data.postId), eq(anonymousVote.anonToken, data.anonToken)));
+    if (existing.length) {
+      await db.delete(anonymousVote).where(and(eq(anonymousVote.postId, data.postId), eq(anonymousVote.anonToken, data.anonToken)));
+      await db.update(post).set({ voteCount: sql`max(${post.voteCount} - 1, 0)` }).where(eq(post.id, data.postId));
+      return { voted: false };
+    }
+    await db.insert(anonymousVote).values({ postId: data.postId, anonToken: data.anonToken });
     await db.update(post).set({ voteCount: sql`${post.voteCount} + 1` }).where(eq(post.id, data.postId));
     return { voted: true };
   });
