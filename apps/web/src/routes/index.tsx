@@ -1,9 +1,10 @@
 import { ChatCircleIcon, PushPinIcon } from "@phosphor-icons/react";
 import { Link, createFileRoute, redirect, useLoaderData, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Button } from "@openheard/ui/components/button";
 import { Avatar, StatusLabel } from "@/components/bits";
+import { SkeletonSwap } from "@/components/interior/skeleton-swap";
 import { NewPostDialog } from "@/components/new-post-dialog";
 import { RailItem, RailLabel, Shell } from "@/components/shell";
 import { FeedSkeleton } from "@/components/states";
@@ -45,6 +46,8 @@ function BoardPage() {
   const search = Route.useSearch();
   const navigate = useNavigate({ from: "/" });
   const [composing, setComposing] = useState(false);
+  const [ready, setReady] = useState(false);
+  useEffect(() => setReady(true), []);
 
   const [focused, setFocused] = useKeyNav(posts.length, {
     open: (i) => navigate({ to: "/p/$id", params: { id: String(posts[i]!.id) } }),
@@ -91,6 +94,7 @@ function BoardPage() {
   );
 
   return (
+    <SkeletonSwap ready={ready} skeleton={<FeedSkeleton />}>
     <Shell rail={rail}>
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-[18px]">
@@ -164,6 +168,7 @@ function BoardPage() {
 
       <NewPostDialog open={composing} onOpenChange={setComposing} boards={root.boards} defaultBoard={search.board} signedIn={signedIn} />
     </Shell>
+    </SkeletonSwap>
   );
 }
 
