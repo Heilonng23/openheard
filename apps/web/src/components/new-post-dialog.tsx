@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { createPost, searchPosts } from "@/functions/posts";
 import { findStatus, useStatuses } from "@/lib/status";
 
-import { Button } from "@openheard/ui/components/button";
+import { LoadingButton } from "@openheard/ui/components/interior/loading-button";
 import { Kbd } from "./bits";
 
 type Board = { id: string; name: string };
@@ -32,7 +32,6 @@ export function NewPostDialog({
   const [body, setBody] = useState("");
   const [boardId, setBoardId] = useState(defaultBoard ?? boards[0]?.id ?? "");
   const [similar, setSimilar] = useState<Similar>([]);
-  const [busy, setBusy] = useState(false);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
   const statuses = useStatuses();
   const board = boards.find((b) => b.id === boardId) ?? boards[0];
@@ -55,20 +54,16 @@ export function NewPostDialog({
       toast("Sign in to post", { action: { label: "Sign in", onClick: () => navigate({ to: "/login" }) } });
       return;
     }
-    if (title.trim().length < 4) return toast("Give it a title first");
-    setBusy(true);
-    try {
-      const result = await createPost({ data: { boardId: board?.id ?? "", title, body, tags: [] } });
-      onOpenChange(false);
-      setTitle("");
-      setBody("");
-      toast.success(result.pending ? "Submitted! An admin will review it shortly." : "Posted. You are the first vote.");
-      navigate({ to: "/p/$id", params: { id: String(result.id) } });
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not post");
-    } finally {
-      setBusy(false);
+    if (title.trim().length < 4) {
+      toast("Give it a title first");
+      return;
     }
+    const result = await createPost({ data: { boardId: board?.id ?? "", title, body, tags: [] } });
+    onOpenChange(false);
+    setTitle("");
+    setBody("");
+    toast.success(result.pending ? "Submitted! An admin will review it shortly." : "Posted. You are the first vote.");
+    navigate({ to: "/p/$id", params: { id: String(result.id) } });
   }
 
   function onKey(e: React.KeyboardEvent) {
@@ -178,9 +173,9 @@ export function NewPostDialog({
               <Kbd>⌘ ↵</Kbd> to post
             </span>
           </div>
-          <Button arrow onClick={submit} disabled={busy}>
-            {busy ? "Posting" : "Post idea"}
-          </Button>
+          <LoadingButton onAction={submit} pendingLabel="Posting" onError={(err) => toast.error(err instanceof Error ? err.message : "Could not post")}>
+            Post idea
+          </LoadingButton>
         </div>
       </DialogContent>
     </Dialog>

@@ -1,4 +1,4 @@
-import { Button } from "@openheard/ui/components/button";
+import { LoadingButton } from "@openheard/ui/components/interior/loading-button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@openheard/ui/components/dropdown-menu";
 import { CaretDownIcon } from "@phosphor-icons/react";
 import { createFileRoute, useLoaderData, useRouter } from "@tanstack/react-router";
@@ -19,20 +19,11 @@ function Access() {
   const router = useRouter();
   const ws = root.workspace;
   const [form, setForm] = useState({ whoCanPost: ws.whoCanPost, anonymousVoting: ws.anonymousVoting, requireApproval: ws.requireApproval, showRoadmap: ws.showRoadmap, showChangelog: ws.showChangelog });
-  const [busy, setBusy] = useState(false);
   const dirty = Object.entries(form).some(([k, v]) => (ws as Record<string, unknown>)[k] !== v);
 
   async function save() {
-    setBusy(true);
-    try {
-      await saveWorkspace({ data: { name: ws.name, tagline: ws.tagline, theme: ws.theme === "light" ? "light" : "dark", poweredBy: ws.poweredBy, accent: ws.accent, ...form } });
-      await router.invalidate();
-      toast.success("Saved");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not save");
-    } finally {
-      setBusy(false);
-    }
+    await saveWorkspace({ data: { name: ws.name, tagline: ws.tagline, theme: ws.theme === "light" ? "light" : "dark", poweredBy: ws.poweredBy, accent: ws.accent, ...form } });
+    await router.invalidate();
   }
 
   return (
@@ -67,9 +58,9 @@ function Access() {
       </Row>
       <div className="flex items-center justify-end gap-3 border-t pt-4">
         <span className="text-xs text-faint">{dirty ? "Unsaved changes" : "Saved"}</span>
-        <Button arrow size="sm" disabled={!dirty || busy} onClick={save}>
+        <LoadingButton onAction={save} disabled={!dirty} successLabel="Saved" onError={(err) => toast.error(err instanceof Error ? err.message : "Could not save")}>
           Save
-        </Button>
+        </LoadingButton>
       </div>
     </>
   );

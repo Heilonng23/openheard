@@ -1,9 +1,10 @@
-import { ArrowLeftIcon, ArrowsMergeIcon, LinkIcon, PaperclipIcon } from "@phosphor-icons/react";
+import { ArrowLeftIcon, ArrowsMergeIcon, PaperclipIcon } from "@phosphor-icons/react";
 import { Link, createFileRoute, notFound, useLoaderData, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@openheard/ui/components/button";
+import { CopyButton } from "@openheard/ui/components/interior/copy-button";
 import { Avatar, StatusChip, TeamBadge } from "@/components/bits";
 import { RailLabel, Shell } from "@/components/shell";
 import { ErrorState, PostSkeleton } from "@/components/states";
@@ -108,13 +109,9 @@ function PostPage() {
           </div>
         </dl>
       </section>
-      <button
-        type="button"
-        onClick={() => navigator.clipboard.writeText(window.location.href).then(() => toast.success("Link copied"))}
-        className="inline-flex items-center gap-2 px-2.5 py-1.5 text-[13px] text-muted-foreground transition-colors hover:text-foreground"
-      >
-        <LinkIcon className="size-3.5 text-faint" /> Copy link
-      </button>
+      <div className="px-2.5">
+        <CopyButton value={typeof window !== "undefined" ? window.location.href : ""} label="Copy link" copiedLabel="Copied!" />
+      </div>
       {admin && p.similar.length ? (
         <section>
           <RailLabel>Also asked for</RailLabel>

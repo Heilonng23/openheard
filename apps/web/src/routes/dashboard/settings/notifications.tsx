@@ -1,4 +1,4 @@
-import { Button } from "@openheard/ui/components/button";
+import { LoadingButton } from "@openheard/ui/components/interior/loading-button";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -17,20 +17,11 @@ function Notifications() {
   const saved = Route.useLoaderData();
   const router = useRouter();
   const [form, setForm] = useState(saved);
-  const [busy, setBusy] = useState(false);
   const dirty = JSON.stringify(form) !== JSON.stringify(saved);
 
   async function save() {
-    setBusy(true);
-    try {
-      await saveNotificationPrefs({ data: form });
-      await router.invalidate();
-      toast.success("Saved");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not save");
-    } finally {
-      setBusy(false);
-    }
+    await saveNotificationPrefs({ data: form });
+    await router.invalidate();
   }
 
   return (
@@ -48,9 +39,9 @@ function Notifications() {
       </Row>
       <div className="flex items-center justify-end gap-3 border-t pt-4">
         <span className="text-xs text-faint">{dirty ? "Unsaved changes" : "Saved"}</span>
-        <Button arrow size="sm" disabled={!dirty || busy} onClick={save}>
+        <LoadingButton onAction={save} disabled={!dirty} successLabel="Saved" onError={(err) => toast.error(err instanceof Error ? err.message : "Could not save")}>
           Save
-        </Button>
+        </LoadingButton>
       </div>
     </>
   );

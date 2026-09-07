@@ -1,4 +1,4 @@
-import { Button } from "@openheard/ui/components/button";
+import { LoadingButton } from "@openheard/ui/components/interior/loading-button";
 import { createFileRoute, useLoaderData, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -20,20 +20,11 @@ function General() {
   const ws = root.workspace;
   const [name, setName] = useState(ws.name);
   const [tagline, setTagline] = useState(ws.tagline);
-  const [busy, setBusy] = useState(false);
   const dirty = name !== ws.name || tagline !== ws.tagline;
 
   async function save() {
-    setBusy(true);
-    try {
-      await saveWorkspace({ data: { name, tagline, theme: ws.theme === "light" ? "light" : "dark", poweredBy: ws.poweredBy, requireApproval: ws.requireApproval, accent: ws.accent } });
-      await router.invalidate();
-      toast.success("Saved");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not save");
-    } finally {
-      setBusy(false);
-    }
+    await saveWorkspace({ data: { name, tagline, theme: ws.theme === "light" ? "light" : "dark", poweredBy: ws.poweredBy, requireApproval: ws.requireApproval, accent: ws.accent } });
+    await router.invalidate();
   }
 
   return (
@@ -48,9 +39,9 @@ function General() {
       </Row>
       <div className="flex items-center justify-end gap-3 border-t pt-4">
         <span className="text-xs text-faint">{dirty ? "Unsaved changes" : "Saved"}</span>
-        <Button arrow size="sm" disabled={!dirty || busy} onClick={save}>
+        <LoadingButton onAction={save} disabled={!dirty} successLabel="Saved" onError={(err) => toast.error(err instanceof Error ? err.message : "Could not save")}>
           Save
-        </Button>
+        </LoadingButton>
       </div>
     </>
   );
