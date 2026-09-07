@@ -83,7 +83,7 @@ export function WorkspaceForm({
         <Field label="Workspace name">
           <div className="flex items-center gap-2.5">
             <FieldBox icon={<MonitorIcon className="size-[15px]" />}>
-              <input autoFocus value={name} onChange={(e) => setName(e.target.value)} required minLength={2} maxLength={60} placeholder="Acme" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-faint" />
+              <input value={name} onChange={(e) => setName(e.target.value)} required minLength={2} maxLength={60} placeholder="Acme" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-faint" />
             </FieldBox>
             {nameValid ? <CheckCircleIcon weight="fill" className="size-5 shrink-0 text-emerald-500" /> : null}
           </div>

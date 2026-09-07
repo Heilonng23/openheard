@@ -29,8 +29,8 @@ function NewWorkspace() {
         onSubmit={async (v) => {
           try {
             const { id } = await createWorkspace({ data: { name: v.name, slug: v.slug, website: v.website || undefined, heardAboutUs: v.heardAboutUs || undefined } });
-            // Straight to the new board. It is ready to use as it is.
-            window.location.href = workspaceUrl(id, rootDomain, "/");
+            window.location.href = workspaceUrl(id, rootDomain, "/dashboard");
+            await new Promise(() => {});
           } catch (err) {
             toast.error(err instanceof Error ? err.message : "Could not create workspace");
           }
