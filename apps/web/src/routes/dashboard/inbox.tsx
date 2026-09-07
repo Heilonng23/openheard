@@ -304,6 +304,18 @@ function Detail({ post: p, onClose }: { post: PostData; onClose: () => void }) {
           </div>
           {p.body ? <div className="max-w-[70ch] whitespace-pre-wrap text-[15px] leading-[1.6] text-muted-foreground">{p.body}</div> : null}
 
+          {current.kind === "review" ? (
+            <Button
+              arrow
+              onClick={() => {
+                const open = statuses.find((s) => s.kind === "open");
+                if (open) run(() => setStatus({ data: { postId: p.id, status: open.key } }), "Approved");
+              }}
+            >
+              Approve
+            </Button>
+          ) : null}
+
           <div className="flex flex-wrap items-center gap-2">
             <DropdownMenu>
               <DropdownMenuTrigger className={chip}>
