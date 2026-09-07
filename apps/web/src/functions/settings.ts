@@ -30,6 +30,8 @@ export const saveWorkspace = createServerFn({ method: "POST" })
         anonymousVoting: z.boolean().optional(),
         showRoadmap: z.boolean().optional(),
         showChangelog: z.boolean().optional(),
+        website: z.string().trim().url().max(200).nullable().optional(),
+        heardAboutUs: z.string().trim().max(100).nullable().optional(),
       })
       .parse(d),
   )
