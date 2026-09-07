@@ -112,6 +112,15 @@ export const getPost = createServerFn({ method: "GET" })
       },
     });
     if (!p) return null;
+    if (context.workspace.requireApproval) {
+      const statuses = await listStatuses(db, context.workspace.id);
+      const postStatus = statuses.find((s) => s.key === p.status);
+      if (postStatus?.kind === "review") {
+        const isAuthor = context.user && p.authorId === context.user.id;
+        const isAdmin = context.user?.role === "admin";
+        if (!isAuthor && !isAdmin) return null;
+      }
+    }
     const voted = context.user
       ? (await db.select({ userId: vote.userId }).from(vote).where(and(eq(vote.postId, p.id), eq(vote.userId, context.user.id)))).length > 0
       : false;
