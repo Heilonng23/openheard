@@ -1,11 +1,12 @@
 import { ArrowLeftIcon, ArrowsMergeIcon, PaperclipIcon } from "@phosphor-icons/react";
 import { Link, createFileRoute, notFound, useLoaderData, useRouter } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@openheard/ui/components/button";
 import { CopyButton } from "@openheard/ui/components/interior/copy-button";
 import { Avatar, StatusChip, TeamBadge } from "@/components/bits";
+import { SkeletonSwap } from "@/components/interior/skeleton-swap";
 import { RailLabel, Shell } from "@/components/shell";
 import { ErrorState, PostSkeleton } from "@/components/states";
 import { VoteButton } from "@/components/vote-button";
@@ -50,6 +51,8 @@ function PostPage() {
   const [reply, setReply] = useState("");
   const [busy, setBusy] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [ready, setReady] = useState(false);
+  useEffect(() => setReady(true), []);
 
   async function submitReply(e: React.FormEvent) {
     e.preventDefault();
@@ -143,6 +146,7 @@ function PostPage() {
   );
 
   return (
+    <SkeletonSwap ready={ready} skeleton={<PostSkeleton />}>
     <Shell rail={rail}>
       <div className="flex items-center justify-between">
         <Link to="/" search={{ board: p.boardId }} className="inline-flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground">
@@ -264,6 +268,7 @@ function PostPage() {
         </div>
       </section>
     </Shell>
+    </SkeletonSwap>
   );
 }
 

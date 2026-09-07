@@ -3,13 +3,14 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem,
 import type { Icon } from "@phosphor-icons/react";
 import { ArrowSquareOutIcon, ArrowsMergeIcon, CaretDownIcon, CaretUpIcon, ChatCircleIcon, CheckCircleIcon, CheckIcon, CircleDashedIcon, CircleHalfIcon, CircleIcon, FunnelSimpleIcon, GlobeSimpleIcon, LockSimpleIcon, PaperclipIcon, PlusIcon, PushPinIcon, SmileyIcon, SortAscendingIcon, SpinnerGapIcon, XCircleIcon, XIcon } from "@phosphor-icons/react";
 import { Await, Link, createFileRoute, defer, useLoaderData, useNavigate, useRouter } from "@tanstack/react-router";
-import { Suspense } from "react";
+import { Suspense, useEffect } from "react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { MergeDialog } from "@/components/merge-dialog";
 import { Panel } from "@/components/admin/panel";
 import { Avatar, StatusChip, TeamBadge } from "@/components/bits";
+import { SkeletonSwap } from "@/components/interior/skeleton-swap";
 import { DashboardErrorState, DashboardPanelSkeleton } from "@/components/states";
 import { listInbox, setBoard } from "@/functions/admin";
 import { REACTIONS, addComment, getPost, setEta as setEtaFn, setStatus, setTags, togglePin, toggleReaction } from "@/functions/posts";
@@ -51,8 +52,11 @@ function Inbox() {
   const sort = search.sort ?? "new";
   const filtered = !!(search.status || search.board || search.tag);
   const hasPost = !!search.post;
+  const [ready, setReady] = useState(false);
+  useEffect(() => setReady(true), []);
 
   return (
+    <SkeletonSwap ready={ready} skeleton={<DashboardPanelSkeleton />}>
     <Panel title={meta ? meta.label : "Posts"} className="flex">
       <div className={cn("flex shrink-0 flex-col overflow-auto", hasPost ? "hidden w-[400px] border-r md:flex" : "w-full")}>
         <div className="flex items-center gap-1.5 px-3 pt-3 pb-2.5">
@@ -203,6 +207,7 @@ function Inbox() {
         </Suspense>
       ) : null}
     </Panel>
+    </SkeletonSwap>
   );
 }
 

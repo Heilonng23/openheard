@@ -1,5 +1,7 @@
 import { Link, createFileRoute, useLoaderData, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 
+import { SkeletonSwap } from "@/components/interior/skeleton-swap";
 import { ErrorState, RoadmapSkeleton } from "@/components/states";
 import { VoteButton } from "@/components/vote-button";
 import { getRoadmap } from "@/functions/posts";
@@ -29,8 +31,11 @@ function RoadmapPage() {
   const search = Route.useSearch();
   const navigate = useNavigate({ from: "/roadmap" });
   const boardName = (id: string) => root.boards.find((b) => b.id === id)?.name ?? "";
+  const [ready, setReady] = useState(false);
+  useEffect(() => setReady(true), []);
 
   return (
+    <SkeletonSwap ready={ready} skeleton={<RoadmapSkeleton />}>
     <div className="mx-auto flex w-full max-w-[1072px] flex-1 flex-col gap-6 px-4 pt-7 pb-6 md:px-8 md:pt-10">
       {root.boards.length > 1 ? (
         <div className="flex items-center gap-[18px] text-[13px]">
@@ -85,6 +90,7 @@ function RoadmapPage() {
         })}
       </div>
     </div>
+    </SkeletonSwap>
   );
 }
 

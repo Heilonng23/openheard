@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@openheard/ui/components/button";
+import { SkeletonSwap } from "@/components/interior/skeleton-swap";
 import { RailLabel, Shell } from "@/components/shell";
 import { ChangelogSkeleton, ErrorState } from "@/components/states";
 import { deleteChangelog, listChangelog, saveChangelog } from "@/functions/changelog";
@@ -41,6 +42,8 @@ function ChangelogPage() {
   const admin = root.user?.role === "admin";
   const [editing, setEditing] = useState<Entry | null | "new">(null);
   const published = entries.filter((e) => e.publishedAt).length;
+  const [ready, setReady] = useState(false);
+  useEffect(() => setReady(true), []);
 
   const rail = (
     <>
@@ -78,6 +81,7 @@ function ChangelogPage() {
   );
 
   return (
+    <SkeletonSwap ready={ready} skeleton={<ChangelogSkeleton />}>
     <Shell rail={rail}>
       <div className="flex items-end justify-between">
         <h1 className="text-xl font-semibold tracking-[-0.02em]">What shipped</h1>
@@ -144,6 +148,7 @@ function ChangelogPage() {
 
       {admin ? <EntryDialog entry={editing} onClose={() => setEditing(null)} /> : null}
     </Shell>
+    </SkeletonSwap>
   );
 }
 
