@@ -48,17 +48,26 @@ function BoardPage() {
     open: (i) => navigate({ to: "/p/$id", params: { id: String(posts[i]!.id) } }),
     vote: (i) => document.querySelector<HTMLButtonElement>(`[data-row-index="${i}"] [data-vote]`)?.click(),
     search: () => document.querySelector<HTMLInputElement>("header input")?.focus(),
-    create: () => setComposing(true),
+    create: tryCompose,
   });
 
   const set = (patch: Partial<Search>) => navigate({ search: (prev) => ({ ...prev, ...patch }) });
   const sort = search.sort ?? "trending";
   const signedIn = !!root.user;
+  const canPost = signedIn && (root.workspace.whoCanPost !== "members" || root.user?.role !== "guest");
   const filtered = !!(search.q || search.status || search.board);
+
+  function tryCompose() {
+    if (!canPost) {
+      navigate({ to: "/login", search: { redirect: "/" } });
+      return;
+    }
+    setComposing(true);
+  }
 
   const rail = (
     <>
-      <Button full arrow size="lg" onClick={() => setComposing(true)}>
+      <Button full arrow size="lg" onClick={tryCompose}>
         Post idea
       </Button>
       <div className="flex flex-col gap-0.5">
@@ -107,7 +116,7 @@ function BoardPage() {
       </div>
 
       {posts.length === 0 ? (
-        <EmptyBoard filtered={filtered} onNew={() => setComposing(true)} onClear={() => navigate({ search: {} })} />
+        <EmptyBoard filtered={filtered} onNew={tryCompose} onClear={() => navigate({ search: {} })} />
       ) : (
         <ol role="list" className="divide-y divide-white/6">
           {posts.map((p, i) => {
