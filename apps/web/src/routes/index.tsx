@@ -11,6 +11,7 @@ import { FeedSkeleton } from "@/components/states";
 import { VoteButton } from "@/components/vote-button";
 import { listPosts } from "@/functions/posts";
 import { getWorkspace } from "@/functions/workspace";
+import { openSignIn } from "@/lib/pending-action";
 import { roadmapStatuses } from "@/lib/status";
 import { ago } from "@/lib/time";
 import { useKeyNav } from "@/lib/use-key-nav";
@@ -49,6 +50,12 @@ function BoardPage() {
   const [ready, setReady] = useState(false);
   useEffect(() => setReady(true), []);
 
+  useEffect(() => {
+    const handler = () => setComposing(true);
+    window.addEventListener("openheard:open-composer", handler);
+    return () => window.removeEventListener("openheard:open-composer", handler);
+  }, []);
+
   const [focused, setFocused] = useKeyNav(posts.length, {
     open: (i) => navigate({ to: "/p/$id", params: { id: String(posts[i]!.id) } }),
     vote: (i) => document.querySelector<HTMLButtonElement>(`[data-row-index="${i}"] [data-vote]`)?.click(),
@@ -63,10 +70,11 @@ function BoardPage() {
   const filtered = !!(search.q || search.status || search.board);
 
   function tryCompose() {
-    if (!canPost) {
-      navigate({ to: "/login", search: { redirect: "/" } });
+    if (!signedIn) {
+      openSignIn({ type: "compose" });
       return;
     }
+    if (!canPost) return;
     setComposing(true);
   }
 

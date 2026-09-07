@@ -4,6 +4,7 @@ import { HeadContent, Outlet, Scripts, createRootRouteWithContext, useLocation }
 
 import Footer from "../components/footer";
 import Header from "../components/header";
+import { SignInDialog } from "../components/sign-in-dialog";
 
 const Landing = lazy(() => import("../components/landing/page").then((m) => ({ default: m.Landing })));
 import { getWorkspace } from "../functions/workspace";
@@ -72,6 +73,7 @@ function RootDocument() {
             <Footer />
           </div>
         )}
+        <SignInDialog />
         <Toaster position="bottom-right" />
         <Scripts />
       </body>
