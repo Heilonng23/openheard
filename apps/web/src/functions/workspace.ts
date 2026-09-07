@@ -12,16 +12,18 @@ export const getWorkspace = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const db = createDb();
     const ws = context.workspace;
-    const boards = await db
-      .select({ id: board.id, name: board.name, description: board.description, count: count(post.id) })
-      .from(board)
-      .leftJoin(post, eq(post.boardId, board.id))
-      .where(eq(board.workspaceId, ws.id))
-      .groupBy(board.id)
-      .orderBy(asc(board.position));
-    const tags = await db.select().from(tag).where(eq(tag.workspaceId, ws.id)).orderBy(asc(tag.name));
-    const statuses = await listStatuses(db, ws.id);
-    const statusRows = await db.select({ status: post.status, count: count() }).from(post).where(eq(post.workspaceId, ws.id)).groupBy(post.status);
+    const [boards, tags, statuses, statusRows] = await Promise.all([
+      db
+        .select({ id: board.id, name: board.name, description: board.description, count: count(post.id) })
+        .from(board)
+        .leftJoin(post, eq(post.boardId, board.id))
+        .where(eq(board.workspaceId, ws.id))
+        .groupBy(board.id)
+        .orderBy(asc(board.position)),
+      db.select().from(tag).where(eq(tag.workspaceId, ws.id)).orderBy(asc(tag.name)),
+      listStatuses(db, ws.id),
+      db.select({ status: post.status, count: count() }).from(post).where(eq(post.workspaceId, ws.id)).groupBy(post.status),
+    ]);
     const statusCounts = Object.fromEntries(statusRows.map((r) => [r.status, r.count])) as Record<string, number>;
     const total = statusRows.reduce((n, r) => n + r.count, 0);
     return {

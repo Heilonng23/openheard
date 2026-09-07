@@ -16,6 +16,7 @@ export const email = Cloudflare.Email.SendEmail("EMAIL");
 
 export const web = Cloudflare.Website.Vite("web", {
   rootDir: "../../apps/web",
+  placement: { mode: "smart" },
   compatibility: {
     flags: ["nodejs_compat"],
   },

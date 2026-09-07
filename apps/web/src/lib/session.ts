@@ -44,10 +44,14 @@ export const sessionMiddleware = createMiddleware().server(async ({ next, reques
   const root = await rootDomain();
   const marketing = isMarketingHost(host, root);
   const slug = workspaceSlugFromHost(host, root);
-  let [ws] = await db.select().from(workspace).where(eq(workspace.id, slug)).limit(1);
+
+  const [wsResult, session] = await Promise.all([
+    db.select().from(workspace).where(eq(workspace.id, slug)).limit(1),
+    createAuth().api.getSession({ headers: request.headers }),
+  ]);
+
+  let [ws] = wsResult;
   if (!ws && slug === "default") {
-    // Fresh install: the default workspace has to exist before anyone can
-    // reach the sign-in page, and the first account to sign up becomes admin.
     const { seedStatuses } = await import("./status-db");
     await db.insert(workspace).values({ id: "default" }).onConflictDoNothing();
     await seedStatuses(db, "default");
@@ -55,7 +59,6 @@ export const sessionMiddleware = createMiddleware().server(async ({ next, reques
   }
   if (!ws) throw notFound();
 
-  const session = await createAuth().api.getSession({ headers: request.headers });
   let user: SessionUser | null = null;
   if (session) {
     const [m] = await db

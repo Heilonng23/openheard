@@ -35,6 +35,12 @@ export function createAuth() {
       provider: "sqlite",
       schema: schema,
     }),
+    session: {
+      cookieCache: {
+        enabled: true,
+        maxAge: 300,
+      },
+    },
     trustedOrigins: [env.BETTER_AUTH_URL, ...(raw ? [`https://*.${raw}`, `http://*.${raw}`, `http://*.${raw}:*`] : [])],
     emailAndPassword: {
       enabled: true,
