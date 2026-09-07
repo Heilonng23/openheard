@@ -1,9 +1,11 @@
+import { Suspense, lazy } from "react";
 import { Toaster } from "@openheard/ui/components/sonner";
 import { HeadContent, Outlet, Scripts, createRootRouteWithContext, useLocation } from "@tanstack/react-router";
 
 import Footer from "../components/footer";
-import { Landing } from "../components/landing/page";
 import Header from "../components/header";
+
+const Landing = lazy(() => import("../components/landing/page").then((m) => ({ default: m.Landing })));
 import { getWorkspace } from "../functions/workspace";
 import appCss from "../index.css?url";
 
@@ -52,7 +54,9 @@ function RootDocument() {
       </head>
       <body>
         {data?.marketing && pathname === "/" ? (
-          <Landing />
+          <Suspense>
+            <Landing />
+          </Suspense>
         ) : admin || marketing ? (
           <Outlet />
         ) : bare ? (

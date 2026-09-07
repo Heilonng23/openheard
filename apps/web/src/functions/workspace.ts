@@ -13,6 +13,22 @@ export const getWorkspace = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const db = createDb();
     const ws = context.workspace;
+
+    if (context.marketing) {
+      return {
+        workspace: ws,
+        rootDomain: await rootDomain(),
+        marketing: true as const,
+        boards: [] as { id: string; name: string; description: string | null; count: number }[],
+        tags: [] as (typeof tag.$inferSelect)[],
+        statuses: [] as Awaited<ReturnType<typeof listStatuses>>,
+        statusCounts: {} as Record<string, number>,
+        total: 0,
+        user: context.user,
+        googleSignIn: !!(env as unknown as { GOOGLE_CLIENT_ID?: string }).GOOGLE_CLIENT_ID,
+      };
+    }
+
     const [boards, tags, statuses, statusRows] = await Promise.all([
       db
         .select({ id: board.id, name: board.name, description: board.description, count: count(post.id) })
