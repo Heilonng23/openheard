@@ -170,6 +170,18 @@ export const vote = sqliteTable(
   (t) => [primaryKey({ columns: [t.postId, t.userId] }), index("vote_user_idx").on(t.userId)],
 );
 
+export const anonymousVote = sqliteTable(
+  "anonymous_vote",
+  {
+    postId: integer("post_id")
+      .notNull()
+      .references(() => post.id, { onDelete: "cascade" }),
+    anonToken: text("anon_token").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).default(now).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.postId, t.anonToken] })],
+);
+
 export const comment = sqliteTable(
   "comment",
   {
@@ -314,6 +326,10 @@ export const postTagRelations = relations(postTag, ({ one }) => ({
 export const voteRelations = relations(vote, ({ one }) => ({
   post: one(post, { fields: [vote.postId], references: [post.id] }),
   user: one(user, { fields: [vote.userId], references: [user.id] }),
+}));
+
+export const anonymousVoteRelations = relations(anonymousVote, ({ one }) => ({
+  post: one(post, { fields: [anonymousVote.postId], references: [post.id] }),
 }));
 
 export const commentRelations = relations(comment, ({ one, many }) => ({
