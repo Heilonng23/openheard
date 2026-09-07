@@ -4,12 +4,19 @@ import { HeadContent, Outlet, Scripts, createRootRouteWithContext, useLocation }
 import Footer from "../components/footer";
 import { Landing } from "../components/landing/page";
 import Header from "../components/header";
+import { getUser } from "../functions/get-user";
 import { getWorkspace } from "../functions/workspace";
 import appCss from "../index.css?url";
 
-export interface RouterAppContext {}
+export interface RouterAppContext {
+  user: { id: string; name: string; role: string } | null;
+}
 
 export const Route = createRootRouteWithContext<RouterAppContext>()({
+  beforeLoad: async () => {
+    const user = await getUser();
+    return { user };
+  },
   loader: () => getWorkspace(),
   head: ({ loaderData }) => ({
     meta: [

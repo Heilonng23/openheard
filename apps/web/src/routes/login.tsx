@@ -18,12 +18,9 @@ export const Route = createFileRoute("/login")({
     redirect: typeof s.redirect === "string" ? s.redirect : undefined,
   }),
   beforeLoad: async ({ search }) => {
-    const user = await getUser();
+    const [user, root] = await Promise.all([getUser(), getWorkspace()]);
     if (!user) return;
     if ((search as Search).redirect) throw redirect({ to: (search as Search).redirect! });
-    // On the cloud root domain "/" is the landing page, so a signed-in visitor
-    // goes to their board (or the create screen) instead of bouncing home.
-    const root = await getWorkspace();
     if (!root.marketing) throw redirect({ to: "/" });
     const own = (await myWorkspaces()).filter((w) => w.id !== "default");
     if (own.length === 1) throw redirect({ href: workspaceUrl(own[0]!.id, root.rootDomain, "/dashboard") });
@@ -63,7 +60,17 @@ function LoginPage() {
       const workspaces = await myWorkspaces();
       const own = workspaces.filter((w) => w.id !== "default");
       if (own.length === 1) {
-        window.location.href = workspaceUrl(own[0]!.id, root.rootDomain, "/");
+        const url = workspaceUrl(own[0]!.id, root.rootDomain, "/");
+        try {
+          const dest = new URL(url, window.location.origin);
+          if (dest.origin === window.location.origin) {
+            router.navigate({ to: dest.pathname });
+          } else {
+            window.location.href = url;
+          }
+        } catch {
+          window.location.href = url;
+        }
         return;
       }
       router.navigate({ to: "/new" });
