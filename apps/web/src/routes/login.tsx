@@ -1,6 +1,7 @@
 import { EnvelopeSimpleIcon, LockSimpleIcon, MagicWandIcon, UserIcon } from "@phosphor-icons/react";
 import { createFileRoute, Link, redirect, useLoaderData, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
+import { GoogleIcon } from "@/components/icons";
 
 import { Button } from "@openheard/ui/components/button";
 import Logo from "@/components/logo";
@@ -45,6 +46,7 @@ function LoginPage() {
   const [magicSent, setMagicSent] = useState(false);
 
   const wsName = root.workspace?.name ?? "openheard";
+  const hasGoogle = root.googleSignIn;
 
   async function afterAuth() {
     await router.invalidate();
@@ -119,6 +121,30 @@ function LoginPage() {
           </h1>
           <p className="text-sm text-muted-foreground">Vote and comment as yourself.</p>
         </div>
+
+        {hasGoogle ? (
+          <>
+            <Button
+              variant="secondary"
+              full
+              size="lg"
+              disabled={busy}
+              className="font-semibold"
+              onClick={() => {
+                setBusy(true);
+                const callbackURL = search.redirect ?? (root.marketing ? "/new" : "/");
+                authClient.signIn.social({ provider: "google", callbackURL });
+              }}
+            >
+              <GoogleIcon className="mr-1.5 size-4" /> Continue with Google
+            </Button>
+            <div className="flex w-full items-center gap-3">
+              <span className="h-px flex-1 bg-border" />
+              <span className="font-mono text-[11px] text-faint">or</span>
+              <span className="h-px flex-1 bg-border" />
+            </div>
+          </>
+        ) : null}
 
         {mode === "magic" ? (
           magicSent ? (

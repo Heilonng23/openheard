@@ -4,6 +4,7 @@ import { asc, count, eq } from "drizzle-orm";
 
 import { rootDomain, sessionMiddleware } from "@/lib/session";
 import { listStatuses } from "@/lib/status-db";
+import { env } from "@openheard/env/server";
 
 // Everything the shell needs on every page: workspace, boards with counts,
 // tags, status counts, and who is looking.
@@ -36,5 +37,6 @@ export const getWorkspace = createServerFn({ method: "GET" })
       statusCounts,
       total,
       user: context.user,
+      googleSignIn: !!(env as unknown as { GOOGLE_CLIENT_ID?: string }).GOOGLE_CLIENT_ID,
     };
   });
