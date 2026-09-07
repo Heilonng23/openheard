@@ -6,6 +6,7 @@ import { Button } from "@openheard/ui/components/button";
 import Logo from "@/components/logo";
 import { myWorkspaces } from "@/functions/admin";
 import { getUser } from "@/functions/get-user";
+import { getWorkspace } from "@/functions/workspace";
 import { getWorkspaceMemberCount } from "@/functions/invites";
 import { authClient } from "@/lib/auth-client";
 import { workspaceUrl } from "@/lib/workspace-url";
@@ -20,7 +21,13 @@ export const Route = createFileRoute("/login")({
     const user = await getUser();
     if (!user) return;
     if ((search as Search).redirect) throw redirect({ to: (search as Search).redirect! });
-    throw redirect({ to: "/" });
+    // On the cloud root domain "/" is the landing page, so a signed-in visitor
+    // goes to their board (or the create screen) instead of bouncing home.
+    const root = await getWorkspace();
+    if (!root.marketing) throw redirect({ to: "/" });
+    const own = (await myWorkspaces()).filter((w) => w.id !== "default");
+    if (own.length === 1) throw redirect({ href: workspaceUrl(own[0]!.id, root.rootDomain, "/dashboard") });
+    throw redirect({ to: "/new" });
   },
   loader: () => getWorkspaceMemberCount(),
   head: () => ({ meta: [{ title: "Sign in · feedback" }] }),

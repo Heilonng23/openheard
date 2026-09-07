@@ -1,5 +1,5 @@
 import { ArrowRightIcon, ListIcon, XIcon } from "@phosphor-icons/react";
-import { Link } from "@tanstack/react-router";
+import { Link, useLoaderData } from "@tanstack/react-router";
 import { AnimatePresence, motion, useScroll } from "motion/react";
 import { useEffect, useState } from "react";
 
@@ -25,6 +25,9 @@ export function Nav() {
   const [scrolled, setScrolled] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   useEffect(() => scrollY.on("change", (v) => setScrolled(v > 10)), [scrollY]);
+  const root = useLoaderData({ from: "__root__" });
+  // /login sends a signed-in visitor straight to their dashboard.
+  const cta = root?.user ? "Go to dashboard" : "Start for free";
 
   useEffect(() => {
     if (drawerOpen) document.body.style.overflow = "hidden";
@@ -49,11 +52,8 @@ export function Nav() {
               ))}
             </nav>
             <div className="flex items-center gap-4">
-              <Link to="/login" className="hidden text-[14px] text-muted-foreground hover:text-foreground sm:inline">
-                Log in
-              </Link>
               <Button variant="secondary" size="sm" nativeButton={false} render={<Link to="/login" />} className="hidden sm:inline-flex">
-                Start for free
+                {cta}
               </Button>
               <button type="button" onClick={() => setDrawerOpen((o) => !o)} className="flex size-8 cursor-pointer items-center justify-center rounded-md border border-border md:hidden" aria-label="Menu">
                 {drawerOpen ? <XIcon className="size-5" /> : <ListIcon className="size-5" />}
@@ -88,7 +88,7 @@ export function Nav() {
                   ))}
                 </ul>
                 <Button full size="lg" nativeButton={false} render={<Link to="/login" />}>
-                  Start for free
+                  {cta}
                 </Button>
               </div>
             </motion.div>
