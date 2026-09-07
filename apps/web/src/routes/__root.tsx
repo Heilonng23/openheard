@@ -53,8 +53,12 @@ function RootDocument() {
       <body>
         {data?.marketing && pathname === "/" ? (
           <Landing />
-        ) : admin || marketing || bare ? (
+        ) : admin || marketing ? (
           <Outlet />
+        ) : bare ? (
+          <div className="flex min-h-svh flex-col">
+            <Outlet />
+          </div>
         ) : (
           <div className="flex min-h-svh flex-col">
             <Header />

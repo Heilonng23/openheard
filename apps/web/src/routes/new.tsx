@@ -1,6 +1,7 @@
 import { createFileRoute, redirect, useLoaderData } from "@tanstack/react-router";
 import { toast } from "sonner";
 
+import Logo from "@/components/logo";
 import { WorkspaceForm } from "@/components/workspace-form";
 import { createWorkspace } from "@/functions/admin";
 import { getUser } from "@/functions/get-user";
@@ -18,7 +19,10 @@ function NewWorkspace() {
   const root = useLoaderData({ from: "__root__" });
   const rootDomain = root.rootDomain;
   return (
-    <main className="flex flex-1 items-center justify-center px-5 py-16">
+    <main className="flex flex-1 flex-col items-center justify-center gap-6 px-5 py-16">
+      <a href="/" aria-label="openheard home">
+        <Logo size={40} />
+      </a>
       <WorkspaceForm
         mode="create"
         domainSuffix={rootDomain ?? "openheard.com"}

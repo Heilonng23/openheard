@@ -9,9 +9,9 @@ import { acceptInvite } from "@/functions/invites";
 
 export const Route = createFileRoute("/join/$token")({
   head: () => ({ meta: [{ title: "Accept invite · feedback" }] }),
-  beforeLoad: async () => {
+  beforeLoad: async ({ params }) => {
     const user = await getUser();
-    if (!user) throw redirect({ to: "/login" });
+    if (!user) throw redirect({ to: "/login", search: { redirect: `/join/${params.token}` } });
   },
   component: JoinPage,
 });

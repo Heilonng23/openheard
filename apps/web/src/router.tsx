@@ -7,10 +7,17 @@ export const getRouter = () => {
   const router = createTanStackRouter({
     routeTree,
     scrollRestoration: true,
-    defaultPreloadStaleTime: 0,
+    defaultPreload: "intent",
+    defaultStaleTime: 30_000,
     context: {},
     defaultPendingComponent: () => <Loader />,
-    defaultNotFoundComponent: () => <div>Not Found</div>,
+    defaultNotFoundComponent: () => (
+      <main className="mx-auto max-w-3xl px-8 py-24 text-center">
+        <h1 className="text-xl font-semibold">Nothing here</h1>
+        <p className="mt-2 text-muted-foreground">That page does not exist.</p>
+        <a href="/" className="mt-4 inline-block text-sm font-medium hover:underline">Back to the board</a>
+      </main>
+    ),
   });
 
   return router;
