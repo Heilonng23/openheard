@@ -33,7 +33,7 @@ export const Route = createFileRoute("/")({
     // Send them through the one-screen welcome first.
     if (data.total === 0 && !deps.q && !deps.board && !deps.status) {
       const root = await getWorkspace();
-      if (root.user?.role === "admin" && root.workspace.name === "openheard") throw redirect({ to: "/welcome" });
+      if (!root.marketing && root.user?.role === "admin" && root.workspace.name === "openheard") throw redirect({ to: "/welcome" });
     }
     return data;
   },

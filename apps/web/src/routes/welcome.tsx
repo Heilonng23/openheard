@@ -11,6 +11,7 @@ import { isAdmin } from "@/lib/session";
 export const Route = createFileRoute("/welcome")({
   beforeLoad: async () => {
     const root = await getWorkspace();
+    if (root.marketing) throw redirect({ to: "/new" });
     if (!isAdmin(root.user)) throw redirect({ to: "/login" });
   },
   head: () => ({ meta: [{ title: "Welcome · openheard" }] }),
