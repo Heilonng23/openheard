@@ -165,6 +165,30 @@ export function ChangelogSkeleton() {
   );
 }
 
+export function DashboardShellSkeleton() {
+  return (
+    <div className="flex h-dvh overflow-hidden bg-[#0a0a0b] text-foreground">
+      <aside className="hidden w-60 shrink-0 md:block">
+        <div className="flex h-full flex-col px-4 pt-3.5 pb-4">
+          <Skeleton className="mb-1 h-7 w-28 rounded-md" />
+          <div className="flex flex-col gap-1 pt-4">
+            {Array.from({ length: 5 }, (_, i) => (
+              <Skeleton key={i} className="h-8 w-full rounded-md" />
+            ))}
+          </div>
+          <div className="flex flex-col gap-1 pt-6">
+            <Skeleton className="mb-1 h-3.5 w-16" />
+            {Array.from({ length: 4 }, (_, i) => (
+              <Skeleton key={i} className="h-8 w-full rounded-md" />
+            ))}
+          </div>
+        </div>
+      </aside>
+      <DashboardPanelSkeleton />
+    </div>
+  );
+}
+
 export function DashboardPanelSkeleton() {
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col py-3 pr-3">

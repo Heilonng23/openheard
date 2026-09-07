@@ -4,18 +4,20 @@ import { useCallback, useEffect, useState } from "react";
 
 import { AdminRail, AdminSidebar } from "@/components/admin/sidebar";
 import { NewPostDialog } from "@/components/new-post-dialog";
-import { DashboardErrorState, DashboardPanelSkeleton } from "@/components/states";
+import { DashboardErrorState, DashboardShellSkeleton } from "@/components/states";
 import { getUser } from "@/functions/get-user";
 import { cn } from "@openheard/ui/lib/utils";
 
 export const Route = createFileRoute("/dashboard")({
   ssr: false,
+  pendingMs: 0,
+  pendingMinMs: 0,
   beforeLoad: async () => {
     const user = await getUser();
     if (user?.role !== "admin") throw redirect({ to: "/login" });
   },
   component: AdminLayout,
-  pendingComponent: DashboardPanelSkeleton,
+  pendingComponent: DashboardShellSkeleton,
   errorComponent: ({ error }) => <DashboardErrorState message={(error as Error)?.message} />,
 });
 

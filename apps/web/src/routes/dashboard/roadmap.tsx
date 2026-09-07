@@ -61,6 +61,8 @@ export const Route = createFileRoute("/dashboard/roadmap")({
   loader: async ({ deps }) => {
     return listRoadmapAdmin({ data: { sort: deps.sort ?? "top", board: deps.board } });
   },
+  pendingMs: 0,
+  pendingMinMs: 0,
   head: () => ({ meta: [{ title: "Roadmap · openheard" }] }),
   component: Roadmap,
   errorComponent: ({ error }) => <DashboardErrorState message={(error as Error)?.message} retry="/dashboard/roadmap" />,

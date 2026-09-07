@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 
 import { Button } from "@openheard/ui/components/button";
 import { Avatar, StatusLabel } from "@/components/bits";
-import { SkeletonSwap } from "@/components/interior/skeleton-swap";
 import { NewPostDialog } from "@/components/new-post-dialog";
 import { RailItem, RailLabel, Shell } from "@/components/shell";
 import { FeedSkeleton } from "@/components/states";
@@ -47,8 +46,6 @@ function BoardPage() {
   const search = Route.useSearch();
   const navigate = useNavigate({ from: "/" });
   const [composing, setComposing] = useState(false);
-  const [ready, setReady] = useState(false);
-  useEffect(() => setReady(true), []);
 
   useEffect(() => {
     const handler = () => setComposing(true);
@@ -85,9 +82,9 @@ function BoardPage() {
       </Button>
       <div className="flex flex-col gap-0.5">
         <RailLabel>Boards</RailLabel>
-        <RailItem active={!search.board} onClick={() => set({ board: undefined })} label="All posts" count={root.total} />
+        <RailItem active={!search.board} to="/" search={{ ...search, board: undefined }} label="All posts" count={root.total} />
         {root.boards.map((b) => (
-          <RailItem key={b.id} active={search.board === b.id} onClick={() => set({ board: search.board === b.id ? undefined : b.id })} label={b.name} count={b.count} />
+          <RailItem key={b.id} active={search.board === b.id} to="/" search={{ ...search, board: search.board === b.id ? undefined : b.id }} label={b.name} count={b.count} />
         ))}
       </div>
       <div className="flex flex-col gap-0.5">
@@ -95,14 +92,13 @@ function BoardPage() {
         {roadmapStatuses(root.statuses)
           .filter((s) => s.kind !== "review")
           .map((s) => (
-            <RailItem key={s.key} active={search.status === s.key} onClick={() => set({ status: search.status === s.key ? undefined : s.key })} label={s.label} color={s.color} count={root.statusCounts[s.key] ?? 0} />
+            <RailItem key={s.key} active={search.status === s.key} to="/" search={{ ...search, status: search.status === s.key ? undefined : s.key }} label={s.label} color={s.color} count={root.statusCounts[s.key] ?? 0} />
           ))}
       </div>
     </>
   );
 
   return (
-    <SkeletonSwap ready={ready} skeleton={<FeedSkeleton />}>
     <Shell rail={rail}>
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-[18px]">
@@ -176,7 +172,6 @@ function BoardPage() {
 
       <NewPostDialog open={composing} onOpenChange={setComposing} boards={root.boards} defaultBoard={search.board} signedIn={signedIn} />
     </Shell>
-    </SkeletonSwap>
   );
 }
 

@@ -7,6 +7,8 @@ import { SETTINGS_NAV } from "@/lib/admin-nav";
 import { cn } from "@openheard/ui/lib/utils";
 
 export const Route = createFileRoute("/dashboard/settings")({
+  pendingMs: 0,
+  pendingMinMs: 0,
   component: SettingsLayout,
   errorComponent: ({ error }) => <DashboardErrorState message={(error as Error)?.message} retry="/dashboard/settings/general" />,
   pendingComponent: DashboardPanelSkeleton,

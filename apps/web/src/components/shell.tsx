@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
 import { cn } from "@openheard/ui/lib/utils";
@@ -17,22 +18,31 @@ export function RailLabel({ children }: { children: ReactNode }) {
   return <div className="px-2.5 pb-2 font-mono text-[11px] tracking-[0.06em] text-faint uppercase">{children}</div>;
 }
 
-export function RailItem({ active, onClick, label, count, color }: { active?: boolean; onClick?: () => void; label: ReactNode; count?: number | string; color?: string }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "flex w-full items-center justify-between rounded-md px-2.5 py-[7px] text-left text-[13px] active:scale-[0.99]",
-        active ? "bg-secondary font-semibold text-foreground" : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
-        !onClick && "cursor-default hover:bg-transparent hover:text-muted-foreground",
-      )}
-    >
+export function RailItem({ active, onClick, label, count, color, to, search }: { active?: boolean; onClick?: () => void; label: ReactNode; count?: number | string; color?: string; to?: string; search?: Record<string, unknown> }) {
+  const cls = cn(
+    "flex w-full items-center justify-between rounded-md px-2.5 py-[7px] text-left text-[13px] active:scale-[0.99]",
+    active ? "bg-secondary font-semibold text-foreground" : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
+    !onClick && !to && "cursor-default hover:bg-transparent hover:text-muted-foreground",
+  );
+  const inner = (
+    <>
       <span className="flex items-center gap-2.5">
         {color ? <span className="size-[7px] rounded-full" style={{ background: color }} /> : null}
         {label}
       </span>
       {count !== undefined ? <span className="font-mono text-xs text-faint">{count}</span> : null}
+    </>
+  );
+  if (to) {
+    return (
+      <Link to={to} search={search} className={cls}>
+        {inner}
+      </Link>
+    );
+  }
+  return (
+    <button type="button" onClick={onClick} className={cls}>
+      {inner}
     </button>
   );
 }

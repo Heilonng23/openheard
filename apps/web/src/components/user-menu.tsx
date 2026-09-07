@@ -43,7 +43,7 @@ export default function UserMenu() {
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           {user.role === "admin" ? (
-            <DropdownMenuItem render={<Link to="/dashboard" />}>
+            <DropdownMenuItem render={<Link to="/dashboard/inbox" />}>
               <GearSixIcon className="size-4" /> Dashboard
             </DropdownMenuItem>
           ) : null}
