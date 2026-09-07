@@ -47,7 +47,8 @@ function NewWorkspace() {
   const rootDomain = root.rootDomain;
   const domainSuffix = rootDomain ?? "openheard.com";
 
-  const websiteValid = website.length > 0 && /^https?:\/\/.+\..+/.test(website);
+  const normalizedWebsite = website.trim() ? (/^https?:\/\//i.test(website.trim()) ? website.trim() : "https://" + website.trim()) : "";
+  const websiteValid = /^https?:\/\/[^\s.]+\.[^\s]+$/.test(normalizedWebsite);
   const nameValid = name.trim().length >= 2;
   const slugTooShort = finalSlug.length > 0 && finalSlug.length < 5;
   const slugValid = finalSlug.length >= 5;
@@ -57,7 +58,7 @@ function NewWorkspace() {
     if (slugTooShort) return;
     setBusy(true);
     try {
-      const { id } = await createWorkspace({ data: { name, slug: finalSlug, website: website || undefined, heardAboutUs: heardAboutUs || undefined } });
+      const { id } = await createWorkspace({ data: { name, slug: finalSlug, website: normalizedWebsite || undefined, heardAboutUs: heardAboutUs || undefined } });
       window.location.href = workspaceUrl(id, rootDomain, "/welcome");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not create workspace");
@@ -86,7 +87,8 @@ function NewWorkspace() {
             <div className="flex items-center gap-2.5">
               <FieldBox icon={<GlobeSimpleIcon className="size-[15px]" />}>
                 <input
-                  type="url"
+                  type="text"
+                  inputMode="url"
                   value={website}
                   onChange={(e) => setWebsite(e.target.value)}
                   placeholder="https://example.com"
