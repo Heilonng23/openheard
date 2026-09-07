@@ -177,7 +177,7 @@ export const myWorkspaces = createServerFn({ method: "GET" })
 
 export const createWorkspace = createServerFn({ method: "POST" })
   .middleware([sessionMiddleware])
-  .validator((d: unknown) => z.object({ name: z.string().trim().min(2).max(60), slug: z.string().trim().min(2).max(32).optional() }).parse(d))
+  .validator((d: unknown) => z.object({ name: z.string().trim().min(2).max(60), slug: z.string().trim().min(2).max(32).optional(), website: z.string().trim().url().max(200).optional().or(z.literal("")), heardAboutUs: z.string().trim().max(100).optional().or(z.literal("")) }).parse(d))
   .handler(async ({ data, context }) => {
     const u = requireUser(context.user);
     const db = createDb();
@@ -185,7 +185,7 @@ export const createWorkspace = createServerFn({ method: "POST" })
     if (!id || ["default", "www", "app", "api", "admin", "mail"].includes(id)) throw new Error("Pick a different slug");
     const [taken] = await db.select({ id: workspace.id }).from(workspace).where(eq(workspace.id, id)).limit(1);
     if (taken) throw new Error("That slug is taken");
-    await db.insert(workspace).values({ id, name: data.name });
+    await db.insert(workspace).values({ id, name: data.name, website: data.website || null, heardAboutUs: data.heardAboutUs || null });
     await db.insert(membership).values({ workspaceId: id, userId: u.id, role: "admin" });
     await seedStatuses(db, id);
     await db.insert(board).values({ id: `${id}-features`, workspaceId: id, name: "Feature requests", description: "Things you wish the product did", position: 0 });

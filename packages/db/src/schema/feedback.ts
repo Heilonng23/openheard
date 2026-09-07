@@ -35,6 +35,8 @@ export const workspace = sqliteTable("workspace", {
   // Branding. Accent is a hex; null means the openheard blue.
   accent: text("accent"),
   logoUrl: text("logo_url"),
+  website: text("website"),
+  heardAboutUs: text("heard_about_us"),
   // Access. Who may post, whether logged-out visitors can vote, which public
   // tabs exist.
   whoCanPost: text("who_can_post", { enum: ["anyone", "members"] }).notNull().default("anyone"),
