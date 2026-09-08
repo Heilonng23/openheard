@@ -6,6 +6,10 @@ The MCP server exposes the same capabilities as the REST API as [Model Context P
 **Transport:** Streamable HTTP (stateless)
 **Auth:** Same `Bearer` API key as the REST API
 
+## Rate limits
+
+The MCP endpoint is rate-limited to **60 requests per minute** per API key (or per IP if no key is provided). Exceeding the limit returns HTTP `429` with a `Retry-After` header indicating seconds until the window resets.
+
 ## Setup
 
 ### Claude Code
