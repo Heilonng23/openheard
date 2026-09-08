@@ -18,6 +18,8 @@ export const Route = createFileRoute("/new")({
 function NewWorkspace() {
   const root = useLoaderData({ from: "__root__" });
   const rootDomain = root.rootDomain;
+  const ownWorkspaces = (root as { ownWorkspaces?: { id: string }[] }).ownWorkspaces;
+  const hasExistingWorkspace = !!ownWorkspaces && ownWorkspaces.length > 0;
   return (
     <main className="flex flex-1 flex-col items-center justify-center gap-6 px-5 py-16">
       <a href="/" aria-label="openheard home">
@@ -26,6 +28,7 @@ function NewWorkspace() {
       <WorkspaceForm
         mode="create"
         domainSuffix={rootDomain ?? "openheard.com"}
+        showHeardAbout={!hasExistingWorkspace}
         onSubmit={async (v) => {
           try {
             const { id } = await createWorkspace({ data: { name: v.name, slug: v.slug, website: v.website || undefined, heardAboutUs: v.heardAboutUs || undefined } });
