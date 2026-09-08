@@ -30,7 +30,7 @@ export function Nav() {
   const own = (root as { ownWorkspaces?: { id: string; name: string }[] }).ownWorkspaces;
   const ctaHref = useMemo(() => {
     if (root?.user && own?.length === 1) return workspaceUrl(own[0]!.id, root.rootDomain, "/dashboard");
-    return "/login";
+    return "/start";
   }, [root, own]);
   const cta = root?.user ? "Go to dashboard" : "Start for free";
 
@@ -133,7 +133,7 @@ export function Hero() {
           <BlurFade delay={0.16}>
             <div className="flex flex-col items-center gap-6">
               <div className="flex flex-wrap items-center justify-center gap-5">
-                <Button size="lg" arrow nativeButton={false} render={<Link to="/login" />}>
+                <Button size="lg" arrow nativeButton={false} render={<Link to="/start" />}>
                   Start for free
                 </Button>
                 <a href="#own" className="inline-flex items-center gap-1.5 text-[14px] text-muted-foreground hover:text-foreground">

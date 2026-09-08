@@ -35,7 +35,7 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
   ),
 });
 
-const BARE_PAGES = ["/login", "/reset-password", "/join/", "/new", "/welcome"];
+const BARE_PAGES = ["/login", "/reset-password", "/join/", "/new", "/welcome", "/start"];
 
 function RootDocument() {
   const data = Route.useLoaderData();

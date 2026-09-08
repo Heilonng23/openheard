@@ -315,7 +315,7 @@ export function Pricing() {
               <p className="mt-2 text-sm text-muted-foreground">{p.desc}</p>
             </div>
             <div className="flex flex-col gap-2 p-4">
-              <Button full size="lg" nativeButton={false} variant={p.primary ? "primary" : "secondary"} render={<Link to="/login" />}>
+              <Button full size="lg" nativeButton={false} variant={p.primary ? "primary" : "secondary"} render={<Link to="/start" />}>
                 {p.cta}
               </Button>
             </div>
@@ -397,7 +397,7 @@ export function Closing() {
           <div className="absolute inset-0 -top-24 flex flex-col items-center justify-center md:-top-40">
             <h2 className="max-w-xs text-center text-3xl font-medium tracking-tighter text-balance md:max-w-xl md:text-7xl">Your users have opinions.</h2>
             <div className="absolute bottom-10 flex flex-col items-center justify-center gap-3">
-              <Button size="lg" arrow nativeButton={false} render={<Link to="/login" />}>
+              <Button size="lg" arrow nativeButton={false} render={<Link to="/start" />}>
                 Start for free
               </Button>
               <span className="text-sm text-muted-foreground">Or self-host in one command</span>

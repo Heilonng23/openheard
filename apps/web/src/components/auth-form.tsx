@@ -21,12 +21,14 @@ export function AuthForm({
   callbackURL,
   onSuccess,
   showFirstAccountHint = false,
+  onGoogleClick,
 }: {
   wsName: string;
   hasGoogle: boolean;
   callbackURL: string;
   onSuccess: () => void;
   showFirstAccountHint?: boolean;
+  onGoogleClick?: () => void;
 }) {
   const [mode, setMode] = useState<"in" | "up" | "magic">("in");
   const [name, setName] = useState("");
@@ -83,6 +85,7 @@ export function AuthForm({
             disabled={busy}
             className="font-semibold"
             onClick={() => {
+              onGoogleClick?.();
               setBusy(true);
               authClient.signIn.social({ provider: "google", callbackURL });
             }}

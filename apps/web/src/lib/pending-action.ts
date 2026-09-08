@@ -3,7 +3,8 @@ import { useSyncExternalStore } from "react";
 export type PendingAction =
   | { type: "vote"; postId: number }
   | { type: "compose" }
-  | { type: "comment"; postId: number; body: string };
+  | { type: "comment"; postId: number; body: string }
+  | { type: "create-workspace"; name: string; slug: string; whoCanPost: "anyone" | "members" };
 
 const STORAGE_KEY = "openheard:pending-action";
 
