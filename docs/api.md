@@ -18,6 +18,18 @@ Every key is scoped to one workspace. Revoked keys return `401`.
 OPENHEARD_LOCAL=1 bun run apps/web/src/scripts/make-api-key.ts
 ```
 
+## Rate limits
+
+All API endpoints are rate-limited to **60 requests per minute** per API key (or per IP if no key is provided).
+
+When you exceed the limit the server returns `429 Too Many Requests` with a JSON body and a `Retry-After` header (seconds until the window resets):
+
+```json
+{ "error": "Too many requests" }
+```
+
+Back off for the number of seconds in `Retry-After` before retrying.
+
 ## Error shape
 
 Every error returns JSON:

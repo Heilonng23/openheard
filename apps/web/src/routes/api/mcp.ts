@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { authenticateApiKey, apiErrorResponse } from "@/lib/api-auth";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import {
   queryListPosts,
   queryGetPost,
@@ -153,6 +154,12 @@ function createMcpServer(workspaceId: string, db: Parameters<typeof queryListPos
 
 async function handleMcp(request: Request): Promise<Response> {
   try {
+    const ip = request.headers.get("cf-connecting-ip") ?? request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+    const auth = request.headers.get("authorization");
+    const key = auth?.startsWith("Bearer ") ? auth.slice(7, 20) : ip;
+    const rl = await rateLimit(`mcp:${key}`, { window: 60, max: 60 });
+    if (!rl.allowed) return rateLimitResponse(rl.retryAfter!);
+
     const ctx = await authenticateApiKey(request);
     const server = createMcpServer(ctx.workspaceId, ctx.db);
     const transport = new WebStandardStreamableHTTPServerTransport({

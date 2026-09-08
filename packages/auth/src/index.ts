@@ -2,11 +2,45 @@ import { createDb } from "@openheard/db";
 import * as schema from "@openheard/db/schema/auth";
 import { DEFAULT_STATUSES, membership, status, workspace } from "@openheard/db/schema/feedback";
 import { env } from "@openheard/env/server";
-import { betterAuth } from "better-auth";
+import { betterAuth, type SecondaryStorage } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { magicLink } from "better-auth/plugins";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { eq } from "drizzle-orm";
+
+type KV = {
+  get(key: string): Promise<string | null>;
+  put(key: string, value: string, opts?: { expirationTtl: number }): Promise<void>;
+  delete(key: string): Promise<void>;
+};
+
+function createKvSecondaryStorage(store: KV): SecondaryStorage {
+  return {
+    async get(key: string) {
+      const raw = await store.get(key);
+      if (raw === null) return null;
+      try { return JSON.parse(raw); } catch { return raw; }
+    },
+    async getAndDelete(key: string) {
+      const raw = await store.get(key);
+      if (raw !== null) await store.delete(key);
+      if (raw === null) return null;
+      try { return JSON.parse(raw); } catch { return raw; }
+    },
+    async increment(key: string, ttl: number) {
+      const raw = await store.get(key);
+      const next = (raw ? parseInt(raw, 10) : 0) + 1;
+      await store.put(key, String(next), { expirationTtl: ttl });
+      return next;
+    },
+    async set(key: string, value: string, ttl?: number) {
+      await store.put(key, value, ttl ? { expirationTtl: ttl } : { expirationTtl: 3600 });
+    },
+    async delete(key: string) {
+      await store.delete(key);
+    },
+  };
+}
 
 const AUTH_FROM = { email: "hello@openheard.com", name: "openheard" };
 
@@ -33,11 +67,31 @@ export function createAuth() {
   const googleId = (env as unknown as { GOOGLE_CLIENT_ID?: string }).GOOGLE_CLIENT_ID;
   const googleSecret = (env as unknown as { GOOGLE_CLIENT_SECRET?: string }).GOOGLE_CLIENT_SECRET;
 
+  const kvStore = (env as unknown as { CACHE?: KV }).CACHE;
+
   return betterAuth({
     database: drizzleAdapter(db, {
       provider: "sqlite",
       schema: schema,
     }),
+    ...(kvStore ? { secondaryStorage: createKvSecondaryStorage(kvStore) } : {}),
+    rateLimit: {
+      enabled: true,
+      window: 60,
+      max: 100,
+      storage: kvStore ? "secondary-storage" : "memory",
+      customRules: {
+        "/sign-in/*": { window: 60, max: 5 },
+        "/magic-link/*": { window: 60, max: 5 },
+        "/sign-up/*": { window: 600, max: 3 },
+      },
+    },
+    advanced: {
+      ...(rootDomain ? { crossSubDomainCookies: { enabled: true, domain: "." + rootDomain } } : {}),
+      ipAddress: {
+        ipAddressHeaders: ["cf-connecting-ip", "x-forwarded-for"],
+      },
+    },
     session: {
       cookieCache: {
         enabled: true,
@@ -89,8 +143,6 @@ export function createAuth() {
         },
       },
     },
-    // One cookie for every workspace subdomain in the cloud version.
-    advanced: rootDomain ? { crossSubDomainCookies: { enabled: true, domain: "." + rootDomain } } : undefined,
     secret: env.BETTER_AUTH_SECRET,
     baseURL: env.BETTER_AUTH_URL || undefined,
     plugins: [

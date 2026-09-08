@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { authenticateApiKey, apiJson, apiErrorResponse, ApiError } from "@/lib/api-auth";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import {
   queryListPosts,
   queryGetPost,
@@ -120,6 +121,12 @@ const postRoutes: RouteHandler = async (request, params) => {
 
 async function handleRequest(request: Request, params: Record<string, string>): Promise<Response> {
   try {
+    const ip = request.headers.get("cf-connecting-ip") ?? request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+    const auth = request.headers.get("authorization");
+    const key = auth?.startsWith("Bearer ") ? auth.slice(7, 20) : ip;
+    const rl = await rateLimit(`api:${key}`, { window: 60, max: 60 });
+    if (!rl.allowed) return rateLimitResponse(rl.retryAfter!);
+
     if (request.method === "GET") return await getRoutes(request, params);
     if (request.method === "POST") return await postRoutes(request, params);
     throw new ApiError(405, "Method not allowed");
