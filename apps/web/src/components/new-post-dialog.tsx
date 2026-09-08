@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogTitle } from "@openheard/ui/components/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@openheard/ui/components/dropdown-menu";
 import { CaretDownIcon, ImageIcon, LightningIcon, PlusIcon, XIcon } from "@phosphor-icons/react";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -15,20 +15,42 @@ import { Kbd } from "./bits";
 type Board = { id: string; name: string };
 type Similar = Awaited<ReturnType<typeof searchPosts>>;
 
+export type OptimisticPost = {
+  id: number;
+  title: string;
+  excerpt: string | null;
+  body: string;
+  boardId: string;
+  board: { name: string };
+  status: string;
+  pinned: boolean;
+  commentCount: number;
+  voteCount: number;
+  voted: boolean;
+  author: { name: string; image?: string | null } | null;
+  createdAt: string;
+  tags: [];
+  trending: boolean;
+  _optimistic: true;
+};
+
 export function NewPostDialog({
   open,
   onOpenChange,
   boards,
   defaultBoard,
   signedIn,
+  onOptimisticPost,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   boards: Board[];
   defaultBoard?: string;
   signedIn: boolean;
+  onOptimisticPost?: (post: OptimisticPost | null) => void;
 }) {
   const navigate = useNavigate();
+  const router = useRouter();
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [boardId, setBoardId] = useState(defaultBoard ?? boards[0]?.id ?? "");
@@ -41,8 +63,6 @@ export function NewPostDialog({
     if (defaultBoard) setBoardId(defaultBoard);
   }, [defaultBoard]);
 
-  // Looks-similar: search while the title is typed, so a duplicate can be
-  // voted on instead of posted.
   useEffect(() => {
     const q = title.trim();
     if (q.length < 6) return setSimilar([]);
@@ -50,7 +70,7 @@ export function NewPostDialog({
     return () => clearTimeout(t);
   }, [title]);
 
-  async function submit() {
+  function submit() {
     if (!signedIn) {
       onOpenChange(false);
       openSignIn({ type: "compose" });
@@ -60,12 +80,46 @@ export function NewPostDialog({
       toast("Give it a title first");
       return;
     }
-    const result = await createPost({ data: { boardId: board?.id ?? "", title, body, tags: [] } });
+    const postTitle = title.trim();
+    const postBody = body;
+    const postBoardId = board?.id ?? "";
+    const postBoardName = board?.name ?? "";
+
+    const tempPost: OptimisticPost = {
+      id: -Date.now(),
+      title: postTitle,
+      excerpt: postBody.slice(0, 200) || null,
+      body: postBody,
+      boardId: postBoardId,
+      board: { name: postBoardName },
+      status: "open",
+      pinned: false,
+      commentCount: 0,
+      voteCount: 1,
+      voted: true,
+      author: null,
+      createdAt: new Date().toISOString(),
+      tags: [],
+      trending: false,
+      _optimistic: true,
+    };
+
+    onOptimisticPost?.(tempPost);
     onOpenChange(false);
     setTitle("");
     setBody("");
-    toast.success(result.pending ? "Submitted! An admin will review it shortly." : "Posted. You are the first vote.");
-    navigate({ to: "/p/$id", params: { id: String(result.id) } });
+
+    createPost({ data: { boardId: postBoardId, title: postTitle, body: postBody, tags: [] } })
+      .then((result) => {
+        onOptimisticPost?.(null);
+        router.invalidate();
+        toast.success(result.pending ? "Submitted! An admin will review it shortly." : "Posted. You are the first vote.");
+        navigate({ to: "/p/$id", params: { id: String(result.id) } });
+      })
+      .catch((err) => {
+        onOptimisticPost?.(null);
+        toast.error(err instanceof Error ? err.message : "Could not post");
+      });
   }
 
   function onKey(e: React.KeyboardEvent) {

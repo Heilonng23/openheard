@@ -217,18 +217,46 @@ const GLYPH: Record<(typeof KIND_ICON)[keyof typeof KIND_ICON], Icon> = {
   "x-circle": XCircleIcon,
 };
 
+type OptimisticComment = {
+  id: number;
+  kind: "comment";
+  body: string;
+  internal: boolean;
+  author: { name: string; image?: string | null; role?: string };
+  at: string;
+  commentId: number;
+  reactions: [];
+  type?: undefined;
+  to?: undefined;
+  note?: undefined;
+};
+
 function Detail({ post: p, onClose }: { post: PostData; onClose: () => void }) {
   const root = useLoaderData({ from: "__root__" });
   const statuses = useStatuses();
-  const current = findStatus(statuses, p.status);
   const router = useRouter();
   const [reply, setReply] = useState("");
   const [internal, setInternal] = useState(false);
-  const [busy, setBusy] = useState(false);
   const [merging, setMerging] = useState(false);
   const [tab, setTab] = useState<"comments" | "activity">("comments");
   const [eta, setEta] = useState(p.eta ?? "");
   const box = useRef<HTMLTextAreaElement>(null);
+  const [optimisticStatus, setOptimisticStatus] = useState<string | null>(null);
+  const [pendingComments, setPendingComments] = useState<OptimisticComment[]>([]);
+
+  const prevTimeline = useRef(p.timeline);
+  if (p.timeline !== prevTimeline.current) {
+    prevTimeline.current = p.timeline;
+    setPendingComments([]);
+  }
+  const prevStatus = useRef(p.status);
+  if (p.status !== prevStatus.current) {
+    prevStatus.current = p.status;
+    setOptimisticStatus(null);
+  }
+
+  const effectiveStatus = optimisticStatus ?? p.status;
+  const current = findStatus(statuses, effectiveStatus);
 
   async function run<T>(fn: () => Promise<T>, ok?: string) {
     try {
@@ -240,14 +268,30 @@ function Detail({ post: p, onClose }: { post: PostData; onClose: () => void }) {
     }
   }
 
-  async function send() {
+  function send() {
     if (!reply.trim()) return;
-    setBusy(true);
-    await run(async () => {
-      await addComment({ data: { postId: p.id, body: reply, internal } });
-      setReply("");
-    });
-    setBusy(false);
+    const body = reply.trim();
+    const isInternal = internal;
+    const tempId = -Date.now();
+    const optimistic: OptimisticComment = {
+      id: tempId,
+      kind: "comment",
+      body,
+      internal: isInternal,
+      author: { name: root.user!.name, image: root.user!.image, role: root.user!.role },
+      at: new Date().toISOString(),
+      commentId: tempId,
+      reactions: [],
+    };
+    setPendingComments((prev) => [...prev, optimistic]);
+    setReply("");
+
+    addComment({ data: { postId: p.id, body, internal: isInternal } })
+      .then(() => router.invalidate())
+      .catch((err) => {
+        setPendingComments((prev) => prev.filter((c) => c.id !== tempId));
+        toast.error(err instanceof Error ? err.message : "Could not comment");
+      });
   }
 
   function insertEmoji(e: string) {
@@ -257,8 +301,9 @@ function Detail({ post: p, onClose }: { post: PostData; onClose: () => void }) {
     el?.focus();
   }
 
-  const comments = p.timeline.filter((t) => t.kind === "comment");
-  const activity = p.timeline.filter((t) => t.kind === "activity");
+  const mergedTimeline = [...p.timeline, ...pendingComments];
+  const comments = mergedTimeline.filter((t) => t.kind === "comment");
+  const activity = mergedTimeline.filter((t) => t.kind === "activity");
   const shown = tab === "comments" ? comments : activity;
   const chip = "inline-flex h-8 items-center gap-1.5 rounded-md border border-input bg-card pr-2.5 pl-2.5 text-[13px] outline-none hover:bg-accent focus-visible:ring-1 focus-visible:ring-ring";
   const G = GLYPH[KIND_ICON[current.kind]];
@@ -319,7 +364,15 @@ function Detail({ post: p, onClose }: { post: PostData; onClose: () => void }) {
               arrow
               onClick={() => {
                 const open = statuses.find((s) => s.kind === "open");
-                if (open) run(() => setStatus({ data: { postId: p.id, status: open.key } }), "Approved");
+                if (!open) return;
+                setOptimisticStatus(open.key);
+                toast.success("Approved");
+                setStatus({ data: { postId: p.id, status: open.key } })
+                  .then(() => router.invalidate())
+                  .catch((err) => {
+                    setOptimisticStatus(null);
+                    toast.error(err instanceof Error ? err.message : "Approve failed");
+                  });
               }}
             >
               Approve
@@ -335,7 +388,20 @@ function Detail({ post: p, onClose }: { post: PostData; onClose: () => void }) {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="min-w-44">
                 {statuses.map((s) => (
-                  <DropdownMenuItem key={s.key} disabled={s.key === p.status} onClick={() => run(() => setStatus({ data: { postId: p.id, status: s.key } }), `Moved to ${s.label}`)}>
+                  <DropdownMenuItem
+                    key={s.key}
+                    disabled={s.key === effectiveStatus}
+                    onClick={() => {
+                      setOptimisticStatus(s.key);
+                      toast.success(`Moved to ${s.label}`);
+                      setStatus({ data: { postId: p.id, status: s.key } })
+                        .then(() => router.invalidate())
+                        .catch((err) => {
+                          setOptimisticStatus(null);
+                          toast.error(err instanceof Error ? err.message : "Could not change status");
+                        });
+                    }}
+                  >
                     <span className="size-[7px] rounded-full" style={{ background: s.color }} />
                     {s.label}
                   </DropdownMenuItem>
@@ -412,7 +478,7 @@ function Detail({ post: p, onClose }: { post: PostData; onClose: () => void }) {
                   <PaperclipIcon className="size-[14px]" />
                 </IconBtn>
               </div>
-              <Button size="sm" arrow onClick={send} disabled={busy || !reply.trim()}>
+              <Button size="sm" arrow onClick={send} disabled={!reply.trim()}>
                 {internal ? "Add note" : "Reply"}
               </Button>
             </div>
@@ -432,8 +498,9 @@ function Detail({ post: p, onClose }: { post: PostData; onClose: () => void }) {
             {shown.map((item) => {
               const team = item.kind === "activity" || (item.author as { role?: string } | null)?.role === "admin";
               const note = item.kind === "comment" && item.internal;
+              const isPending = pendingComments.some((c) => c.id === item.id);
               return (
-                <div key={item.id} className={cn("flex items-start gap-2.5", note && "rounded-lg border border-status-planned/20 bg-status-planned/[.07] px-3 py-2.5")}>
+                <div key={item.id} className={cn("flex items-start gap-2.5", note && "rounded-lg border border-status-planned/20 bg-status-planned/[.07] px-3 py-2.5", isPending && "opacity-60")}>
                   <Avatar name={item.author?.name ?? "?"} image={(item.author as { image?: string | null })?.image} size={24} className={cn(team && "ring-1 ring-link/50")} />
                   <div className="flex min-w-0 flex-1 flex-col gap-1.5">
                     <div className="flex flex-wrap items-center gap-2 text-[13px]">

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 import { Button } from "@openheard/ui/components/button";
 import { Avatar, StatusLabel } from "@/components/bits";
-import { NewPostDialog } from "@/components/new-post-dialog";
+import { NewPostDialog, type OptimisticPost } from "@/components/new-post-dialog";
 import { RailItem, RailLabel, Shell } from "@/components/shell";
 import { FeedSkeleton } from "@/components/states";
 import { VoteButton } from "@/components/vote-button";
@@ -47,6 +47,7 @@ function BoardPage() {
   const navigate = useNavigate({ from: "/" });
   const router = useRouter();
   const [composing, setComposing] = useState(false);
+  const [optimisticPost, setOptimisticPost] = useState<OptimisticPost | null>(null);
 
   useEffect(() => {
     const handler = () => setComposing(true);
@@ -134,11 +135,12 @@ function BoardPage() {
         </div>
       </div>
 
-      {posts.length === 0 ? (
+      {posts.length === 0 && !optimisticPost ? (
         <EmptyBoard filtered={filtered} onNew={tryCompose} onClear={() => navigate({ search: {} })} />
       ) : (
         <ol role="list" className="divide-y divide-white/6">
-          {posts.map((p, i) => {
+          {[...(optimisticPost ? [optimisticPost] : []), ...posts].map((p, i) => {
+            const isOptimistic = "_optimistic" in p;
             const st = root.statuses.find((x) => x.key === p.status);
             const showStatus = st && st.kind !== "open";
             return (
@@ -149,7 +151,7 @@ function BoardPage() {
                   data-row-index={i}
                   data-focused={focused === i || undefined}
                   onMouseEnter={() => setFocused(i)}
-                  className="group/row flex items-start gap-6 py-6 first:pt-2"
+                  className={cn("group/row flex items-start gap-6 py-6 first:pt-2", isOptimistic && "opacity-60")}
                 >
                   <span className="hidden w-8 shrink-0 pt-1 font-mono text-xs text-faint tabular-nums md:block">{sort === "trending" ? String(i + 1).padStart(2, "0") : ""}</span>
                   <div className="flex min-w-0 flex-1 flex-col gap-2">
@@ -179,7 +181,17 @@ function BoardPage() {
         </ol>
       )}
 
-      <NewPostDialog open={composing} onOpenChange={setComposing} boards={root.boards} defaultBoard={search.board} signedIn={signedIn} />
+      <NewPostDialog
+        open={composing}
+        onOpenChange={setComposing}
+        boards={root.boards}
+        defaultBoard={search.board}
+        signedIn={signedIn}
+        onOptimisticPost={(p) => {
+          if (p && root.user) setOptimisticPost({ ...p, author: { name: root.user.name, image: root.user.image } });
+          else setOptimisticPost(p);
+        }}
+      />
     </Shell>
   );
 }

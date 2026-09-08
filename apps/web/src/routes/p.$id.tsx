@@ -1,6 +1,6 @@
 import { ArrowLeftIcon, ArrowsMergeIcon, PaperclipIcon } from "@phosphor-icons/react";
 import { Link, createFileRoute, notFound, useLoaderData, useRouter } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { openSignIn } from "@/lib/pending-action";
 
@@ -44,42 +44,69 @@ export const Route = createFileRoute("/p/$id")({
   pendingComponent: PostSkeleton,
 });
 
+type OptimisticComment = {
+  id: number;
+  kind: "comment";
+  body: string;
+  author: { name: string; image?: string | null; role?: string };
+  at: string;
+  internal?: boolean;
+  commentId: number;
+  reactions: [];
+  type?: undefined;
+  to?: undefined;
+  note?: undefined;
+};
+
 function PostPage() {
   const p = Route.useLoaderData();
   const root = useLoaderData({ from: "__root__" });
   const router = useRouter();
   const admin = root.user?.role === "admin";
   const [reply, setReply] = useState("");
-  const [busy, setBusy] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [ready, setReady] = useState(false);
+  const [pendingComments, setPendingComments] = useState<OptimisticComment[]>([]);
   useEffect(() => setReady(true), []);
 
-  async function submitReply(e: React.FormEvent) {
+  const prevTimeline = useRef(p.timeline);
+  if (p.timeline !== prevTimeline.current) {
+    prevTimeline.current = p.timeline;
+    setPendingComments([]);
+  }
+
+  function submitReply(e: React.FormEvent) {
     e.preventDefault();
     if (!root.user) {
-      if (reply.trim()) {
-        openSignIn({ type: "comment", postId: p.id, body: reply.trim() });
-      } else {
-        openSignIn({ type: "comment", postId: p.id, body: "" });
-      }
+      openSignIn({ type: "comment", postId: p.id, body: reply.trim() || "" });
       return;
     }
     if (!reply.trim()) return;
-    setBusy(true);
-    try {
-      await addComment({ data: { postId: p.id, body: reply } });
-      setReply("");
-      setExpanded(false);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not comment");
-    } finally {
-      setBusy(false);
-    }
-    router.invalidate();
+    const body = reply.trim();
+    const tempId = -Date.now();
+    const optimistic: OptimisticComment = {
+      id: tempId,
+      kind: "comment",
+      body,
+      author: { name: root.user.name, image: root.user.image, role: root.user.role },
+      at: new Date().toISOString(),
+      commentId: tempId,
+      reactions: [],
+    };
+    setPendingComments((prev) => [...prev, optimistic]);
+    setReply("");
+    setExpanded(false);
+
+    addComment({ data: { postId: p.id, body } })
+      .then(() => router.invalidate())
+      .catch((err) => {
+        setPendingComments((prev) => prev.filter((c) => c.id !== tempId));
+        toast.error(err instanceof Error ? err.message : "Could not comment");
+      });
   }
 
-  const comments = p.timeline.filter((t) => t.kind === "comment").length;
+  const mergedTimeline = [...p.timeline, ...pendingComments];
+  const comments = mergedTimeline.filter((t) => t.kind === "comment").length;
   const statuses = useStatuses();
   const timeline = roadmapStatuses(statuses);
   const current = findStatus(statuses, p.status);
@@ -244,18 +271,19 @@ function PostPage() {
             <span className="inline-flex items-center gap-1.5 text-xs text-faint">
               <PaperclipIcon className="size-3.5" /> Attach
             </span>
-            <Button variant="secondary" size="sm" type="submit" disabled={busy || reply.trim().length === 0}>
+            <Button variant="secondary" size="sm" type="submit" disabled={reply.trim().length === 0}>
               Comment
             </Button>
           </div>
         </form>
 
-        {p.timeline.length === 0 ? <p className="text-sm text-faint">No comments yet. Be the first, it helps the team prioritise.</p> : null}
+        {mergedTimeline.length === 0 ? <p className="text-sm text-faint">No comments yet. Be the first, it helps the team prioritise.</p> : null}
         <div className="flex flex-col gap-5">
-          {p.timeline.map((item) => {
+          {mergedTimeline.map((item) => {
             const team = item.kind === "activity" || (item.author as { role?: string } | null)?.role === "admin";
+            const isPending = pendingComments.some((c) => c.id === item.id);
             return (
-              <div key={item.id} className="flex items-start gap-3">
+              <div key={item.id} className={cn("flex items-start gap-3", isPending && "opacity-60")}>
                 <Avatar name={item.author?.name ?? "?"} image={(item.author as { image?: string | null })?.image} size={28} className={cn(team && "ring-1 ring-link/50")} />
                 <div className="flex min-w-0 flex-1 flex-col gap-1">
                   <div className="flex flex-wrap items-center gap-2 text-[13px]">

@@ -22,9 +22,10 @@ function PublicBoard() {
   const [poweredBy, setPoweredBy] = useState(ws.poweredBy);
   const dirty = theme !== (ws.theme === "light" ? "light" : "dark") || poweredBy !== ws.poweredBy;
 
-  async function save() {
-    await saveWorkspace({ data: { name: ws.name, tagline: ws.tagline, theme, poweredBy, requireApproval: ws.requireApproval, accent: ws.accent } });
-    await router.invalidate();
+  function save() {
+    saveWorkspace({ data: { name: ws.name, tagline: ws.tagline, theme, poweredBy, requireApproval: ws.requireApproval, accent: ws.accent } })
+      .then(() => router.invalidate())
+      .catch((err) => toast.error(err instanceof Error ? err.message : "Could not save"));
   }
 
   return (

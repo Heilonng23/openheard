@@ -20,9 +20,10 @@ function Profile() {
   const [name, setName] = useState(me.name);
   const dirty = name.trim() !== me.name;
 
-  async function save() {
-    await saveProfile({ data: { name } });
-    await router.invalidate();
+  function save() {
+    saveProfile({ data: { name } })
+      .then(() => router.invalidate())
+      .catch((err) => toast.error(err instanceof Error ? err.message : "Could not save"));
   }
 
   return (
