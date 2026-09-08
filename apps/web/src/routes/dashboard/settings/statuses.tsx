@@ -26,14 +26,14 @@ function Statuses() {
   const router = useRouter();
   const [adding, setAdding] = useState(false);
 
-  async function run<T>(fn: () => Promise<T>, ok?: string) {
-    try {
-      await fn();
-      await router.invalidate();
-      if (ok) toast.success(ok);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "That did not work");
-    }
+  function fire<T>(fn: () => Promise<T>, ok?: string) {
+    if (ok) toast.success(ok);
+    fn()
+      .then(() => router.invalidate())
+      .catch((err) => {
+        toast.error(err instanceof Error ? err.message : "That did not work");
+        router.invalidate();
+      });
   }
 
   function move(key: string, dir: -1 | 1) {
@@ -42,7 +42,7 @@ function Statuses() {
     const j = i + dir;
     if (j < 0 || j >= keys.length) return;
     [keys[i], keys[j]] = [keys[j]!, keys[i]!];
-    run(() => reorderStatuses({ data: { keys } }));
+    fire(() => reorderStatuses({ data: { keys } }));
   }
 
   return (
@@ -64,8 +64,8 @@ function Statuses() {
           first={i === 0}
           last={i === root.statuses.length - 1}
           onMove={(d) => move(s.key, d)}
-          onSave={(patch) => run(() => saveStatus({ data: { key: s.key, ...patch } }), "Saved")}
-          onDelete={() => confirm(`Delete "${s.label}"?`) && run(() => deleteStatus({ data: { key: s.key } }), "Status deleted")}
+          onSave={(patch) => fire(() => saveStatus({ data: { key: s.key, ...patch } }), "Saved")}
+          onDelete={() => confirm(`Delete "${s.label}"?`) && fire(() => deleteStatus({ data: { key: s.key } }), "Status deleted")}
         />
       ))}
       {adding ? (
@@ -73,7 +73,7 @@ function Statuses() {
           status={{ key: "", label: "", color: "#6e8bff", kind: "planned", position: 99, onRoadmap: true }}
           count={0}
           editing
-          onSave={(patch) => run(() => saveStatus({ data: patch }), "Status added").then(() => setAdding(false))}
+          onSave={(patch) => { fire(() => saveStatus({ data: patch }), "Status added"); setAdding(false); }}
           onCancel={() => setAdding(false)}
         />
       ) : null}

@@ -22,14 +22,14 @@ function Boards() {
   const [newBoard, setNewBoard] = useState<{ name: string; description: string } | null>(null);
   const [newTag, setNewTag] = useState<string | null>(null);
 
-  async function run<T>(fn: () => Promise<T>, ok?: string) {
-    try {
-      await fn();
-      await router.invalidate();
-      if (ok) toast.success(ok);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "That did not work");
-    }
+  function fire<T>(fn: () => Promise<T>, ok?: string) {
+    if (ok) toast.success(ok);
+    fn()
+      .then(() => router.invalidate())
+      .catch((err) => {
+        toast.error(err instanceof Error ? err.message : "That did not work");
+        router.invalidate();
+      });
   }
 
   return (
@@ -45,14 +45,15 @@ function Boards() {
         }
       />
       {root.boards.map((b) => (
-        <BoardRow key={b.id} board={b} onSave={(name, description) => run(() => saveBoard({ data: { id: b.id, name, description } }), "Board updated")} onDelete={() => confirm(`Delete "${b.name}"?`) && run(() => deleteBoard({ data: { id: b.id } }), "Board deleted")} />
+        <BoardRow key={b.id} board={b} onSave={(name, description) => fire(() => saveBoard({ data: { id: b.id, name, description } }), "Board updated")} onDelete={() => confirm(`Delete "${b.name}"?`) && fire(() => deleteBoard({ data: { id: b.id } }), "Board deleted")} />
       ))}
       {newBoard ? (
         <form
           className="flex items-center gap-2 border-t py-3"
           onSubmit={(e) => {
             e.preventDefault();
-            run(() => saveBoard({ data: newBoard }), "Board added").then(() => setNewBoard(null));
+            fire(() => saveBoard({ data: newBoard }), "Board added");
+            setNewBoard(null);
           }}
         >
           <input autoFocus placeholder="Board name" value={newBoard.name} onChange={(e) => setNewBoard({ ...newBoard, name: e.target.value })} className={`${input} w-48`} />
@@ -81,7 +82,7 @@ function Boards() {
         <div key={t.id} className="flex items-center gap-3 border-t py-2.5">
           <span className="inline-flex h-[22px] items-center rounded-md border border-input bg-secondary px-2 text-xs">{t.name}</span>
           <span className="flex-1" />
-          <More onDelete={() => run(() => deleteTag({ data: { id: t.id } }), "Tag deleted")} />
+          <More onDelete={() => fire(() => deleteTag({ data: { id: t.id } }), "Tag deleted")} />
         </div>
       ))}
       {newTag !== null ? (
@@ -89,7 +90,8 @@ function Boards() {
           className="flex items-center gap-2 border-t py-3"
           onSubmit={(e) => {
             e.preventDefault();
-            run(() => saveTag({ data: { name: newTag } }), "Tag added").then(() => setNewTag(null));
+            fire(() => saveTag({ data: { name: newTag } }), "Tag added");
+            setNewTag(null);
           }}
         >
           <input autoFocus placeholder="Tag name" value={newTag} onChange={(e) => setNewTag(e.target.value)} className={`${input} w-48`} />

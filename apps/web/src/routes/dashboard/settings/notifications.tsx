@@ -19,9 +19,10 @@ function Notifications() {
   const [form, setForm] = useState(saved);
   const dirty = JSON.stringify(form) !== JSON.stringify(saved);
 
-  async function save() {
-    await saveNotificationPrefs({ data: form });
-    await router.invalidate();
+  function save() {
+    saveNotificationPrefs({ data: form })
+      .then(() => router.invalidate())
+      .catch((err) => toast.error(err instanceof Error ? err.message : "Could not save"));
   }
 
   return (

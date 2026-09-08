@@ -21,9 +21,10 @@ function Access() {
   const [form, setForm] = useState({ whoCanPost: ws.whoCanPost, anonymousVoting: ws.anonymousVoting, requireApproval: ws.requireApproval, showRoadmap: ws.showRoadmap, showChangelog: ws.showChangelog });
   const dirty = Object.entries(form).some(([k, v]) => (ws as Record<string, unknown>)[k] !== v);
 
-  async function save() {
-    await saveWorkspace({ data: { name: ws.name, tagline: ws.tagline, theme: ws.theme === "light" ? "light" : "dark", poweredBy: ws.poweredBy, accent: ws.accent, ...form } });
-    await router.invalidate();
+  function save() {
+    saveWorkspace({ data: { name: ws.name, tagline: ws.tagline, theme: ws.theme === "light" ? "light" : "dark", poweredBy: ws.poweredBy, accent: ws.accent, ...form } })
+      .then(() => router.invalidate())
+      .catch((err) => toast.error(err instanceof Error ? err.message : "Could not save"));
   }
 
   return (
