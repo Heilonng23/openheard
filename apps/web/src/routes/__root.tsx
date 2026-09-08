@@ -1,4 +1,3 @@
-import { Suspense, lazy } from "react";
 import { Toaster } from "@openheard/ui/components/sonner";
 import { HeadContent, Outlet, Scripts, ScrollRestoration, createRootRouteWithContext, useLocation } from "@tanstack/react-router";
 
@@ -6,7 +5,6 @@ import Footer from "../components/footer";
 import Header from "../components/header";
 import { SignInDialog } from "../components/sign-in-dialog";
 
-const Landing = lazy(() => import("../components/landing/page").then((m) => ({ default: m.Landing })));
 import { getWorkspace } from "../functions/workspace";
 import appCss from "../index.css?url";
 import geistLatinFont from "@fontsource-variable/geist/files/geist-latin-wght-normal.woff2?url";
@@ -56,11 +54,7 @@ function RootDocument() {
         <HeadContent />
       </head>
       <body>
-        {data?.marketing && pathname === "/" ? (
-          <Suspense>
-            <Landing />
-          </Suspense>
-        ) : admin ? (
+        {admin ? (
           <div className="h-dvh overflow-hidden">
             <Outlet />
           </div>

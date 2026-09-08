@@ -1,6 +1,6 @@
 import { ChatCircleIcon, PushPinIcon } from "@phosphor-icons/react";
 import { Link, createFileRoute, redirect, useLoaderData, useNavigate, useRouter } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 
 import { Button } from "@openheard/ui/components/button";
 import { Avatar, StatusLabel } from "@/components/bits";
@@ -9,12 +9,13 @@ import { RailItem, RailLabel, Shell } from "@/components/shell";
 import { FeedSkeleton } from "@/components/states";
 import { VoteButton } from "@/components/vote-button";
 import { listPosts } from "@/functions/posts";
-import { getWorkspace } from "@/functions/workspace";
 import { openSignIn } from "@/lib/pending-action";
 import { roadmapStatuses } from "@/lib/status";
 import { ago } from "@/lib/time";
 import { useKeyNav } from "@/lib/use-key-nav";
 import { cn } from "@openheard/ui/lib/utils";
+
+const Landing = lazy(() => import("../components/landing/page").then((m) => ({ default: m.Landing })));
 
 type Search = { board?: string; status?: string; q?: string; sort?: "top" | "new" };
 
@@ -26,19 +27,24 @@ export const Route = createFileRoute("/")({
     sort: s.sort === "top" || s.sort === "new" ? s.sort : undefined,
   }),
   loaderDeps: ({ search }) => search,
-  loader: async ({ deps }) => {
+  loader: async ({ deps, parentMatchPromise }) => {
+    const parent = await parentMatchPromise;
+    if (parent.loaderData?.marketing) return { posts: [], total: 0, marketing: true as const };
     const data = await listPosts({ data: { ...deps, sort: deps.sort ?? "trending", limit: 30 } });
-    // A fresh workspace: the admin has not named it and nobody has posted.
-    // Send them through the one-screen welcome first.
     if (data.total === 0 && !deps.q && !deps.board && !deps.status) {
-      const root = await getWorkspace();
-      if (!root.marketing && root.user?.role === "admin" && root.workspace.name === "openheard") throw redirect({ to: "/welcome" });
+      if (parent.loaderData?.user?.role === "admin" && parent.loaderData?.workspace.name === "openheard") throw redirect({ to: "/welcome" });
     }
-    return data;
+    return { ...data, marketing: false as const };
   },
-  component: BoardPage,
+  component: IndexPage,
   pendingComponent: FeedSkeleton,
 });
+
+function IndexPage() {
+  const data = Route.useLoaderData();
+  if (data.marketing) return <Suspense><Landing /></Suspense>;
+  return <BoardPage />;
+}
 
 function BoardPage() {
   const { posts, total } = Route.useLoaderData();

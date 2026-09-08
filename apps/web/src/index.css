@@ -16,6 +16,7 @@ header.sticky {
 }
 ::view-transition-old(public-header),
 ::view-transition-new(public-header),
+::view-transition-group(admin-sidebar),
 ::view-transition-old(admin-sidebar),
 ::view-transition-new(admin-sidebar) {
   animation: none;
