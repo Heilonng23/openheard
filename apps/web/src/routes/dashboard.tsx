@@ -64,6 +64,7 @@ function AdminLayout() {
       {/* Desktop sidebar */}
       <aside
         className="relative hidden shrink-0 overflow-hidden transition-[width] duration-200 ease-out motion-reduce:transition-none md:block"
+        data-admin-sidebar
         style={{ width: collapsed ? 56 : 240 }}
       >
         <div className={cn("absolute inset-y-0 left-0 w-60 transition-opacity duration-150", collapsed ? "pointer-events-none opacity-0" : "opacity-100 delay-75")}>

@@ -9,9 +9,11 @@ export const getRouter = () => {
     scrollRestoration: true,
     defaultStructuralSharing: true,
     defaultPreload: "intent",
-    defaultPendingMs: 200,
-    defaultPendingMinMs: 300,
+    defaultPendingMs: 3_000,
+    defaultPendingMinMs: 0,
     defaultStaleTime: 60_000,
+    defaultGcTime: 300_000,
+    defaultViewTransition: true,
     context: { user: null },
     defaultPendingComponent: () => <Loader />,
     defaultNotFoundComponent: () => (
