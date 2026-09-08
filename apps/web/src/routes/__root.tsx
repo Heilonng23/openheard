@@ -58,7 +58,11 @@ function RootDocument() {
           <Suspense>
             <Landing />
           </Suspense>
-        ) : admin || marketing ? (
+        ) : admin ? (
+          <div className="h-dvh overflow-hidden">
+            <Outlet />
+          </div>
+        ) : marketing ? (
           <Outlet />
         ) : bare ? (
           <div className="flex min-h-svh flex-col">

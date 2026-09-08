@@ -249,7 +249,7 @@ function Item({
   );
   if (to) {
     return (
-      <Link to={to} search={search} className={cls}>
+      <Link to={to} search={search} preload="viewport" className={cls}>
         {inner}
       </Link>
     );
@@ -278,13 +278,13 @@ export function AdminRail({ onExpand, onNewPost }: { onExpand?: () => void; onNe
         </span>
         <SidebarSimpleIcon className="hidden size-[17px] text-muted-foreground group-hover/logo:block" />
       </button>
-      <Link to="/dashboard/inbox" title="Posts" className={cls(inInbox && !status)}>
+      <Link to="/dashboard/inbox" preload="viewport" title="Posts" className={cls(inInbox && !status)}>
         <TrayIcon className="size-[17px]" />
       </Link>
-      <Link to="/dashboard/roadmap" title="Roadmap" className={cls(pathname.startsWith("/dashboard/roadmap"))}>
+      <Link to="/dashboard/roadmap" preload="viewport" title="Roadmap" className={cls(pathname.startsWith("/dashboard/roadmap"))}>
         <MapTrifoldIcon className="size-[17px]" />
       </Link>
-      <Link to="/dashboard/changelog" title="Changelog" className={cls(pathname.startsWith("/dashboard/changelog"))}>
+      <Link to="/dashboard/changelog" preload="viewport" title="Changelog" className={cls(pathname.startsWith("/dashboard/changelog"))}>
         <MegaphoneIcon className="size-[17px]" />
       </Link>
       <button type="button" onClick={onNewPost} title="New post" className={cls(false)}>
@@ -299,17 +299,17 @@ export function AdminRail({ onExpand, onNewPost }: { onExpand?: () => void; onNe
         const filled = s.kind === "done" || s.kind === "closed";
         const count = root.statusCounts[s.key] ?? 0;
         return (
-          <Link key={s.key} to="/dashboard/inbox" search={{ status: s.key }} title={`${s.label} · ${count}`} className={cn(cls(inInbox && status === s.key), "relative shrink-0")}>
+          <Link key={s.key} to="/dashboard/inbox" search={{ status: s.key }} preload="viewport" title={`${s.label} · ${count}`} className={cn(cls(inInbox && status === s.key), "relative shrink-0")}>
             <G weight={filled ? "fill" : "regular"} className="size-[17px]" style={{ color: s.color }} />
             {count ? <span className="absolute top-1 right-1 font-mono text-[9px] leading-none text-faint tabular-nums">{count}</span> : null}
           </Link>
         );
       })}
       <div className="flex-1" />
-      <Link to="/" title="Public board" className={cls(false)}>
+      <Link to="/" preload="viewport" title="Public board" className={cls(false)}>
         <ArrowSquareOutIcon className="size-[17px]" />
       </Link>
-      <Link to="/dashboard/settings/general" title="Settings" className={cls(pathname.startsWith("/dashboard/settings"))}>
+      <Link to="/dashboard/settings/general" preload="viewport" title="Settings" className={cls(pathname.startsWith("/dashboard/settings"))}>
         <GearSixIcon className="size-[17px]" />
       </Link>
       <DropdownMenu>

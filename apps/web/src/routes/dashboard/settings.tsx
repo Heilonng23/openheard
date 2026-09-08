@@ -7,8 +7,6 @@ import { SETTINGS_NAV } from "@/lib/admin-nav";
 import { cn } from "@openheard/ui/lib/utils";
 
 export const Route = createFileRoute("/dashboard/settings")({
-  pendingMs: 0,
-  pendingMinMs: 0,
   component: SettingsLayout,
   errorComponent: ({ error }) => <DashboardErrorState message={(error as Error)?.message} retry="/dashboard/settings/general" />,
   pendingComponent: DashboardPanelSkeleton,
@@ -29,7 +27,7 @@ function SettingsLayout() {
               const to = `/dashboard/settings/${slug}`;
               const on = pathname === to;
               return (
-                <Link key={slug} to={to} className={cn("flex h-7 items-center whitespace-nowrap rounded-md px-2 text-[13px]", on ? "bg-secondary font-semibold text-foreground" : "text-muted-foreground hover:bg-accent/60 hover:text-foreground")}>
+                <Link key={slug} to={to} preload="viewport" className={cn("flex h-7 items-center whitespace-nowrap rounded-md px-2 text-[13px]", on ? "bg-secondary font-semibold text-foreground" : "text-muted-foreground hover:bg-accent/60 hover:text-foreground")}>
                   {label}
                 </Link>
               );

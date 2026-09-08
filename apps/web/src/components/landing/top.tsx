@@ -1,10 +1,11 @@
 import { ArrowRightIcon, ListIcon, XIcon } from "@phosphor-icons/react";
 import { Link, useLoaderData } from "@tanstack/react-router";
 import { AnimatePresence, motion, useScroll } from "motion/react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@openheard/ui/components/button";
 import { cn } from "@openheard/ui/lib/utils";
+import { workspaceUrl } from "@/lib/workspace-url";
 import Logo from "../logo";
 import { BlurFade } from "./magic/blur-fade";
 import { BorderBeam } from "./magic/border-beam";
@@ -26,7 +27,11 @@ export function Nav() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   useEffect(() => scrollY.on("change", (v) => setScrolled(v > 10)), [scrollY]);
   const root = useLoaderData({ from: "__root__" });
-  // /login sends a signed-in visitor straight to their dashboard.
+  const own = (root as { ownWorkspaces?: { id: string; name: string }[] }).ownWorkspaces;
+  const ctaHref = useMemo(() => {
+    if (root?.user && own?.length === 1) return workspaceUrl(own[0]!.id, root.rootDomain, "/dashboard");
+    return "/login";
+  }, [root, own]);
   const cta = root?.user ? "Go to dashboard" : "Start for free";
 
   useEffect(() => {
@@ -52,7 +57,7 @@ export function Nav() {
               ))}
             </nav>
             <div className="flex items-center gap-4">
-              <Button variant="secondary" size="sm" nativeButton={false} render={<Link to="/login" />} className="hidden sm:inline-flex">
+              <Button variant="secondary" size="sm" nativeButton={false} render={ctaHref.startsWith("/") ? <Link to={ctaHref} /> : <a href={ctaHref} />} className="hidden sm:inline-flex">
                 {cta}
               </Button>
               <button type="button" onClick={() => setDrawerOpen((o) => !o)} className="flex size-8 cursor-pointer items-center justify-center rounded-md border border-border md:hidden" aria-label="Menu">
@@ -87,7 +92,7 @@ export function Nav() {
                     </li>
                   ))}
                 </ul>
-                <Button full size="lg" nativeButton={false} render={<Link to="/login" />}>
+                <Button full size="lg" nativeButton={false} render={ctaHref.startsWith("/") ? <Link to={ctaHref} /> : <a href={ctaHref} />}>
                   {cta}
                 </Button>
               </div>

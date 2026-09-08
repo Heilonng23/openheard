@@ -35,8 +35,6 @@ export const Route = createFileRoute("/dashboard/inbox")({
       post: deps.post ? defer(getPost({ data: { id: deps.post } })) : null,
     };
   },
-  pendingMs: 0,
-  pendingMinMs: 0,
   head: () => ({ meta: [{ title: "Posts · openheard" }] }),
   component: Inbox,
   errorComponent: ({ error }) => <DashboardErrorState message={(error as Error)?.message} retry="/dashboard/inbox" />,

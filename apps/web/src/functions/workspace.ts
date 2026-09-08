@@ -1,4 +1,4 @@
-import { board, createDb, post, status, tag } from "@openheard/db";
+import { board, createDb, membership, post, status, tag, workspace } from "@openheard/db";
 import { createServerFn } from "@tanstack/react-start";
 import { asc, count, eq } from "drizzle-orm";
 
@@ -48,6 +48,15 @@ export const getWorkspace = createServerFn({ method: "GET" })
     const ws = context.workspace;
 
     if (context.marketing) {
+      const ownWorkspaces = context.user
+        ? await createDb()
+            .select({ id: workspace.id, name: workspace.name })
+            .from(membership)
+            .innerJoin(workspace, eq(workspace.id, membership.workspaceId))
+            .where(eq(membership.userId, context.user.id))
+            .orderBy(membership.createdAt)
+            .then((rows: { id: string; name: string }[]) => rows.filter((r) => r.id !== "default"))
+        : [];
       return {
         workspace: ws,
         rootDomain: await rootDomain(),
@@ -58,6 +67,7 @@ export const getWorkspace = createServerFn({ method: "GET" })
         statusCounts: {} as Record<string, number>,
         total: 0,
         user: context.user,
+        ownWorkspaces,
         googleSignIn: !!(env as unknown as { GOOGLE_CLIENT_ID?: string }).GOOGLE_CLIENT_ID,
       };
     }

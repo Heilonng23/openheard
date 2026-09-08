@@ -1,20 +1,16 @@
 import { ListIcon } from "@phosphor-icons/react";
-import { Outlet, createFileRoute, redirect, useLoaderData, useLocation } from "@tanstack/react-router";
+import { Outlet, createFileRoute, redirect, useLoaderData, useLocation, useRouter } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 
 import { AdminRail, AdminSidebar } from "@/components/admin/sidebar";
 import { NewPostDialog } from "@/components/new-post-dialog";
 import { DashboardErrorState, DashboardShellSkeleton } from "@/components/states";
-import { getUser } from "@/functions/get-user";
 import { cn } from "@openheard/ui/lib/utils";
 
 export const Route = createFileRoute("/dashboard")({
-  ssr: false,
-  pendingMs: 0,
-  pendingMinMs: 0,
-  beforeLoad: async () => {
-    const user = await getUser();
-    if (user?.role !== "admin") throw redirect({ to: "/login" });
+  loader: async ({ parentMatchPromise }) => {
+    const parent = await parentMatchPromise;
+    if (parent.loaderData?.user?.role !== "admin") throw redirect({ to: "/login" });
   },
   component: AdminLayout,
   pendingComponent: DashboardShellSkeleton,
@@ -26,6 +22,16 @@ export const Route = createFileRoute("/dashboard")({
 function AdminLayout() {
   const { pathname, search } = useLocation();
   const root = useLoaderData({ from: "__root__" });
+  const router = useRouter();
+  useEffect(() => {
+    const siblings = [
+      { to: "/dashboard/inbox" },
+      { to: "/dashboard/roadmap" },
+      { to: "/dashboard/changelog" },
+      { to: "/dashboard/settings/general" },
+    ];
+    for (const s of siblings) router.preloadRoute(s as unknown as Parameters<typeof router.preloadRoute>[0]);
+  }, [router]);
   const [composing, setComposing] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const openCompose = useCallback(() => setComposing(true), []);
