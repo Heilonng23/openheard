@@ -1,6 +1,7 @@
-import { changelogEntry, createDb, workspace } from "@openheard/db";
+import { changelogEntry, createDb } from "@openheard/db";
+import { workspaceFromRequest } from "@/lib/session";
 import { createFileRoute } from "@tanstack/react-router";
-import { desc, isNotNull } from "drizzle-orm";
+import { and, desc, eq, isNotNull } from "drizzle-orm";
 
 const esc = (s: string) => s.replace(/[<>&'"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", "'": "&apos;", '"': "&quot;" })[c]!);
 
@@ -10,8 +11,14 @@ export const Route = createFileRoute("/changelog.rss")({
     handlers: {
       GET: async ({ request }) => {
         const db = createDb();
-        const [ws] = await db.select().from(workspace).limit(1);
-        const entries = await db.select().from(changelogEntry).where(isNotNull(changelogEntry.publishedAt)).orderBy(desc(changelogEntry.publishedAt)).limit(50);
+        const ws = await workspaceFromRequest(request);
+        if (!ws) return new Response("Not found", { status: 404 });
+        const entries = await db
+          .select()
+          .from(changelogEntry)
+          .where(and(eq(changelogEntry.workspaceId, ws.id), isNotNull(changelogEntry.publishedAt)))
+          .orderBy(desc(changelogEntry.publishedAt))
+          .limit(50);
         const origin = new URL(request.url).origin;
         const name = ws?.name ?? "openheard";
         const items = entries

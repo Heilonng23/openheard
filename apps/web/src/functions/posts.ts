@@ -1,4 +1,4 @@
-import { activity, anonymousVote, comment, commentReaction, createDb, post, postTag, status, vote } from "@openheard/db";
+import { activity, anonymousVote, board, comment, commentReaction, createDb, post, postTag, status, tag, vote } from "@openheard/db";
 
 import { purgeWorkspaceCache } from "@/lib/cache";
 import { assertStatus, listStatuses, statusOfKind } from "@/lib/status-db";
@@ -23,6 +23,18 @@ function escapeLike(s: string) {
 }
 
 // Every mutation checks the post is in this workspace before touching it.
+async function ownBoard(db: ReturnType<typeof createDb>, boardId: string, workspaceId: string) {
+  const [row] = await db.select({ id: board.id }).from(board).where(and(eq(board.id, boardId), eq(board.workspaceId, workspaceId))).limit(1);
+  if (!row) throw new Error("Board not found");
+}
+
+// Drops any tag id that does not belong to this workspace.
+async function ownTags(db: ReturnType<typeof createDb>, tagIds: string[], workspaceId: string): Promise<string[]> {
+  if (!tagIds.length) return [];
+  const rows = await db.select({ id: tag.id }).from(tag).where(and(inArray(tag.id, tagIds), eq(tag.workspaceId, workspaceId)));
+  return rows.map((r) => r.id);
+}
+
 async function ownPost(db: ReturnType<typeof createDb>, postId: number, workspaceId: string) {
   const [row] = await db.select({ id: post.id }).from(post).where(and(eq(post.id, postId), eq(post.workspaceId, workspaceId))).limit(1);
   if (!row) throw new Error("Post not found");
@@ -196,6 +208,8 @@ export const createPost = createServerFn({ method: "POST" })
     const u = requireUser(context.user);
     if (context.workspace.whoCanPost === "members" && u.role === "guest") throw new Error("Only team members can post on this board");
     const db = createDb();
+    await ownBoard(db, data.boardId, context.workspace.id);
+    const tagIds = await ownTags(db, data.tags, context.workspace.id);
     let initialStatus = "open";
     if (context.workspace.requireApproval && u.role !== "admin") {
       const reviewStatus = await statusOfKind(db, context.workspace.id, "review");
@@ -206,7 +220,7 @@ export const createPost = createServerFn({ method: "POST" })
       .values({ workspaceId: context.workspace.id, boardId: data.boardId, authorId: u.id, title: data.title, body: data.body, voteCount: 1, status: initialStatus })
       .returning({ id: post.id });
     await db.insert(vote).values({ postId: created.id, userId: u.id });
-    if (data.tags.length) await db.insert(postTag).values(data.tags.map((tagId) => ({ postId: created.id, tagId })));
+    if (tagIds.length) await db.insert(postTag).values(tagIds.map((tagId) => ({ postId: created.id, tagId })));
     void invalidate(`workspace:${context.workspace.id}`);
     purgeWorkspaceCache(originFromRequest());
     return { id: created.id, pending: initialStatus !== "open" };
@@ -361,8 +375,9 @@ export const setTags = createServerFn({ method: "POST" })
     requireAdmin(context.user);
     const db = createDb();
     await ownPost(db, data.postId, context.workspace.id);
+    const tagIds = await ownTags(db, data.tags, context.workspace.id);
     await db.delete(postTag).where(eq(postTag.postId, data.postId));
-    if (data.tags.length) await db.insert(postTag).values(data.tags.map((tagId) => ({ postId: data.postId, tagId })));
+    if (tagIds.length) await db.insert(postTag).values(tagIds.map((tagId) => ({ postId: data.postId, tagId })));
     purgeWorkspaceCache(originFromRequest(), [data.postId]);
     return { ok: true };
   });

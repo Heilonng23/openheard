@@ -38,6 +38,14 @@ export function isMarketingHost(host: string, rootDomainValue: string | null): b
   return h === root || h === "www." + root;
 }
 
+// Workspace for a raw request (sitemap, RSS, API routes that have no session middleware).
+export async function workspaceFromRequest(request: Request): Promise<Workspace | null> {
+  const host = request.headers.get("host") ?? "";
+  const slug = workspaceSlugFromHost(host, await rootDomain());
+  const [ws] = await createDb().select().from(workspace).where(eq(workspace.id, slug)).limit(1);
+  return ws ?? null;
+}
+
 const ctxCache = new WeakMap<Request, Promise<{ user: SessionUser | null; workspace: Workspace; marketing: boolean }>>();
 
 async function resolveSession(request: Request) {
@@ -73,13 +81,18 @@ async function resolveSession(request: Request) {
   return { user, workspace: ws, marketing };
 }
 
-export const sessionMiddleware = createMiddleware().server(async ({ next, request }) => {
+// Same resolution as sessionMiddleware, for raw route handlers.
+export function getSessionContext(request: Request) {
   let pending = ctxCache.get(request);
   if (!pending) {
     pending = resolveSession(request);
     ctxCache.set(request, pending);
   }
-  return next({ context: await pending });
+  return pending;
+}
+
+export const sessionMiddleware = createMiddleware().server(async ({ next, request }) => {
+  return next({ context: await getSessionContext(request) });
 });
 
 export type Ctx = { user: SessionUser | null; workspace: Workspace; marketing: boolean };

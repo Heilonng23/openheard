@@ -1,13 +1,12 @@
-import { createAuth } from "@openheard/auth";
+import { getSessionContext } from "@/lib/session";
 import { createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/api/email-test")({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        const auth = createAuth();
-        const session = await auth.api.getSession({ headers: request.headers });
-        if (!session || (session.user as any).role !== "admin") {
+        const { user } = await getSessionContext(request);
+        if (!user || user.role !== "admin") {
           return new Response(JSON.stringify({ error: "admin session required" }), {
             status: 403,
             headers: { "content-type": "application/json" },

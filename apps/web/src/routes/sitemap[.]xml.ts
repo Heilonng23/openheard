@@ -1,4 +1,5 @@
-import { createDb, post, workspace } from "@openheard/db";
+import { createDb, post } from "@openheard/db";
+import { workspaceFromRequest } from "@/lib/session";
 import { createFileRoute } from "@tanstack/react-router";
 import { and, eq, sql } from "drizzle-orm";
 
@@ -10,7 +11,7 @@ export const Route = createFileRoute("/sitemap.xml")({
       GET: async ({ request }) => {
         const db = createDb();
         const origin = new URL(request.url).origin;
-        const [ws] = await db.select().from(workspace).limit(1);
+        const ws = await workspaceFromRequest(request);
 
         const staticPages = ["/", "/roadmap", "/changelog", "/privacy", "/terms"];
         const urls: string[] = staticPages.map(
