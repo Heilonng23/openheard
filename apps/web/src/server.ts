@@ -11,50 +11,68 @@ function getEdgeCache(): Cache | null {
   }
 }
 
+const SECURITY_HEADERS: Record<string, string> = {
+  "strict-transport-security": "max-age=31536000; includeSubDomains",
+  "x-content-type-options": "nosniff",
+  "x-frame-options": "DENY",
+  "referrer-policy": "strict-origin-when-cross-origin",
+  "permissions-policy": "camera=(), microphone=(), geolocation=()",
+};
+
+function secure(response: Response): Response {
+  const out = new Response(response.body, response);
+  for (const [k, v] of Object.entries(SECURITY_HEADERS)) if (!out.headers.has(k)) out.headers.set(k, v);
+  return out;
+}
+
 export default {
   async fetch(request: Request, _env: unknown, ctx: ExecutionContext) {
-    const url = new URL(request.url);
-    const cache = getEdgeCache();
+    return secure(await handle(request, ctx));
+  },
+};
 
-    if (
-      cache &&
-      request.method === "GET" &&
-      !hasSessionCookie(request) &&
-      isPublicCacheable(url.pathname)
-    ) {
-      const cacheKey = new Request(url.toString(), { method: "GET" });
-      const cached = await cache.match(cacheKey);
-      if (cached) {
-        const resp = new Response(cached.body, cached);
-        resp.headers.set("x-cache", "HIT");
-        resp.headers.set("cache-control", "public, max-age=0, s-maxage=60");
-        return resp;
-      }
+async function handle(request: Request, ctx: ExecutionContext): Promise<Response> {
+const url = new URL(request.url);
+  const cache = getEdgeCache();
 
-      const response = await handler(request);
-      if (response.status === 200) {
-        const cloned = response.clone();
-        const stored = new Response(cloned.body, cloned);
-        stored.headers.set("cache-control", "public, s-maxage=60");
-        stored.headers.delete("set-cookie");
-        stored.headers.delete("vary");
-        ctx.waitUntil(cache.put(cacheKey, stored));
-      }
-
-      const out = new Response(response.body, response);
-      out.headers.set("x-cache", "MISS");
-      out.headers.set("cache-control", "public, max-age=0, s-maxage=60");
-      return out;
+  if (
+    cache &&
+    request.method === "GET" &&
+    !hasSessionCookie(request) &&
+    isPublicCacheable(url.pathname)
+  ) {
+    const cacheKey = new Request(url.toString(), { method: "GET" });
+    const cached = await cache.match(cacheKey);
+    if (cached) {
+      const resp = new Response(cached.body, cached);
+      resp.headers.set("x-cache", "HIT");
+      resp.headers.set("cache-control", "public, max-age=0, s-maxage=60");
+      return resp;
     }
 
     const response = await handler(request);
-
-    if (isPrivatePath(url.pathname) || hasSessionCookie(request)) {
-      const out = new Response(response.body, response);
-      out.headers.set("cache-control", "private, no-store");
-      return out;
+    if (response.status === 200) {
+      const cloned = response.clone();
+      const stored = new Response(cloned.body, cloned);
+      stored.headers.set("cache-control", "public, s-maxage=60");
+      stored.headers.delete("set-cookie");
+      stored.headers.delete("vary");
+      ctx.waitUntil(cache.put(cacheKey, stored));
     }
 
-    return response;
-  },
-};
+    const out = new Response(response.body, response);
+    out.headers.set("x-cache", "MISS");
+    out.headers.set("cache-control", "public, max-age=0, s-maxage=60");
+    return out;
+  }
+
+  const response = await handler(request);
+
+  if (isPrivatePath(url.pathname) || hasSessionCookie(request)) {
+    const out = new Response(response.body, response);
+    out.headers.set("cache-control", "private, no-store");
+    return out;
+  }
+
+  return response;
+}
