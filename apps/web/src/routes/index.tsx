@@ -1,5 +1,5 @@
 import { ChatCircleIcon, PushPinIcon } from "@phosphor-icons/react";
-import { Link, createFileRoute, redirect, useLoaderData, useNavigate } from "@tanstack/react-router";
+import { Link, createFileRoute, redirect, useLoaderData, useNavigate, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 
 import { Button } from "@openheard/ui/components/button";
@@ -45,6 +45,7 @@ function BoardPage() {
   const root = useLoaderData({ from: "__root__" });
   const search = Route.useSearch();
   const navigate = useNavigate({ from: "/" });
+  const router = useRouter();
   const [composing, setComposing] = useState(false);
 
   useEffect(() => {
@@ -52,6 +53,14 @@ function BoardPage() {
     window.addEventListener("openheard:open-composer", handler);
     return () => window.removeEventListener("openheard:open-composer", handler);
   }, []);
+
+  useEffect(() => {
+    router.preloadRoute({ to: "/roadmap" } as unknown as Parameters<typeof router.preloadRoute>[0]);
+    router.preloadRoute({ to: "/changelog" } as unknown as Parameters<typeof router.preloadRoute>[0]);
+    for (const p of posts.slice(0, 10)) {
+      router.preloadRoute({ to: "/p/$id", params: { id: String(p.id) } } as unknown as Parameters<typeof router.preloadRoute>[0]);
+    }
+  }, [router, posts]);
 
   const [focused, setFocused] = useKeyNav(posts.length, {
     open: (i) => navigate({ to: "/p/$id", params: { id: String(posts[i]!.id) } }),

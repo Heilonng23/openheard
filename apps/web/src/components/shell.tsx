@@ -35,7 +35,7 @@ export function RailItem({ active, onClick, label, count, color, to, search }: {
   );
   if (to) {
     return (
-      <Link to={to} search={search} className={cls}>
+      <Link to={to} search={search} preload="viewport" className={cls}>
         {inner}
       </Link>
     );

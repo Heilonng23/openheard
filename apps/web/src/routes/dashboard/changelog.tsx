@@ -21,8 +21,6 @@ export const Route = createFileRoute("/dashboard/changelog")({
   }),
   loaderDeps: ({ search }) => search,
   loader: () => listChangelog(),
-  pendingMs: 0,
-  pendingMinMs: 0,
   head: () => ({ meta: [{ title: "Changelog · openheard" }] }),
   component: ChangelogPage,
   errorComponent: ({ error }) => <DashboardErrorState message={(error as Error)?.message} retry="/dashboard/changelog" />,
