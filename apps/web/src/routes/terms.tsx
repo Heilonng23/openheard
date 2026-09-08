@@ -20,7 +20,7 @@ function TermsPage() {
         <section>
           <h2>The service</h2>
           <p>
-            openheard is a hosted feedback board that lets your users post ideas, vote, and follow progress. It is operated by [COMPANY_NAME] ("[COMPANY_NAME]", "we", "us"). By creating an account or using the service you agree to these terms.
+            openheard is a hosted feedback board that lets your users post ideas, vote, and follow progress. It is operated by openheard ("openheard", "we", "us"). By creating an account or using the service you agree to these terms.
           </p>
         </section>
 
@@ -52,7 +52,7 @@ function TermsPage() {
         <section>
           <h2>Suspension and termination</h2>
           <p>
-            We may suspend or terminate your account if you violate these terms or if your use poses a risk to other users or the service. Where possible we will give you notice and a chance to export your data before termination. You can close your account at any time by emailing [CONTACT_EMAIL].
+            We may suspend or terminate your account if you violate these terms or if your use poses a risk to other users or the service. Where possible we will give you notice and a chance to export your data before termination. You can close your account at any time by emailing hello@openheard.com.
           </p>
         </section>
 
@@ -80,14 +80,14 @@ function TermsPage() {
         <section>
           <h2>Limitation of liability</h2>
           <p>
-            To the maximum extent permitted by law, [COMPANY_NAME] is not liable for any indirect, incidental, special, consequential, or punitive damages, or any loss of data, profits, or goodwill. Our total liability for any claim related to the service is limited to the amount you paid us in the 12 months before the claim arose, or $50, whichever is greater.
+            To the maximum extent permitted by law, openheard is not liable for any indirect, incidental, special, consequential, or punitive damages, or any loss of data, profits, or goodwill. Our total liability for any claim related to the service is limited to the amount you paid us in the 12 months before the claim arose, or $50, whichever is greater.
           </p>
         </section>
 
         <section>
           <h2>Governing law</h2>
           <p>
-            These terms are governed by the laws of [JURISDICTION]. Any dispute will be resolved in the courts of [JURISDICTION].
+            These terms are governed by the laws of the United Arab Emirates. Any dispute will be resolved in the courts of the United Arab Emirates.
           </p>
         </section>
 
@@ -101,7 +101,7 @@ function TermsPage() {
         <section>
           <h2>Contact</h2>
           <p>
-            Questions about these terms? Email [CONTACT_EMAIL].
+            Questions about these terms? Email hello@openheard.com.
           </p>
         </section>
       </div>

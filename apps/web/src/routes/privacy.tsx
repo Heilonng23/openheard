@@ -20,7 +20,7 @@ function PrivacyPage() {
         <section>
           <h2>Who we are</h2>
           <p>
-            openheard is a hosted feedback board service operated by [COMPANY_NAME]. You can reach us at [CONTACT_EMAIL].
+            openheard is a hosted feedback board service operated by openheard. You can reach us at hello@openheard.com.
           </p>
         </section>
 
@@ -66,7 +66,7 @@ function PrivacyPage() {
         <section>
           <h2>Deletion</h2>
           <p>
-            You can request deletion of your account and associated data at any time by emailing [CONTACT_EMAIL]. We will process your request within 30 days.
+            You can request deletion of your account and associated data at any time by emailing hello@openheard.com. We will process your request within 30 days.
           </p>
         </section>
 
@@ -77,8 +77,8 @@ function PrivacyPage() {
           </p>
           <ul>
             <li><strong>Lawful basis</strong> — we process account and content data under legitimate interest (operating the service you signed up for) and session cookies under the same basis. We process your email for notifications only with your consent.</li>
-            <li><strong>Your rights</strong> — you may access, correct, export, or delete your personal data, restrict or object to processing, and withdraw consent for optional processing. Email [CONTACT_EMAIL] to exercise any right.</li>
-            <li><strong>Data controller</strong> — [COMPANY_NAME], reachable at [CONTACT_EMAIL].</li>
+            <li><strong>Your rights</strong> — you may access, correct, export, or delete your personal data, restrict or object to processing, and withdraw consent for optional processing. Email hello@openheard.com to exercise any right.</li>
+            <li><strong>Data controller</strong> — openheard, reachable at hello@openheard.com.</li>
           </ul>
         </section>
 
