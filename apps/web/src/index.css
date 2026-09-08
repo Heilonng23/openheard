@@ -6,3 +6,17 @@
   --muted-foreground: #a1a1aa;
   --faint: #85858f;
 }
+
+/* Keep stable shell parts from fading during view transitions */
+header.sticky {
+  view-transition-name: public-header;
+}
+[data-admin-sidebar] {
+  view-transition-name: admin-sidebar;
+}
+::view-transition-old(public-header),
+::view-transition-new(public-header),
+::view-transition-old(admin-sidebar),
+::view-transition-new(admin-sidebar) {
+  animation: none;
+}

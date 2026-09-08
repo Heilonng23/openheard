@@ -1,6 +1,6 @@
 import { Suspense, lazy } from "react";
 import { Toaster } from "@openheard/ui/components/sonner";
-import { HeadContent, Outlet, Scripts, createRootRouteWithContext, useLocation } from "@tanstack/react-router";
+import { HeadContent, Outlet, Scripts, ScrollRestoration, createRootRouteWithContext, useLocation } from "@tanstack/react-router";
 
 import Footer from "../components/footer";
 import Header from "../components/header";
@@ -81,6 +81,7 @@ function RootDocument() {
         )}
         <SignInDialog />
         <Toaster position="bottom-right" />
+        <ScrollRestoration />
         <Scripts />
       </body>
     </html>
