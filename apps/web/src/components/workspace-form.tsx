@@ -22,12 +22,14 @@ export function WorkspaceForm({
   domainSuffix,
   initialName = "",
   initialWebsite = "",
+  showHeardAbout = true,
   onSubmit,
 }: {
   mode: "create" | "setup";
   domainSuffix: string;
   initialName?: string;
   initialWebsite?: string;
+  showHeardAbout?: boolean;
   onSubmit: (values: WorkspaceFormValues) => Promise<void>;
 }) {
   const [website, setWebsite] = useState(initialWebsite);
@@ -74,7 +76,7 @@ export function WorkspaceForm({
         <Field label="Website" optional>
           <div className="flex items-center gap-2.5">
             <FieldBox icon={<GlobeSimpleIcon className="size-[15px]" />}>
-              <input type="text" inputMode="url" value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="example.com" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-faint" />
+              <input type="text" inputMode="url" value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="example.com" className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-faint" />
             </FieldBox>
             {websiteValid ? <CheckCircleIcon weight="fill" className="size-5 shrink-0 text-emerald-500" /> : null}
           </div>
@@ -83,7 +85,7 @@ export function WorkspaceForm({
         <Field label="Workspace name">
           <div className="flex items-center gap-2.5">
             <FieldBox icon={<MonitorIcon className="size-[15px]" />}>
-              <input value={name} onChange={(e) => setName(e.target.value)} required minLength={2} maxLength={60} placeholder="Acme" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-faint" />
+              <input value={name} onChange={(e) => setName(e.target.value)} required minLength={2} maxLength={60} placeholder="Acme" className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-faint" />
             </FieldBox>
             {nameValid ? <CheckCircleIcon weight="fill" className="size-5 shrink-0 text-emerald-500" /> : null}
           </div>
@@ -102,7 +104,7 @@ export function WorkspaceForm({
                     }}
                     onBlur={() => setSlugBlurred(true)}
                     placeholder="acme"
-                    className="min-w-0 flex-1 bg-transparent font-mono text-sm outline-none placeholder:text-faint"
+                    className="min-w-0 flex-1 bg-transparent font-mono text-sm text-foreground outline-none placeholder:text-faint"
                   />
                   <span className="font-mono text-sm text-faint">.{domainSuffix}</span>
                 </FieldBox>
@@ -113,16 +115,18 @@ export function WorkspaceForm({
           </Field>
         ) : null}
 
-        <Field label="Where did you hear about us?" optional>
-          <select value={heardAboutUs} onChange={(e) => setHeardAboutUs(e.target.value)} className="h-10 w-full appearance-none rounded-lg border border-input bg-card px-3 text-sm text-foreground outline-none focus:border-ring/60 [&:not(:valid)]:text-faint">
-            <option value="">Select an option</option>
-            {HEARD_OPTIONS.map((o) => (
-              <option key={o} value={o}>
-                {o}
-              </option>
-            ))}
-          </select>
-        </Field>
+        {showHeardAbout ? (
+          <Field label="Where did you hear about us?" optional>
+            <select value={heardAboutUs} onChange={(e) => setHeardAboutUs(e.target.value)} className="h-10 w-full appearance-none rounded-lg border border-input bg-card px-3 text-sm text-foreground outline-none focus:border-ring/60 [&:not(:valid)]:text-faint">
+              <option value="">Select an option</option>
+              {HEARD_OPTIONS.map((o) => (
+                <option key={o} value={o}>
+                  {o}
+                </option>
+              ))}
+            </select>
+          </Field>
+        ) : null}
       </div>
 
       <div className="flex items-center gap-3">

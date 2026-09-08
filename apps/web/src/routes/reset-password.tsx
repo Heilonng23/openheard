@@ -84,7 +84,7 @@ function RequestForm() {
       </div>
       <form onSubmit={submit} className="flex w-full flex-col gap-2.5">
         <Field icon={<EnvelopeSimpleIcon className="size-[15px]" />}>
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required disabled={busy} autoComplete="email" placeholder="you@company.com" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-faint disabled:opacity-60" />
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required disabled={busy} autoComplete="email" placeholder="you@company.com" className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-faint disabled:opacity-60" />
         </Field>
         {error ? <p className="text-[13px] text-red-400">{error}</p> : null}
         <Button type="submit" full arrow size="lg" disabled={busy} className="mt-1">
@@ -140,7 +140,7 @@ function NewPasswordForm({ token }: { token: string }) {
       </div>
       <form onSubmit={submit} className="flex w-full flex-col gap-2.5">
         <Field icon={<LockSimpleIcon className="size-[15px]" />}>
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required disabled={busy} minLength={8} autoComplete="new-password" placeholder="New password" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-faint disabled:opacity-60" />
+          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required disabled={busy} minLength={8} autoComplete="new-password" placeholder="New password" className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-faint disabled:opacity-60" />
         </Field>
         {error ? <p className="text-[13px] text-red-400">{error}</p> : null}
         <Button type="submit" full arrow size="lg" disabled={busy} className="mt-1">

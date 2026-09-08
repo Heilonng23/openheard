@@ -109,7 +109,7 @@ export function AuthForm({
         ) : (
           <form onSubmit={sendMagicLink} className="flex w-full flex-col gap-2.5">
             <Field icon={<EnvelopeSimpleIcon className="size-[15px]" />}>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required disabled={busy} autoComplete="email" placeholder="you@company.com" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-faint disabled:opacity-60" />
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required disabled={busy} autoComplete="email" placeholder="you@company.com" className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-faint disabled:opacity-60" />
             </Field>
             {error ? <p className="text-[13px] text-red-400">{error}</p> : null}
             <Button type="submit" full arrow size="lg" disabled={busy} className="mt-1">
@@ -124,11 +124,11 @@ export function AuthForm({
         <form onSubmit={submit} className="flex w-full flex-col gap-2.5">
           {mode === "up" ? (
             <Field icon={<UserIcon className="size-[15px]" />}>
-              <input value={name} onChange={(e) => setName(e.target.value)} required disabled={busy} autoComplete="name" placeholder="Your name" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-faint disabled:opacity-60" />
+              <input value={name} onChange={(e) => setName(e.target.value)} required disabled={busy} autoComplete="name" placeholder="Your name" className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-faint disabled:opacity-60" />
             </Field>
           ) : null}
           <Field icon={<EnvelopeSimpleIcon className="size-[15px]" />}>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required disabled={busy} autoComplete="email" placeholder="you@company.com" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-faint disabled:opacity-60" />
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required disabled={busy} autoComplete="email" placeholder="you@company.com" className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-faint disabled:opacity-60" />
           </Field>
           <Field icon={<LockSimpleIcon className="size-[15px]" />}>
             <input
@@ -140,7 +140,7 @@ export function AuthForm({
               minLength={8}
               autoComplete={mode === "in" ? "current-password" : "new-password"}
               placeholder="Password"
-              className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-faint disabled:opacity-60"
+              className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-faint disabled:opacity-60"
             />
           </Field>
           {error ? <p className="text-[13px] text-red-400">{error}</p> : null}

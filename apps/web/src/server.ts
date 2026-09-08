@@ -12,7 +12,7 @@ function getEdgeCache(): Cache | null {
 }
 
 export default {
-  async fetch(request: Request) {
+  async fetch(request: Request, _env: unknown, ctx: ExecutionContext) {
     const url = new URL(request.url);
     const cache = getEdgeCache();
 
@@ -22,10 +22,12 @@ export default {
       !hasSessionCookie(request) &&
       isPublicCacheable(url.pathname)
     ) {
-      const cached = await cache.match(request);
+      const cacheKey = new Request(url.toString(), { method: "GET" });
+      const cached = await cache.match(cacheKey);
       if (cached) {
         const resp = new Response(cached.body, cached);
         resp.headers.set("x-cache", "HIT");
+        resp.headers.set("cache-control", "public, max-age=0, s-maxage=60");
         return resp;
       }
 
@@ -33,14 +35,15 @@ export default {
       if (response.status === 200) {
         const cloned = response.clone();
         const stored = new Response(cloned.body, cloned);
-        stored.headers.set("cache-control", "public, s-maxage=60, stale-while-revalidate=300");
+        stored.headers.set("cache-control", "public, s-maxage=60");
         stored.headers.delete("set-cookie");
-        cache.put(request, stored);
+        stored.headers.delete("vary");
+        ctx.waitUntil(cache.put(cacheKey, stored));
       }
 
       const out = new Response(response.body, response);
       out.headers.set("x-cache", "MISS");
-      out.headers.set("cache-control", "public, s-maxage=60, stale-while-revalidate=300");
+      out.headers.set("cache-control", "public, max-age=0, s-maxage=60");
       return out;
     }
 
