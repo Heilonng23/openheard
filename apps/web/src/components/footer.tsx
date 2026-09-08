@@ -29,6 +29,12 @@ export default function Footer() {
       <a href="https://github.com/Heilonng23/openheard" className="text-faint hover:text-muted-foreground">
         Source
       </a>
+      <a href="/privacy" className="text-faint hover:text-muted-foreground">
+        Privacy
+      </a>
+      <a href="/terms" className="text-faint hover:text-muted-foreground">
+        Terms
+      </a>
     </footer>
   );
 }

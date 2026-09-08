@@ -12,7 +12,7 @@ export const Route = createFileRoute("/sitemap.xml")({
         const origin = new URL(request.url).origin;
         const [ws] = await db.select().from(workspace).limit(1);
 
-        const staticPages = ["/", "/roadmap", "/changelog"];
+        const staticPages = ["/", "/roadmap", "/changelog", "/privacy", "/terms"];
         const urls: string[] = staticPages.map(
           (path) =>
             `  <url><loc>${esc(origin + path)}</loc><changefreq>weekly</changefreq></url>`,

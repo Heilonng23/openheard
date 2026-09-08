@@ -414,6 +414,7 @@ export function Closing() {
 const footerCols = [
   ["Product", [["Board", "#product"], ["Agents", "#agents"], ["Pricing", "#pricing"], ["Changelog", "/changelog"]]],
   ["Open source", [["GitHub", GITHUB], ["Contributing", GITHUB + "/blob/main/CONTRIBUTING.md"], ["Security", GITHUB + "/blob/main/SECURITY.md"], ["Licence", GITHUB + "/blob/main/LICENSE"]]],
+  ["Legal", [["Privacy", "/privacy"], ["Terms", "/terms"]]],
 ] as const;
 
 // Template footer: p-10, brand block left (max-w-xs), link columns right,
