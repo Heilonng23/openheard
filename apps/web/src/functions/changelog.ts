@@ -1,5 +1,7 @@
 import { activity, changelogEntry, changelogPost, createDb, post } from "@openheard/db";
+import { purgeWorkspaceCache } from "@/lib/cache";
 import { createServerFn } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/react-start/server";
 import { and, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { z } from "zod";
 
@@ -57,6 +59,7 @@ export const saveChangelog = createServerFn({ method: "POST" })
         }
       }
     }
+    purgeWorkspaceCache(new URL(getRequest().url).origin);
     return { id };
   });
 
@@ -66,5 +69,6 @@ export const deleteChangelog = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     requireAdmin(context.user);
     await createDb().delete(changelogEntry).where(and(eq(changelogEntry.id, data.id), eq(changelogEntry.workspaceId, context.workspace.id)));
+    purgeWorkspaceCache(new URL(getRequest().url).origin);
     return { ok: true };
   });

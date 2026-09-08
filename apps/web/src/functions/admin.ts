@@ -1,8 +1,10 @@
 import { activity, board, comment, createDb, membership, post, postTag, status, vote, workspace } from "@openheard/db";
 
+import { purgeWorkspaceCache } from "@/lib/cache";
 import { seedStatuses } from "@/lib/status-db";
 import { user } from "@openheard/db/schema/auth";
 import { createServerFn } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/react-start/server";
 import { and, asc, desc, eq, gt, inArray, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 
@@ -157,6 +159,7 @@ export const setBoard = createServerFn({ method: "POST" })
     requireAdmin(context.user);
     await createDb().update(post).set({ boardId: data.boardId }).where(and(eq(post.id, data.postId), eq(post.workspaceId, context.workspace.id)));
     void invalidate(`workspace:${context.workspace.id}`);
+    purgeWorkspaceCache(new URL(getRequest().url).origin, [data.postId]);
     return { ok: true };
   });
 

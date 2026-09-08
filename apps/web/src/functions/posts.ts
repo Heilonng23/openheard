@@ -1,12 +1,22 @@
 import { activity, anonymousVote, comment, commentReaction, createDb, post, postTag, status, vote } from "@openheard/db";
 
+import { purgeWorkspaceCache } from "@/lib/cache";
 import { assertStatus, listStatuses, statusOfKind } from "@/lib/status-db";
 import { createServerFn } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/react-start/server";
 import { and, desc, eq, inArray, like, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { invalidate } from "@/lib/kv-cache";
 import { requireAdmin, requireUser, sessionMiddleware } from "@/lib/session";
+
+function originFromRequest(): string {
+  try {
+    return new URL(getRequest().url).origin;
+  } catch {
+    return "";
+  }
+}
 
 function escapeLike(s: string) {
   return s.replace(/[%_\\]/g, (c) => `\\${c}`);
@@ -198,6 +208,7 @@ export const createPost = createServerFn({ method: "POST" })
     await db.insert(vote).values({ postId: created.id, userId: u.id });
     if (data.tags.length) await db.insert(postTag).values(data.tags.map((tagId) => ({ postId: created.id, tagId })));
     void invalidate(`workspace:${context.workspace.id}`);
+    purgeWorkspaceCache(originFromRequest());
     return { id: created.id, pending: initialStatus !== "open" };
   });
 
@@ -212,10 +223,12 @@ export const toggleVote = createServerFn({ method: "POST" })
     if (existing.length) {
       await db.delete(vote).where(and(eq(vote.postId, data.postId), eq(vote.userId, u.id)));
       await db.update(post).set({ voteCount: sql`max(${post.voteCount} - 1, 0)` }).where(eq(post.id, data.postId));
+      purgeWorkspaceCache(originFromRequest(), [data.postId]);
       return { voted: false };
     }
     await db.insert(vote).values({ postId: data.postId, userId: u.id });
     await db.update(post).set({ voteCount: sql`${post.voteCount} + 1` }).where(eq(post.id, data.postId));
+    purgeWorkspaceCache(originFromRequest(), [data.postId]);
     return { voted: true };
   });
 
@@ -233,10 +246,12 @@ export const toggleAnonVote = createServerFn({ method: "POST" })
     if (existing.length) {
       await db.delete(anonymousVote).where(and(eq(anonymousVote.postId, data.postId), eq(anonymousVote.anonToken, data.anonToken)));
       await db.update(post).set({ voteCount: sql`max(${post.voteCount} - 1, 0)` }).where(eq(post.id, data.postId));
+      purgeWorkspaceCache(originFromRequest(), [data.postId]);
       return { voted: false };
     }
     await db.insert(anonymousVote).values({ postId: data.postId, anonToken: data.anonToken });
     await db.update(post).set({ voteCount: sql`${post.voteCount} + 1` }).where(eq(post.id, data.postId));
+    purgeWorkspaceCache(originFromRequest(), [data.postId]);
     return { voted: true };
   });
 
@@ -250,6 +265,7 @@ export const addComment = createServerFn({ method: "POST" })
     await ownPost(db, data.postId, context.workspace.id);
     await db.insert(comment).values({ postId: data.postId, authorId: u.id, body: data.body, internal });
     if (!internal) await db.update(post).set({ commentCount: sql`${post.commentCount} + 1` }).where(eq(post.id, data.postId));
+    if (!internal) purgeWorkspaceCache(originFromRequest(), [data.postId]);
     return { ok: true };
   });
 
@@ -288,6 +304,7 @@ export const setStatus = createServerFn({ method: "POST" })
     await db.update(post).set({ status: data.status, statusChangedAt: new Date() }).where(eq(post.id, data.postId));
     await db.insert(activity).values({ postId: data.postId, actorId: u.id, type: "status", fromStatus: current.status, toStatus: data.status, note: data.note || null });
     void invalidate(`workspace:${context.workspace.id}`);
+    purgeWorkspaceCache(originFromRequest(), [data.postId]);
     return { ok: true };
   });
 
@@ -302,6 +319,7 @@ export const togglePin = createServerFn({ method: "POST" })
     if (!current) return { pinned: false };
     await db.update(post).set({ pinned: !current.pinned }).where(eq(post.id, data.postId));
     await db.insert(activity).values({ postId: data.postId, actorId: u.id, type: "pin", note: current.pinned ? "unpinned" : "pinned" });
+    purgeWorkspaceCache(originFromRequest(), [data.postId]);
     return { pinned: !current.pinned };
   });
 
@@ -332,6 +350,7 @@ export const mergePosts = createServerFn({ method: "POST" })
       { postId: data.from, actorId: u.id, type: "merge", note: `merged into "${target?.title}"` },
     ]);
     void invalidate(`workspace:${context.workspace.id}`);
+    purgeWorkspaceCache(originFromRequest(), [data.from, data.into]);
     return { ok: true, into: data.into };
   });
 
@@ -344,6 +363,7 @@ export const setTags = createServerFn({ method: "POST" })
     await ownPost(db, data.postId, context.workspace.id);
     await db.delete(postTag).where(eq(postTag.postId, data.postId));
     if (data.tags.length) await db.insert(postTag).values(data.tags.map((tagId) => ({ postId: data.postId, tagId })));
+    purgeWorkspaceCache(originFromRequest(), [data.postId]);
     return { ok: true };
   });
 
@@ -353,6 +373,7 @@ export const setEta = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     requireAdmin(context.user);
     await createDb().update(post).set({ eta: data.eta || null }).where(and(eq(post.id, data.postId), eq(post.workspaceId, context.workspace.id)));
+    purgeWorkspaceCache(originFromRequest(), [data.postId]);
     return { ok: true };
   });
 
