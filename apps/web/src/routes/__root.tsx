@@ -1,5 +1,5 @@
 import { Toaster } from "@openheard/ui/components/sonner";
-import { HeadContent, Outlet, Scripts, ScrollRestoration, createRootRouteWithContext, useLocation } from "@tanstack/react-router";
+import { HeadContent, Outlet, Scripts, ScrollRestoration, createRootRouteWithContext, useRouterState } from "@tanstack/react-router";
 
 import Footer from "../components/footer";
 import Header from "../components/header";
@@ -39,7 +39,7 @@ const BARE_PAGES = ["/login", "/reset-password", "/join/", "/new", "/welcome"];
 
 function RootDocument() {
   const data = Route.useLoaderData();
-  const { pathname } = useLocation();
+  const pathname = useRouterState({ select: (s) => (s.resolvedLocation ?? s.location).pathname });
   const admin = pathname.startsWith("/dashboard");
   // /landing previews the marketing page anywhere; on the cloud root domain
   // the marketing page is the home page.
