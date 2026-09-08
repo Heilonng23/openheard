@@ -29,7 +29,8 @@ export function Nav() {
   const root = useLoaderData({ from: "__root__" });
   const own = (root as { ownWorkspaces?: { id: string; name: string }[] }).ownWorkspaces;
   const ctaHref = useMemo(() => {
-    if (root?.user && own?.length === 1) return workspaceUrl(own[0]!.id, root.rootDomain, "/dashboard");
+    if (root?.user && own && own.length > 0) return workspaceUrl(own[own.length - 1]!.id, root.rootDomain, "/dashboard");
+    if (root?.user) return "/new";
     return "/start";
   }, [root, own]);
   const cta = root?.user ? "Go to dashboard" : "Start for free";
