@@ -1,13 +1,13 @@
-import { ArrowLeftIcon, GlobeSimpleIcon, LockSimpleIcon } from "@phosphor-icons/react";
+import { ArrowLeftIcon, CheckCircleIcon, GlobeSimpleIcon, LockSimpleIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { createFileRoute, useLoaderData, useRouter } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@openheard/ui/components/button";
 import { cn } from "@openheard/ui/lib/utils";
 import { AuthForm } from "@/components/auth-form";
 import Logo from "@/components/logo";
-import { createWorkspace } from "@/functions/admin";
+import { checkSlug, createWorkspace } from "@/functions/admin";
 import { getUser } from "@/functions/get-user";
 import { getWorkspaceMemberCount } from "@/functions/invites";
 import { consumePendingAction } from "@/lib/pending-action";
@@ -85,11 +85,33 @@ function StartPage() {
 
   const [step, setStep] = useState(1);
   const [name, setName] = useState("");
+  const [slugInput, setSlugInput] = useState("");
+  const [slugTouched, setSlugTouched] = useState(false);
   const [whoCanPost, setWhoCanPost] = useState<"anyone" | "members">("anyone");
   const [busy, setBusy] = useState(false);
+  const [slugStatus, setSlugStatus] = useState<{ available: boolean; suggestion: string | null } | null>(null);
+  const [slugChecking, setSlugChecking] = useState(false);
   const creating = useRef(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
-  const slug = slugify(name);
+  const slug = slugTouched ? slugify(slugInput) : slugify(name);
+
+  const debouncedCheck = useCallback((s: string) => {
+    clearTimeout(debounceRef.current);
+    setSlugStatus(null);
+    if (s.length < 5) { setSlugChecking(false); return; }
+    setSlugChecking(true);
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const result = await checkSlug({ data: { slug: s } });
+        setSlugStatus(result);
+      } catch {
+        setSlugStatus(null);
+      } finally {
+        setSlugChecking(false);
+      }
+    }, 300);
+  }, []);
 
   // If user is already signed in and has onboarding data, create the workspace.
   useEffect(() => {
@@ -111,9 +133,11 @@ function StartPage() {
   // If signed in and no onboarding data, let them fill in steps 1 & 2.
   const maxStep = user ? 2 : STEPS;
 
+  const slugReady = slug.length >= 5 && slugStatus?.available === true && !slugChecking;
+
   function next() {
     if (step === 1) {
-      if (slug.length < 5) return;
+      if (!slugReady) return;
       saveOnboarding({ name: name.trim(), slug });
       setStep(2);
     } else if (step === 2) {
@@ -185,7 +209,10 @@ function StartPage() {
               <label className="flex h-10 items-center gap-2.5 rounded-lg border border-input bg-card px-3 text-faint transition-colors focus-within:border-ring/60 focus-within:ring-1 focus-within:ring-ring/40">
                 <input
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    if (!slugTouched) debouncedCheck(slugify(e.target.value));
+                  }}
                   autoFocus
                   placeholder="Acme"
                   maxLength={60}
@@ -193,17 +220,59 @@ function StartPage() {
                   onKeyDown={(e) => { if (e.key === "Enter") next(); }}
                 />
               </label>
-              <p className="text-[13px] text-muted-foreground">
-                Your board will be at{" "}
-                <span className="font-mono text-foreground">
-                  {slug || "…"}.{rootDomain ?? "openheard.com"}
-                </span>
-              </p>
+              <div className="flex items-center gap-2">
+                <label className="flex h-8 flex-1 items-center gap-1.5 rounded-md border border-input bg-card px-2.5 text-faint transition-colors focus-within:border-ring/60 focus-within:ring-1 focus-within:ring-ring/40">
+                  <input
+                    value={slugTouched ? slugInput : slug}
+                    onChange={(e) => {
+                      setSlugTouched(true);
+                      setSlugInput(e.target.value);
+                      debouncedCheck(slugify(e.target.value));
+                    }}
+                    placeholder="acme"
+                    maxLength={32}
+                    className="min-w-0 flex-1 bg-transparent font-mono text-[13px] text-foreground outline-none placeholder:text-faint"
+                    onKeyDown={(e) => { if (e.key === "Enter") next(); }}
+                  />
+                  <span className="font-mono text-[13px] text-faint">.{rootDomain ?? "openheard.com"}</span>
+                </label>
+                {slugChecking ? (
+                  <span className="size-5 shrink-0 animate-spin rounded-full border-2 border-faint border-t-transparent" />
+                ) : slugStatus?.available ? (
+                  <CheckCircleIcon weight="fill" className="size-5 shrink-0 text-emerald-500" />
+                ) : slugStatus && !slugStatus.available ? (
+                  <WarningCircleIcon weight="fill" className="size-5 shrink-0 text-red-500" />
+                ) : null}
+              </div>
               {slug.length > 0 && slug.length < 5 && (
                 <p className="text-[13px] text-red-400">Slug must be at least 5 characters</p>
               )}
+              {slugStatus?.available === true && (
+                <p className="text-[13px] text-emerald-500">Available</p>
+              )}
+              {slugStatus && !slugStatus.available && slug.length >= 5 && (
+                <p className="text-[13px] text-red-400">
+                  That slug is taken
+                  {slugStatus.suggestion && (
+                    <>
+                      {" — try "}
+                      <button
+                        type="button"
+                        className="font-mono underline hover:text-foreground"
+                        onClick={() => {
+                          setSlugTouched(true);
+                          setSlugInput(slugStatus.suggestion!);
+                          debouncedCheck(slugStatus.suggestion!);
+                        }}
+                      >
+                        {slugStatus.suggestion}
+                      </button>
+                    </>
+                  )}
+                </p>
+              )}
             </div>
-            <Button full arrow size="lg" disabled={slug.length < 5} onClick={next}>
+            <Button full arrow size="lg" disabled={!slugReady} onClick={next}>
               Continue
             </Button>
           </div>

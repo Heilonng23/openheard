@@ -185,6 +185,28 @@ export const myWorkspaces = createServerFn({ method: "GET" })
       .orderBy(membership.createdAt);
   });
 
+const RESERVED_SLUGS = ["default", "www", "app", "api", "admin", "mail"];
+
+export const checkSlug = createServerFn({ method: "GET" })
+  .validator((d: unknown) => z.object({ slug: z.string().trim().min(1).max(32) }).parse(d))
+  .handler(async ({ data }) => {
+    const id = slugify(data.slug);
+    if (!id || id.length < 5 || RESERVED_SLUGS.includes(id)) {
+      return { available: false, slug: id, suggestion: null };
+    }
+    const db = createDb();
+    const [taken] = await db.select({ id: workspace.id }).from(workspace).where(eq(workspace.id, id)).limit(1);
+    if (!taken) return { available: true, slug: id, suggestion: null };
+    for (let i = 2; i <= 20; i++) {
+      const candidate = `${id}-${i}`.slice(0, 32);
+      const [exists] = await db.select({ id: workspace.id }).from(workspace).where(eq(workspace.id, candidate)).limit(1);
+      if (!exists && !RESERVED_SLUGS.includes(candidate)) {
+        return { available: false, slug: id, suggestion: candidate };
+      }
+    }
+    return { available: false, slug: id, suggestion: null };
+  });
+
 export const createWorkspace = createServerFn({ method: "POST" })
   .middleware([sessionMiddleware])
   .validator((d: unknown) => z.object({ name: z.string().trim().min(2).max(60), slug: z.string().trim().min(2).max(32).optional(), website: z.string().trim().url().max(200).optional().or(z.literal("")), heardAboutUs: z.string().trim().max(100).optional().or(z.literal("")), whoCanPost: z.enum(["anyone", "members"]).optional() }).parse(d))
@@ -192,7 +214,7 @@ export const createWorkspace = createServerFn({ method: "POST" })
     const u = requireUser(context.user);
     const db = createDb();
     const id = slugify(data.slug || data.name);
-    if (!id || ["default", "www", "app", "api", "admin", "mail"].includes(id)) throw new Error("Pick a different slug");
+    if (!id || RESERVED_SLUGS.includes(id)) throw new Error("Pick a different slug");
     const [taken] = await db.select({ id: workspace.id }).from(workspace).where(eq(workspace.id, id)).limit(1);
     if (taken) throw new Error("That slug is taken");
     await db.insert(workspace).values({ id, name: data.name, website: data.website || null, heardAboutUs: data.heardAboutUs || null, ...(data.whoCanPost ? { whoCanPost: data.whoCanPost } : {}) });
