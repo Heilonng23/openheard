@@ -1,11 +1,12 @@
 import { activity, board, comment, createDb, membership, post, postTag, status, vote, workspace } from "@openheard/db";
 
-import { seedStatuses, statusOfKind } from "@/lib/status-db";
+import { seedStatuses } from "@/lib/status-db";
 import { user } from "@openheard/db/schema/auth";
 import { createServerFn } from "@tanstack/react-start";
-import { and, desc, eq, gt, inArray, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 
+import { invalidate } from "@/lib/kv-cache";
 import { requireAdmin, requireUser, sessionMiddleware } from "@/lib/session";
 
 const DAY = 86_400_000;
@@ -21,12 +22,17 @@ export const getOverview = createServerFn({ method: "GET" })
     const wsId = context.workspace.id;
     const live = and(eq(post.workspaceId, wsId), sql`${post.mergedIntoId} is null`);
     const inWs = db.select({ id: post.id }).from(post).where(eq(post.workspaceId, wsId));
-    const openKey = (await statusOfKind(db, wsId, "open"))?.key ?? "open";
-    const doneKey = (await statusOfKind(db, wsId, "done"))?.key ?? "done";
+
+    const [openRows, doneRows] = await db.batch([
+      db.select().from(status).where(and(eq(status.workspaceId, wsId), eq(status.kind, "open"))).orderBy(asc(status.position)).limit(1),
+      db.select().from(status).where(and(eq(status.workspaceId, wsId), eq(status.kind, "done"))).orderBy(asc(status.position)).limit(1),
+    ] as const);
+    const openKey = openRows[0]?.key ?? "open";
+    const doneKey = doneRows[0]?.key ?? "done";
 
     const twoWeeks = new Date(Date.now() - 14 * DAY);
     const twoMonths = new Date(Date.now() - 60 * DAY);
-    const [[votesWeek], [votesPrev], [commentsWeek], [commentsPrev], [shippedMonth], [shippedPrev], [pending]] = await Promise.all([
+    const [[votesWeek], [votesPrev], [commentsWeek], [commentsPrev], [shippedMonth], [shippedPrev], [pending]] = await db.batch([
       db.select({ n: sql<number>`count(*)`, posts: sql<number>`count(distinct ${vote.postId})` }).from(vote).where(and(gt(vote.createdAt, week), inArray(vote.postId, inWs))),
       db.select({ n: sql<number>`count(*)` }).from(vote).where(and(gt(vote.createdAt, twoWeeks), lte(vote.createdAt, week), inArray(vote.postId, inWs))),
       db.select({ n: sql<number>`count(*)` }).from(comment).where(and(gt(comment.createdAt, week), eq(comment.internal, false), inArray(comment.postId, inWs))),
@@ -34,7 +40,7 @@ export const getOverview = createServerFn({ method: "GET" })
       db.select({ n: sql<number>`count(*)` }).from(post).where(and(live, eq(post.status, doneKey), gt(post.statusChangedAt, month))),
       db.select({ n: sql<number>`count(*)` }).from(post).where(and(live, eq(post.status, doneKey), gt(post.statusChangedAt, twoMonths), lte(post.statusChangedAt, month))),
       db.select({ n: sql<number>`count(*)` }).from(post).where(and(live, eq(post.status, openKey))),
-    ]);
+    ] as const);
 
     // "Needs a reply": open posts where nobody on the team has commented yet.
     const teamComment = db
@@ -150,6 +156,7 @@ export const setBoard = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     requireAdmin(context.user);
     await createDb().update(post).set({ boardId: data.boardId }).where(and(eq(post.id, data.postId), eq(post.workspaceId, context.workspace.id)));
+    void invalidate(`workspace:${context.workspace.id}`);
     return { ok: true };
   });
 

@@ -6,6 +6,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { and, count, eq } from "drizzle-orm";
 import { z } from "zod";
 
+import { invalidate } from "@/lib/kv-cache";
 import { requireAdmin, requireUser, sessionMiddleware } from "@/lib/session";
 
 const slug = (s: string) =>
@@ -39,6 +40,7 @@ export const saveWorkspace = createServerFn({ method: "POST" })
     requireAdmin(context.user);
     const db = createDb();
     await db.update(workspace).set(data).where(eq(workspace.id, context.workspace.id));
+    void invalidate(`workspace:${context.workspace.id}`);
     return { ok: true };
   });
 
@@ -51,6 +53,7 @@ export const saveBoard = createServerFn({ method: "POST" })
     const ws = context.workspace.id;
     if (data.id) {
       await db.update(board).set({ name: data.name, description: data.description ?? null }).where(and(eq(board.id, data.id), eq(board.workspaceId, ws)));
+      void invalidate(`workspace:${ws}`);
       return { id: data.id };
     }
     const [{ n }] = await db.select({ n: count() }).from(board).where(eq(board.workspaceId, ws));
@@ -59,6 +62,7 @@ export const saveBoard = createServerFn({ method: "POST" })
     const taken = await db.select({ id: board.id }).from(board).where(eq(board.id, id));
     if (taken.length) id = `${id}-${n + 1}`;
     await db.insert(board).values({ id, workspaceId: ws, name: data.name, description: data.description ?? null, position: n });
+    void invalidate(`workspace:${ws}`);
     return { id };
   });
 
@@ -71,6 +75,7 @@ export const deleteBoard = createServerFn({ method: "POST" })
     const [{ n }] = await db.select({ n: count() }).from(post).where(eq(post.boardId, data.id));
     if (n > 0) throw new Error(`This board has ${n} posts. Move or delete them first.`);
     await db.delete(board).where(and(eq(board.id, data.id), eq(board.workspaceId, context.workspace.id)));
+    void invalidate(`workspace:${context.workspace.id}`);
     return { ok: true };
   });
 
@@ -82,6 +87,7 @@ export const saveTag = createServerFn({ method: "POST" })
     const ws = context.workspace.id;
     const id = ws === "default" ? slug(data.name) : `${ws}-${slug(data.name)}`;
     await createDb().insert(tag).values({ id, workspaceId: ws, name: data.name }).onConflictDoUpdate({ target: tag.id, set: { name: data.name } });
+    void invalidate(`workspace:${ws}`);
     return { id };
   });
 
@@ -91,6 +97,7 @@ export const deleteTag = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     requireAdmin(context.user);
     await createDb().delete(tag).where(and(eq(tag.id, data.id), eq(tag.workspaceId, context.workspace.id)));
+    void invalidate(`workspace:${context.workspace.id}`);
     return { ok: true };
   });
 

@@ -2,6 +2,7 @@ import { STATUS_KINDS } from "@openheard/db/schema/feedback";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
+import { invalidate } from "@/lib/kv-cache";
 import { requireAdmin, sessionMiddleware } from "@/lib/session";
 import { listStatuses } from "@/lib/status-db";
 import { createDb, post, status } from "@openheard/db";
@@ -33,12 +34,14 @@ export const saveStatus = createServerFn({ method: "POST" })
     const ws = context.workspace.id;
     if (data.key) {
       await db.update(status).set({ label: data.label, color: data.color, kind: data.kind, onRoadmap: data.onRoadmap }).where(and(eq(status.workspaceId, ws), eq(status.key, data.key)));
+      void invalidate(`workspace:${ws}`);
       return { key: data.key };
     }
     const existing = await listStatuses(db, ws);
     let key = slug(data.label) || "status";
     if (existing.some((s) => s.key === key)) key = `${key}-${existing.length + 1}`;
     await db.insert(status).values({ workspaceId: ws, key, label: data.label, color: data.color, kind: data.kind, onRoadmap: data.onRoadmap, position: existing.length });
+    void invalidate(`workspace:${ws}`);
     return { key };
   });
 
@@ -56,6 +59,7 @@ export const deleteStatus = createServerFn({ method: "POST" })
     if (!target) throw new Error("Unknown status");
     if ((target.kind === "open" || target.kind === "closed") && all.filter((s) => s.kind === target.kind).length === 1) throw new Error(`You need at least one "${target.kind}" status`);
     await db.delete(status).where(and(eq(status.workspaceId, ws), eq(status.key, data.key)));
+    void invalidate(`workspace:${ws}`);
     return { ok: true };
   });
 
@@ -69,5 +73,6 @@ export const reorderStatuses = createServerFn({ method: "POST" })
     for (const [i, key] of data.keys.entries()) {
       await db.update(status).set({ position: i }).where(and(eq(status.workspaceId, ws), eq(status.key, key)));
     }
+    void invalidate(`workspace:${ws}`);
     return { ok: true };
   });

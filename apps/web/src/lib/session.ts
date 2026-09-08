@@ -38,7 +38,9 @@ export function isMarketingHost(host: string, rootDomainValue: string | null): b
   return h === root || h === "www." + root;
 }
 
-export const sessionMiddleware = createMiddleware().server(async ({ next, request }) => {
+const ctxCache = new WeakMap<Request, Promise<{ user: SessionUser | null; workspace: Workspace; marketing: boolean }>>();
+
+async function resolveSession(request: Request) {
   const db = createDb();
   const host = request.headers.get("host") ?? "";
   const root = await rootDomain();
@@ -68,7 +70,16 @@ export const sessionMiddleware = createMiddleware().server(async ({ next, reques
       .limit(1);
     user = { id: session.user.id, name: session.user.name, email: session.user.email, role: m?.role ?? "guest", image: session.user.image };
   }
-  return next({ context: { user, workspace: ws, marketing } });
+  return { user, workspace: ws, marketing };
+}
+
+export const sessionMiddleware = createMiddleware().server(async ({ next, request }) => {
+  let pending = ctxCache.get(request);
+  if (!pending) {
+    pending = resolveSession(request);
+    ctxCache.set(request, pending);
+  }
+  return next({ context: await pending });
 });
 
 export type Ctx = { user: SessionUser | null; workspace: Workspace; marketing: boolean };

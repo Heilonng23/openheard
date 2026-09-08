@@ -12,16 +12,19 @@ export const db = Cloudflare.D1.Database("database", {
   migrations: "../../packages/db/migrations",
 });
 
+export const cache = Cloudflare.KV.Namespace("CACHE");
+
 export const email = Cloudflare.Email.SendEmail("EMAIL");
 
 export const web = Cloudflare.Website.Vite("web", {
   rootDir: "../../apps/web",
-  placement: { mode: "smart" },
+  placement: { region: "aws:us-west-2" },
   compatibility: {
     flags: ["nodejs_compat"],
   },
   env: {
     DB: db,
+    CACHE: cache,
     EMAIL: email,
     BETTER_AUTH_SECRET: Config.redacted("BETTER_AUTH_SECRET"),
     BETTER_AUTH_URL: Config.string("BETTER_AUTH_URL").pipe(Config.withDefault("")),
