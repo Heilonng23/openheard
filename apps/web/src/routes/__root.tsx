@@ -9,6 +9,7 @@ import { SignInDialog } from "../components/sign-in-dialog";
 const Landing = lazy(() => import("../components/landing/page").then((m) => ({ default: m.Landing })));
 import { getWorkspace } from "../functions/workspace";
 import appCss from "../index.css?url";
+import geistLatinFont from "@fontsource-variable/geist/files/geist-latin-wght-normal.woff2?url";
 
 export interface RouterAppContext {}
 
@@ -22,6 +23,7 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
       { name: "description", content: loaderData?.workspace.tagline ?? "Open source feedback board." },
     ],
     links: [
+      { rel: "preload", href: geistLatinFont, as: "font", type: "font/woff2", crossOrigin: "anonymous" },
       { rel: "stylesheet", href: appCss },
       { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
     ],
