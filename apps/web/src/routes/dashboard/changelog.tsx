@@ -19,7 +19,7 @@ export const Route = createFileRoute("/dashboard/changelog")({
   validateSearch: (s: Record<string, unknown>): Search => ({
     entry: s.entry === "new" ? "new" : typeof s.entry === "number" ? s.entry : typeof s.entry === "string" && /^\d+$/.test(s.entry) ? Number(s.entry) : undefined,
   }),
-  loaderDeps: ({ search }) => search,
+  loaderDeps: () => ({}),
   loader: () => listChangelog(),
   head: () => ({ meta: [{ title: "Changelog · openheard" }] }),
   component: ChangelogPage,

@@ -5,7 +5,6 @@ import { asc, count, eq } from "drizzle-orm";
 import { getCached, setCached } from "@/lib/kv-cache";
 import { rootDomain, sessionMiddleware } from "@/lib/session";
 import type { listStatuses } from "@/lib/status-db";
-import { env } from "@openheard/env/server";
 
 type WorkspaceCache = {
   boards: { id: string; name: string; description: string | null; count: number }[];
@@ -42,6 +41,11 @@ async function fetchWorkspaceData(wsId: string): Promise<WorkspaceCache> {
 
 // Everything the shell needs on every page: workspace, boards with counts,
 // tags, status counts, and who is looking.
+async function googleSignIn() {
+  const { env } = await import("@openheard/env/server");
+  return !!(env as unknown as { GOOGLE_CLIENT_ID?: string }).GOOGLE_CLIENT_ID;
+}
+
 export const getWorkspace = createServerFn({ method: "GET" })
   .middleware([sessionMiddleware])
   .handler(async ({ context }) => {
@@ -68,7 +72,7 @@ export const getWorkspace = createServerFn({ method: "GET" })
         total: 0,
         user: context.user,
         ownWorkspaces,
-        googleSignIn: !!(env as unknown as { GOOGLE_CLIENT_ID?: string }).GOOGLE_CLIENT_ID,
+        googleSignIn: await googleSignIn(),
       };
     }
 
@@ -79,6 +83,6 @@ export const getWorkspace = createServerFn({ method: "GET" })
       marketing: context.marketing,
       ...data,
       user: context.user,
-      googleSignIn: !!(env as unknown as { GOOGLE_CLIENT_ID?: string }).GOOGLE_CLIENT_ID,
+      googleSignIn: await googleSignIn(),
     };
   });

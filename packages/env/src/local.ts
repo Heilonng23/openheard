@@ -7,14 +7,14 @@ import * as schema from "@openheard/db/schema/index";
 import { config } from "dotenv";
 import { drizzle } from "drizzle-orm/libsql";
 
-config({ path: new URL("../../../apps/web/.env", import.meta.url).pathname });
+if (typeof window === "undefined") config({ path: new URL("../../../apps/web/.env", import.meta.url).pathname });
 
 const url = process.env.DATABASE_URL ?? "file:./local.db";
 
 export const env = {
   ...process.env,
   DB: undefined,
-  DB_LOCAL: drizzle(createClient({ url }), { schema }),
+  DB_LOCAL: typeof window === "undefined" ? drizzle(createClient({ url }), { schema }) : undefined,
   EMAIL: undefined,
   BETTER_AUTH_URL: process.env.BETTER_AUTH_URL ?? "http://localhost:3001",
   // Workspaces live on subdomains of this. *.localhost resolves to loopback in every browser.

@@ -1,14 +1,15 @@
 import { EnvelopeSimpleIcon, LockSimpleIcon, MagicWandIcon, UserIcon } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
+import { cn } from "@openheard/ui/lib/utils";
 
 import { Button } from "@openheard/ui/components/button";
 import { GoogleIcon } from "@/components/icons";
 import { authClient } from "@/lib/auth-client";
 
-function Field({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
+function Field({ icon, children, invalid }: { icon: React.ReactNode; children: React.ReactNode; invalid?: boolean }) {
   return (
-    <label className="flex h-10 items-center gap-2.5 rounded-lg border border-input bg-card px-3 text-faint transition-colors focus-within:border-ring/60 focus-within:ring-1 focus-within:ring-ring/40">
+    <label className={cn("flex h-10 items-center gap-2.5 rounded-lg border bg-card px-3 text-faint transition-colors focus-within:ring-1", invalid ? "animate-shake border-red-500/70 focus-within:border-red-500 focus-within:ring-red-500/40 motion-reduce:animate-none" : "border-input focus-within:border-ring/60 focus-within:ring-ring/40")}>
       {icon}
       {children}
     </label>
@@ -114,7 +115,7 @@ export function AuthForm({
             <Field icon={<EnvelopeSimpleIcon className="size-[15px]" />}>
               <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required disabled={busy} autoComplete="email" placeholder="you@company.com" className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-faint disabled:opacity-60" />
             </Field>
-            {error ? <p className="text-[13px] text-red-400">{error}</p> : null}
+            {error ? <p role="alert" className="text-[13px] text-red-400">{error}</p> : null}
             <Button type="submit" full arrow size="lg" disabled={busy} className="mt-1">
               {busy ? "Sending…" : "Email me a link"}
             </Button>
@@ -130,10 +131,10 @@ export function AuthForm({
               <input value={name} onChange={(e) => setName(e.target.value)} required disabled={busy} autoComplete="name" placeholder="Your name" className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-faint disabled:opacity-60" />
             </Field>
           ) : null}
-          <Field icon={<EnvelopeSimpleIcon className="size-[15px]" />}>
+          <Field icon={<EnvelopeSimpleIcon className="size-[15px]" />} invalid={!!error}>
             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required disabled={busy} autoComplete="email" placeholder="you@company.com" className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-faint disabled:opacity-60" />
           </Field>
-          <Field icon={<LockSimpleIcon className="size-[15px]" />}>
+          <Field icon={<LockSimpleIcon className="size-[15px]" />} invalid={!!error}>
             <input
               type="password"
               value={password}
@@ -146,7 +147,7 @@ export function AuthForm({
               className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-faint disabled:opacity-60"
             />
           </Field>
-          {error ? <p className="text-[13px] text-red-400">{error}</p> : null}
+          {error ? <p role="alert" className="text-[13px] text-red-400">{error}</p> : null}
           <Button type="submit" full arrow size="lg" disabled={busy} className="mt-1">
             {busy ? (mode === "in" ? "Signing in…" : "Creating account…") : mode === "in" ? "Sign in" : "Create account"}
           </Button>

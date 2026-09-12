@@ -2,9 +2,8 @@ import { Button } from "@openheard/ui/components/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@openheard/ui/components/dropdown-menu";
 import type { Icon } from "@phosphor-icons/react";
 import { ArrowSquareOutIcon, ArrowsMergeIcon, CaretDownIcon, CaretUpIcon, ChatCircleIcon, CheckCircleIcon, CheckIcon, CircleDashedIcon, CircleHalfIcon, CircleIcon, FunnelSimpleIcon, GlobeSimpleIcon, LockSimpleIcon, PaperclipIcon, PlusIcon, PushPinIcon, SmileyIcon, SortAscendingIcon, SpinnerGapIcon, XCircleIcon, XIcon } from "@phosphor-icons/react";
-import { Await, Link, createFileRoute, defer, useLoaderData, useNavigate, useRouter } from "@tanstack/react-router";
-import { Suspense } from "react";
-import { useRef, useState } from "react";
+import { Link, createFileRoute, useLoaderData, useNavigate, useRouter } from "@tanstack/react-router";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { MergeDialog } from "@/components/merge-dialog";
@@ -27,14 +26,8 @@ export const Route = createFileRoute("/dashboard/inbox")({
     board: typeof s.board === "string" ? s.board : undefined,
     tag: typeof s.tag === "string" ? s.tag : undefined,
   }),
-  loaderDeps: ({ search }) => search,
-  loader: async ({ deps }) => {
-    const list = await listInbox({ data: { status: deps.status, sort: deps.sort ?? "new", board: deps.board, tag: deps.tag } });
-    return {
-      list,
-      post: deps.post ? defer(getPost({ data: { id: deps.post } })) : null,
-    };
-  },
+  loaderDeps: ({ search }) => ({ status: search.status, sort: search.sort, board: search.board, tag: search.tag }),
+  loader: async ({ deps }) => ({ list: await listInbox({ data: { status: deps.status, sort: deps.sort ?? "new", board: deps.board, tag: deps.tag } }) }),
   head: () => ({ meta: [{ title: "Posts · openheard" }] }),
   component: Inbox,
   errorComponent: ({ error }) => <DashboardErrorState message={(error as Error)?.message} retry="/dashboard/inbox" />,
@@ -42,7 +35,7 @@ export const Route = createFileRoute("/dashboard/inbox")({
 });
 
 function Inbox() {
-  const { list, post: deferredPost } = Route.useLoaderData();
+  const { list } = Route.useLoaderData();
   const search = Route.useSearch();
   const navigate = useNavigate({ from: "/dashboard/inbox" });
   const root = useLoaderData({ from: "__root__" });
@@ -141,7 +134,8 @@ function Inbox() {
               key={p.id}
               to="/dashboard/inbox"
               search={{ ...search, post: on ? undefined : p.id }}
-              className={cn("shrink-0 border-t", on ? "bg-card" : "hover:bg-card/60", hasPost ? "flex flex-col gap-1.5 px-4 py-3.5" : "flex h-13 items-center gap-3.5 px-5")}
+              resetScroll={false}
+              className={cn("relative shrink-0 border-t transition-colors duration-100", on ? "bg-accent before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-link" : "hover:bg-accent/50", hasPost ? "flex flex-col gap-1.5 px-4 py-3.5" : "flex h-13 items-center gap-3.5 px-5")}
             >
               {hasPost ? (
                 <>
@@ -195,18 +189,33 @@ function Inbox() {
         })}
       </div>
 
-      {deferredPost ? (
-        <Suspense fallback={<DashboardPanelSkeleton />}>
-          <Await promise={deferredPost}>
-            {(post) => post ? <Detail key={post.id} post={post} onClose={() => navigate({ search: (p) => ({ ...p, post: undefined }) })} /> : null}
-          </Await>
-        </Suspense>
-      ) : null}
+      {search.post ? <PostDetail id={search.post} onClose={() => navigate({ search: (p) => ({ ...p, post: undefined }) })} /> : null}
     </Panel>
   );
 }
 
 type PostData = NonNullable<Awaited<ReturnType<typeof getPost>>>;
+
+const postCache = new Map<number, PostData>();
+
+/** Fetches a post client-side and keeps the previous one on screen while the next loads, so switching never flashes a skeleton. */
+function PostDetail({ id, onClose }: { id: number; onClose: () => void }) {
+  const router = useRouter();
+  const [post, setPost] = useState<PostData | null>(() => postCache.get(id) ?? null);
+  const [gen, setGen] = useState(0);
+  useEffect(() => router.subscribe("onResolved", () => setGen((g) => g + 1)), [router]);
+  useEffect(() => {
+    let live = true;
+    getPost({ data: { id } }).then((p) => {
+      if (!live) return;
+      if (p) postCache.set(id, p);
+      setPost(p ?? null);
+    });
+    return () => { live = false; };
+  }, [id, gen]);
+  if (!post) return <DashboardPanelSkeleton />;
+  return <Detail post={post} onClose={onClose} />;
+}
 
 const GLYPH: Record<(typeof KIND_ICON)[keyof typeof KIND_ICON], Icon> = {
   "circle-dashed": CircleDashedIcon,
@@ -244,6 +253,14 @@ function Detail({ post: p, onClose }: { post: PostData; onClose: () => void }) {
   const [optimisticStatus, setOptimisticStatus] = useState<string | null>(null);
   const [pendingComments, setPendingComments] = useState<OptimisticComment[]>([]);
 
+  const prevId = useRef(p.id);
+  if (p.id !== prevId.current) {
+    prevId.current = p.id;
+    setEta(p.eta ?? "");
+    setReply("");
+    setMerging(false);
+    setOptimisticStatus(null);
+  }
   const prevTimeline = useRef(p.timeline);
   if (p.timeline !== prevTimeline.current) {
     prevTimeline.current = p.timeline;
@@ -309,8 +326,8 @@ function Detail({ post: p, onClose }: { post: PostData; onClose: () => void }) {
   const G = GLYPH[KIND_ICON[current.kind]];
 
   return (
-    <div className="flex min-w-0 flex-1 overflow-hidden animate-in fade-in-0 slide-in-from-right-3 duration-150 ease-out motion-reduce:animate-none">
-      <div className="flex min-w-0 flex-1 flex-col overflow-auto scrollbar-thin">
+    <div className="flex min-w-0 flex-1 overflow-hidden ">
+      <div key={p.id} className="flex min-w-0 flex-1 flex-col overflow-auto scrollbar-thin animate-in fade-in-0 duration-100 motion-reduce:animate-none">
         <div className="flex h-12 shrink-0 items-center justify-between border-b pr-3 pl-5">
           <span className="text-xs text-faint">{p.board.name}</span>
           <div className="flex items-center gap-1">
