@@ -1,6 +1,30 @@
 {
   "name": "openheard",
   "private": true,
+  "description": "Open source feedback board that looks like a 2026 product — board, roadmap, changelog. One Cloudflare Worker + D1, deploys free.",
+  "license": "AGPL-3.0",
+  "homepage": "https://openheard.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Heilonng23/openheard.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Heilonng23/openheard/issues"
+  },
+  "keywords": [
+    "feedback",
+    "feedback-board",
+    "roadmap",
+    "changelog",
+    "canny-alternative",
+    "featurebase",
+    "self-hosted",
+    "cloudflare-workers",
+    "d1",
+    "tanstack-start",
+    "drizzle",
+    "better-auth"
+  ],
   "workspaces": {
     "packages": [
       "apps/*",

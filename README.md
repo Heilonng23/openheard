@@ -1,72 +1,131 @@
-# openheard
+<p align="center">
+  <a href="https://openheard.com"><img src="apps/web/public/favicon.svg" alt="openheard" width="56" /></a>
+</p>
 
-Open source feedback board that looks like a 2026 product. Board, roadmap,
-changelog. One Cloudflare Worker, D1, deploys free in one click.
+<h1 align="center">openheard</h1>
 
-Status: early. Built in the open for The Build Games, September 2026.
+<p align="center">
+  Open source feedback board, roadmap and changelog.<br />
+  The Canny alternative that runs on Cloudflare's free tier.
+</p>
+
+<p align="center">
+  <a href="https://openheard.com">Website</a> ·
+  <a href="https://openheard.com/changelog">Changelog</a> ·
+  <a href="docs/api.md">API</a> ·
+  <a href="docs/mcp.md">MCP</a> ·
+  <a href="DESIGN.md">Design</a> ·
+  <a href="CONTRIBUTING.md">Contributing</a>
+</p>
+
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue" alt="AGPL-3.0" /></a>
+  <a href="https://github.com/Heilonng23/openheard/stargazers"><img src="https://img.shields.io/github/stars/Heilonng23/openheard?style=flat" alt="GitHub stars" /></a>
+  <a href="https://github.com/Heilonng23/openheard/actions/workflows/ci.yml"><img src="https://github.com/Heilonng23/openheard/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+</p>
+
+<p align="center">
+  <img src="apps/web/public/landing/board.png" alt="openheard public board" width="900" />
+</p>
 
 ## Why
 
-Every open source feedback tool needs a VPS, Docker and Postgres, and most of
-them look like an admin template. openheard runs on the Cloudflare free tier
-with nothing to babysit, and it is designed like something people would pay
-for. Self-host is the default, not the afterthought.
+Collecting feedback should not cost $79 a month or a weekend of Docker.
+Every open source feedback tool needs a VPS, Postgres and someone to babysit
+it, and most of them look like an admin template.
 
-## Stack
+openheard is one Cloudflare Worker and one D1 database. It deploys in two
+commands, runs on the free tier, and is designed like a product people would
+pay for. Self-hosting is the default, not the afterthought.
 
-- TanStack Start, React 19, TypeScript
-- Cloudflare Workers + D1, provisioned with Alchemy
-- Drizzle ORM, Better Auth
-- Tailwind 4, shadcn primitives with our own tokens, Phosphor icons, Geist
+## Features
 
-Design rules live in [DESIGN.md](./DESIGN.md). Read it before touching UI.
+**Collect**
+- Public board with voting, search, sorting and keyboard navigation
+- Posts with comments, reactions and a status timeline
+- Anonymous voting, sign-in gate on posting, optional approval queue
+- Sign in with Google, magic link or password
 
-## Run it locally
+**Manage**
+- Dashboard with inbox, internal notes, merge, pin, tags and ETA
+- Custom statuses that drive the roadmap columns
+- Team invites, admin and member roles, join links
+- Import from a CSV export of Canny or similar tools; export to JSON and CSV
+
+**Publish**
+- Roadmap with drag between columns
+- Changelog with an editor, linked shipped posts and an RSS feed
+- Branding: accent colour pulled from your website, board name
+
+**Extend**
+- HTTP API with per-workspace keys at `/api/v1` ([docs](docs/api.md))
+- MCP server at `/api/mcp` so Claude, Cursor and other agents can read and
+  triage feedback ([docs](docs/mcp.md))
+- Multi-workspace: each workspace lives on its own subdomain
+
+Coming next: image uploads, changelog email subscribers, an embeddable widget,
+a CLI and a docs site.
+
+## Get started
+
+### Cloud
+
+Sign up at [openheard.com](https://openheard.com). Your board lives at
+`<slug>.openheard.com`. There is a free tier.
+
+### Self-host on Cloudflare
+
+Needs a Cloudflare account. Everything fits in the free tier.
+
+```bash
+git clone https://github.com/Heilonng23/openheard && cd openheard
+bun install
+cp packages/infra/.env.example packages/infra/.env   # set BETTER_AUTH_SECRET
+cd packages/infra && bunx alchemy login --configure && cd ../..
+bun run deploy
+```
+
+That provisions the Worker, the D1 database and KV, applies migrations and
+prints your URL. The first account to sign up becomes the admin.
+
+### Run locally
 
 No Cloudflare account needed. A SQLite file stands in for D1.
 
 ```bash
 bun install
-bun run db:push:local   # creates apps/web/local.db from the schema
+bun run db:push:local   # creates apps/web/local.db
 bun run dev:local       # http://localhost:3001
-```
-
-Sign up once, that account becomes the admin. Then, if you want sample
-data to click around in:
-
-```bash
-bun run db:seed
+bun run db:seed         # optional demo posts
 ```
 
 Keyboard on the board: `j` `k` move, `v` vote, `enter` open, `/` search,
 `c` new post.
 
-## Deploy to Cloudflare
+## Stack
 
-```bash
-cd packages/infra && bunx alchemy login --configure
-cd ../.. && bun run deploy
-```
+- [TanStack Start](https://tanstack.com/start), React 19, TypeScript
+- Cloudflare Workers, D1 and KV, provisioned with [Alchemy](https://alchemy.run)
+- [Drizzle ORM](https://orm.drizzle.team), [Better Auth](https://better-auth.com)
+- Tailwind 4, Base UI primitives, Phosphor icons, Geist
 
-That provisions the Worker and the D1 database, applies migrations and
-prints the URL. Runs on the free tier.
+Design rules live in [DESIGN.md](DESIGN.md). Read it before touching UI.
 
-## Status
+## Contributing
 
-Working: public board with votes, search and sorting; posts with comments and
-a status timeline; roadmap; changelog with RSS; an admin dashboard at `/dashboard`
-with an inbox, internal notes, merges, pins, tags, and settings for the
-workspace, boards, tags and team.
+Bug reports and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md)
+for local setup and the checks a PR needs to pass. Security issues go to the
+contact in [SECURITY.md](SECURITY.md), not the issue tracker.
 
-Next: image uploads, magic link sign-in, email invites, an HTTP API with keys,
-then an MCP server, a CLI and an embeddable widget on top of it.
+Built in the open for [The Build Games](https://canivibecodeit.com/thebuildgames),
+September 2026.
 
 ## License
 
 The app (`apps/web`, `packages/db`, `packages/auth`, `packages/ui`) is
-[AGPL-3.0](./LICENSE). Self-host it freely; if you run a modified version as
-a service, publish your changes.
+[AGPL-3.0](LICENSE). Self-host it freely; if you run a modified version as a
+service, publish your changes.
 
-The pieces you embed in your own product, the widget, the CLI, the MCP server
-and the API client, will ship under MIT in their own packages so they never
-touch your licence.
+The pieces you embed in your own product, the widget, the CLI and the API
+client, will ship under MIT in their own packages so they never touch your
+licence.

@@ -40,7 +40,7 @@ export function Panel({ title, children, className, actions }: { title: ReactNod
             </button>
           </div>
         </div>
-        <div key={typeof title === "string" ? title : undefined} className={cn("min-h-0 flex-1 overflow-auto animate-in fade-in-0 duration-150 motion-reduce:animate-none", className)}>{children}</div>
+        <div key={typeof title === "string" ? title : undefined} className={cn("min-h-0 flex-1 overflow-auto scrollbar-thin animate-in fade-in-0 duration-150 motion-reduce:animate-none", className)}>{children}</div>
       </div>
     </div>
   );

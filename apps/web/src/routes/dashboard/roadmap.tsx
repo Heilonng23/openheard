@@ -254,7 +254,7 @@ function Roadmap() {
 
         {/* Kanban columns */}
         <DndContext sensors={sensors} collisionDetection={collisionDetection} onDragStart={onDragStart} onDragOver={onDragOver} onDragEnd={onDragEnd} onDragCancel={onDragCancel} accessibility={liveRegionContainer ? { container: liveRegionContainer } : undefined}>
-          <div className="flex flex-1 gap-0 overflow-x-auto px-5 pb-5">
+          <div className="scrollbar-thin flex flex-1 gap-0 overflow-x-auto px-5 pb-5">
             {columns.map((col) => {
               const items = grouped(col);
               return <Column key={col.key} status={col} items={items} navigate={navigate} motionOk={!reducedMotion.current} />;
