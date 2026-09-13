@@ -7,7 +7,9 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { MergeDialog } from "@/components/merge-dialog";
+import { Dialog, DialogContent } from "@openheard/ui/components/dialog";
 import { Panel } from "@/components/admin/panel";
+import { FilterColumn } from "@/components/admin/sidebar";
 import { Avatar, StatusChip, TeamBadge } from "@/components/bits";
 import { DashboardErrorState, DashboardPanelSkeleton } from "@/components/states";
 import { listInbox, setBoard } from "@/functions/admin";
@@ -43,11 +45,29 @@ function Inbox() {
   const meta = search.status ? findStatus(statuses, search.status) : null;
   const sort = search.sort ?? "new";
   const filtered = !!(search.status || search.board || search.tag);
-  const hasPost = !!search.post;
+  const [q, setQ] = useState("");
+  const needle = q.trim().toLowerCase();
+  const shown = needle ? list.filter((p) => p.title.toLowerCase().includes(needle) || p.board.name.toLowerCase().includes(needle) || (p.author?.name ?? "").toLowerCase().includes(needle)) : list;
+  const openIds = shown.map((p) => p.id);
+  const idx = search.post ? openIds.indexOf(search.post) : -1;
+  const go = (i: number) => {
+    const id = openIds[i];
+    if (id !== undefined) navigate({ search: (p) => ({ ...p, post: id }), resetScroll: false, viewTransition: false });
+  };
+  useEffect(() => {
+    if (!search.post) return;
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.target as HTMLElement)?.closest("input, textarea, [contenteditable]")) return;
+      if (e.key === "j") go(idx + 1);
+      else if (e.key === "k") go(idx - 1);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
 
   return (
-    <Panel title={meta ? meta.label : "Posts"} className="flex">
-      <div className={cn("flex shrink-0 flex-col overflow-auto scrollbar-thin", hasPost ? "hidden w-[400px] border-r md:flex" : "w-full")}>
+    <Panel title={meta ? meta.label : "Posts"} className="flex" aside={<FilterColumn />} onSearch={setQ}>
+      <div className="flex w-full shrink-0 flex-col overflow-auto scrollbar-thin">
         <div className="flex items-center gap-1.5 px-3 pt-3 pb-2.5">
           <DropdownMenu>
             <DropdownMenuTrigger className="inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-[13px] text-muted-foreground outline-none hover:bg-accent hover:text-foreground">
@@ -105,7 +125,7 @@ function Inbox() {
             </DropdownMenuContent>
           </DropdownMenu>
           <span className="flex-1" />
-          <span className="text-xs text-faint tabular-nums">{list.length}</span>
+          <span className="text-xs text-faint tabular-nums">{shown.length}</span>
         </div>
         {filtered ? (
           <div className="flex flex-wrap gap-1.5 px-4 pb-2.5 animate-in fade-in-0 slide-in-from-top-1 duration-150 motion-reduce:animate-none">
@@ -124,7 +144,8 @@ function Inbox() {
             ) : null}
           </div>
         ) : null}
-        {list.map((p) => {
+        {needle && shown.length === 0 ? <p className="px-5 py-10 text-center text-sm text-faint">Nothing matches “{q}”.</p> : null}
+        {shown.map((p) => {
           const on = search.post === p.id;
           const st = findStatus(statuses, p.status);
           const G = GLYPH[KIND_ICON[st.kind]];
@@ -135,61 +156,38 @@ function Inbox() {
               to="/dashboard/inbox"
               search={{ ...search, post: on ? undefined : p.id }}
               resetScroll={false}
-              className={cn("relative shrink-0 border-t transition-colors duration-100", on ? "bg-accent before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-link" : "hover:bg-accent/50", hasPost ? "flex flex-col gap-1.5 px-4 py-3.5" : "flex h-13 items-center gap-3.5 px-5")}
+              viewTransition={false}
+              className={cn("relative shrink-0 border-t transition-colors duration-100", on ? "bg-accent before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-link" : "hover:bg-accent/50", "flex h-[50px] items-center gap-3.5 px-5")}
             >
-              {hasPost ? (
-                <>
-                  <div className="flex items-start gap-2">
-                    <G weight={filled ? "fill" : "regular"} className="mt-0.5 size-3.5 shrink-0" style={{ color: st.color }} />
-                    <span className="min-w-0 flex-1 text-[14px] leading-[1.35] font-medium">{p.title}</span>
-                    <VoteChip n={p.voteCount} />
-                  </div>
-                  <div className="flex items-center gap-2.5 pl-[22px] text-[12px] text-faint">
-                    {p.trending ? <Trending /> : null}
-                    <span>{p.board.name}</span>
-                    <span>{p.author?.name ?? "someone"}</span>
-                    <span>{ago(p.createdAt)}</span>
-                    {p.commentCount ? (
-                      <span className="inline-flex items-center gap-1">
-                        <ChatCircleIcon className="size-[11px]" /> {p.commentCount}
-                      </span>
-                    ) : null}
-                  </div>
-                </>
-              ) : (
-                <>
-                  <G weight={filled ? "fill" : "regular"} className="size-5 shrink-0" style={{ color: st.color }} />
-                  <span className="min-w-0 truncate text-[16px] font-medium">
-                    {p.pinned ? <PushPinIcon weight="fill" className="mr-1.5 inline size-3 text-faint" /> : null}
-                    {p.title}
-                  </span>
-                  {p.trending ? <Trending /> : null}
-                  <VoteChip n={p.voteCount} />
-                  <span className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md bg-secondary px-2.5 text-[12px] font-medium whitespace-nowrap text-muted-foreground">
-                    <span className="size-1.5 rounded-full bg-link" />
-                    {p.board.name}
-                  </span>
-                  {p.tags.slice(0, 2).map((t) => (
-                    <span key={t.id} className="hidden h-7 shrink-0 items-center rounded-md border border-input px-2.5 text-[12px] font-medium whitespace-nowrap text-faint xl:inline-flex">
-                      {t.name}
-                    </span>
-                  ))}
-                  <span className="flex-1" />
-                  {p.commentCount ? (
-                    <span className="inline-flex items-center gap-1 text-[13px] text-faint">
-                      <ChatCircleIcon className="size-[14px]" /> {p.commentCount}
-                    </span>
-                  ) : null}
-                  <span className="w-10 text-right text-[12px] text-faint tabular-nums">{ago(p.createdAt)}</span>
-                  <Avatar name={p.author?.name ?? "?"} image={p.author?.image} size={26} />
-                </>
-              )}
+              <G weight={filled ? "fill" : "regular"} className="size-[17px] shrink-0" style={{ color: st.color }} aria-label={st.label} />
+              <span className="min-w-0 truncate text-[14px] font-medium">
+                {p.pinned ? <PushPinIcon weight="fill" className="mr-1.5 inline size-3 text-faint" /> : null}
+                {p.title}
+              </span>
+              <span className="inline-flex h-[24px] shrink-0 items-center gap-1.5 rounded-md bg-secondary px-2 text-[12px] font-medium whitespace-nowrap text-muted-foreground">
+                <span className="size-1.5 rounded-full bg-link" />
+                {p.board.name}
+              </span>
+              {p.trending ? <Trending /> : null}
+              <span className="flex-1" />
+              {p.commentCount ? (
+                <span className="inline-flex items-center gap-1 text-[12px] text-faint">
+                  <ChatCircleIcon className="size-[13px]" /> {p.commentCount}
+                </span>
+              ) : null}
+              <span className="w-9 text-right text-[12px] text-faint tabular-nums">{ago(p.createdAt)}</span>
+              <Avatar name={p.author?.name ?? "?"} image={p.author?.image} size={24} />
+              <VoteChip n={p.voteCount} />
             </Link>
           );
         })}
       </div>
 
-      {search.post ? <PostDetail id={search.post} onClose={() => navigate({ search: (p) => ({ ...p, post: undefined }) })} /> : null}
+      <Dialog modal="trap-focus" open={!!search.post} onOpenChange={(o) => !o && navigate({ search: (p) => ({ ...p, post: undefined }), resetScroll: false, viewTransition: false })}>
+        <DialogContent showClose={false} className="h-[min(680px,86vh)] max-w-[1000px] gap-0 overflow-hidden bg-background p-0 sm:rounded-xl">
+          {search.post ? <PostDetail id={search.post} onClose={() => navigate({ search: (p) => ({ ...p, post: undefined }), resetScroll: false, viewTransition: false })} nav={{ idx, total: openIds.length, prev: idx > 0 ? () => go(idx - 1) : undefined, next: idx < openIds.length - 1 ? () => go(idx + 1) : undefined }} /> : null}
+        </DialogContent>
+      </Dialog>
     </Panel>
   );
 }
@@ -199,7 +197,9 @@ type PostData = NonNullable<Awaited<ReturnType<typeof getPost>>>;
 const postCache = new Map<number, PostData>();
 
 /** Fetches a post client-side and keeps the previous one on screen while the next loads, so switching never flashes a skeleton. */
-function PostDetail({ id, onClose }: { id: number; onClose: () => void }) {
+type DetailNav = { idx: number; total: number; prev?: () => void; next?: () => void };
+
+function PostDetail({ id, onClose, nav }: { id: number; onClose: () => void; nav: DetailNav }) {
   const router = useRouter();
   const [post, setPost] = useState<PostData | null>(() => postCache.get(id) ?? null);
   const [gen, setGen] = useState(0);
@@ -214,7 +214,7 @@ function PostDetail({ id, onClose }: { id: number; onClose: () => void }) {
     return () => { live = false; };
   }, [id, gen]);
   if (!post) return <DashboardPanelSkeleton />;
-  return <Detail post={post} onClose={onClose} />;
+  return <Detail post={post} onClose={onClose} nav={nav} />;
 }
 
 const GLYPH: Record<(typeof KIND_ICON)[keyof typeof KIND_ICON], Icon> = {
@@ -240,7 +240,7 @@ type OptimisticComment = {
   note?: undefined;
 };
 
-function Detail({ post: p, onClose }: { post: PostData; onClose: () => void }) {
+function Detail({ post: p, onClose, nav }: { post: PostData; onClose: () => void; nav: DetailNav }) {
   const root = useLoaderData({ from: "__root__" });
   const statuses = useStatuses();
   const router = useRouter();
@@ -322,14 +322,24 @@ function Detail({ post: p, onClose }: { post: PostData; onClose: () => void }) {
   const comments = mergedTimeline.filter((t) => t.kind === "comment");
   const activity = mergedTimeline.filter((t) => t.kind === "activity");
   const shown = tab === "comments" ? comments : activity;
-  const chip = "inline-flex h-8 items-center gap-1.5 rounded-md border border-input bg-card pr-2.5 pl-2.5 text-[13px] outline-none hover:bg-accent focus-visible:ring-1 focus-visible:ring-ring";
+  const chip = "inline-flex h-8 max-w-[168px] items-center gap-1.5 truncate rounded-md border border-input bg-card pr-2.5 pl-2.5 text-[13px] whitespace-nowrap outline-none hover:bg-accent focus-visible:ring-1 focus-visible:ring-ring";
   const G = GLYPH[KIND_ICON[current.kind]];
 
   return (
     <div className="flex min-w-0 flex-1 overflow-hidden ">
-      <div key={p.id} className="flex min-w-0 flex-1 flex-col overflow-auto scrollbar-thin animate-in fade-in-0 duration-100 motion-reduce:animate-none">
-        <div className="flex h-12 shrink-0 items-center justify-between border-b pr-3 pl-5">
-          <span className="text-xs text-faint">{p.board.name}</span>
+      <div key={p.id} className="flex min-w-0 flex-1 flex-col overflow-hidden animate-in fade-in-0 duration-100 motion-reduce:animate-none">
+        <div className="flex h-12 shrink-0 items-center justify-between border-b pr-3 pl-4">
+          <div className="flex items-center gap-1.5">
+            <IconBtn title="Previous (K)" onClick={nav.prev} disabled={!nav.prev}>
+              <CaretUpIcon className="size-[12px]" />
+            </IconBtn>
+            <IconBtn title="Next (J)" onClick={nav.next} disabled={!nav.next}>
+              <CaretDownIcon className="size-[12px]" />
+            </IconBtn>
+            <span className="ml-1 text-xs text-faint tabular-nums">{nav.idx + 1} of {nav.total}</span>
+            <span className="mx-1.5 h-4 w-px bg-border" />
+            <span className="text-xs text-faint">{p.board.name}</span>
+          </div>
           <div className="flex items-center gap-1">
             <IconBtn title={p.pinned ? "Unpin" : "Pin"} onClick={() => run(() => togglePin({ data: { postId: p.id } }))}>
               <PushPinIcon weight={p.pinned ? "fill" : "regular"} className="size-[14px]" />
@@ -346,122 +356,10 @@ function Detail({ post: p, onClose }: { post: PostData; onClose: () => void }) {
           </div>
         </div>
 
-        <div className="flex flex-col gap-5 px-7 py-6">
-          <h1 className="text-[22px] font-semibold tracking-[-0.02em]">{p.title}</h1>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[13px]">
-            <span className="inline-flex items-center gap-2">
-              <Avatar name={p.author?.name ?? "?"} image={p.author?.image} size={22} />
-              <span className="font-semibold">{p.author?.name ?? "someone"}</span>
-              <span className="text-faint" title={fullDate(p.createdAt)}>· {since(p.createdAt)}</span>
-            </span>
-            <span className="inline-flex items-center gap-2 text-faint">
-              <span className="flex">
-                {p.votes.slice(0, 5).map((v, i) => (
-                  <Avatar key={v.user.id} name={v.user.name} image={v.user.image} size={20} className={cn("ring-2 ring-background", i > 0 && "-ml-1.5")} />
-                ))}
-              </span>
-              {p.voteCount} {p.voteCount === 1 ? "vote" : "votes"}
-            </span>
-            <span className="inline-flex items-center gap-1.5 text-faint">
-              ETA
-              <input
-                value={eta}
-                onChange={(e) => setEta(e.target.value)}
-                onBlur={() => eta !== (p.eta ?? "") && run(() => setEtaFn({ data: { postId: p.id, eta } }), "ETA saved")}
-                placeholder="none"
-                aria-label="ETA"
-                className="h-6 w-20 rounded-md border border-transparent bg-transparent px-1.5 font-mono text-[12px] text-foreground outline-none placeholder:text-faint hover:border-input focus:border-ring/60"
-              />
-            </span>
-          </div>
+        <div className="flex min-h-0 flex-1">
+        <div className="flex min-w-0 flex-1 flex-col gap-4 overflow-auto px-6 py-5 scrollbar-thin">
+          <h1 className="text-[19px] leading-snug font-semibold tracking-[-0.01em]">{p.title}</h1>
           {p.body ? <div className="max-w-[70ch] whitespace-pre-wrap text-[15px] leading-[1.6] text-muted-foreground">{p.body}</div> : null}
-
-          {current.kind === "review" ? (
-            <Button
-              arrow
-              onClick={() => {
-                const open = statuses.find((s) => s.kind === "open");
-                if (!open) return;
-                setOptimisticStatus(open.key);
-                toast.success("Approved");
-                setStatus({ data: { postId: p.id, status: open.key } })
-                  .then(() => router.invalidate())
-                  .catch((err) => {
-                    setOptimisticStatus(null);
-                    toast.error(err instanceof Error ? err.message : "Approve failed");
-                  });
-              }}
-            >
-              Approve
-            </Button>
-          ) : null}
-
-          <div className="flex flex-wrap items-center gap-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger className={chip}>
-                <G className="size-3.5" style={{ color: current.color }} />
-                {current.label}
-                <CaretDownIcon className="size-2.5 text-faint" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="min-w-44">
-                {statuses.map((s) => (
-                  <DropdownMenuItem
-                    key={s.key}
-                    disabled={s.key === effectiveStatus}
-                    onClick={() => {
-                      setOptimisticStatus(s.key);
-                      toast.success(`Moved to ${s.label}`);
-                      setStatus({ data: { postId: p.id, status: s.key } })
-                        .then(() => router.invalidate())
-                        .catch((err) => {
-                          setOptimisticStatus(null);
-                          toast.error(err instanceof Error ? err.message : "Could not change status");
-                        });
-                    }}
-                  >
-                    <span className="size-[7px] rounded-full" style={{ background: s.color }} />
-                    {s.label}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <DropdownMenu>
-              <DropdownMenuTrigger className={chip}>
-                <span className="size-1.5 rounded-full bg-link" />
-                {p.board.name}
-                <CaretDownIcon className="size-2.5 text-faint" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="min-w-44">
-                {root.boards.map((b) => (
-                  <DropdownMenuItem key={b.id} disabled={b.id === p.boardId} onClick={() => run(() => setBoard({ data: { postId: p.id, boardId: b.id } }), "Board changed")}>
-                    {b.name}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-            {p.tags.map((t) => (
-              <span key={t.id} className="inline-flex h-7 items-center rounded-md border border-input px-2 text-[12px] text-muted-foreground">
-                {t.name}
-              </span>
-            ))}
-            <DropdownMenu>
-              <DropdownMenuTrigger className={cn(chip, "text-faint")} title="Tags">
-                <PlusIcon className="size-3" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="min-w-44">
-                {root.tags.length === 0 ? <div className="px-2 py-1.5 text-xs text-muted-foreground">No tags yet</div> : null}
-                {root.tags.map((t) => {
-                  const on = p.tags.some((x) => x.id === t.id);
-                  return (
-                    <DropdownMenuItem key={t.id} onClick={() => run(() => setTags({ data: { postId: p.id, tags: on ? p.tags.filter((x) => x.id !== t.id).map((x) => x.id) : [...p.tags.map((x) => x.id), t.id] } }))}>
-                      <span className={cn("size-1.5 rounded-full", on ? "bg-link" : "bg-input")} />
-                      {t.name}
-                    </DropdownMenuItem>
-                  );
-                })}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
 
           <div className="flex flex-col gap-3 rounded-lg border bg-card px-3.5 pt-3 pb-2.5 focus-within:border-input">
             <textarea
@@ -551,6 +449,142 @@ function Detail({ post: p, onClose }: { post: PostData; onClose: () => void }) {
             })}
           </div>
         </div>
+        <aside className="flex w-[248px] shrink-0 flex-col gap-4 overflow-auto border-l bg-card px-4 py-4 scrollbar-thin">
+          {root.workspace.requireApproval && current.kind === "review" ? (
+            <Button
+              size="sm"
+              arrow
+              onClick={() => {
+                const open = statuses.find((s) => s.kind === "open");
+                if (!open) return;
+                setOptimisticStatus(open.key);
+                toast.success("Approved");
+                setStatus({ data: { postId: p.id, status: open.key } })
+                  .then(() => router.invalidate())
+                  .catch((err) => {
+                    setOptimisticStatus(null);
+                    toast.error(err instanceof Error ? err.message : "Approve failed");
+                  });
+              }}
+            >
+              Approve
+            </Button>
+          ) : null}
+
+          <div className="flex flex-col gap-3 text-[13px]">
+            <div className="flex h-8 items-center gap-3">
+              <span className="w-[60px] shrink-0 text-faint">Votes</span>
+              <span className="inline-flex h-7 items-center gap-1.5 rounded-md border border-input px-2 font-mono text-[12px] tabular-nums">
+                <CaretUpIcon weight="bold" className="size-[9px] text-muted-foreground" /> {p.voteCount}
+              </span>
+              <span className="flex">
+                {p.votes.slice(0, 5).map((v, i) => (
+                  <Avatar key={v.user.id} name={v.user.name} image={v.user.image} size={20} className={cn("ring-2 ring-background", i > 0 && "-ml-1.5")} />
+                ))}
+              </span>
+            </div>
+            <div className="flex h-8 items-center gap-3">
+              <span className="w-[60px] shrink-0 text-faint">Status</span>
+            <DropdownMenu>
+              <DropdownMenuTrigger className={chip}>
+                <G className="size-3.5" style={{ color: current.color }} />
+                {current.label}
+                <CaretDownIcon className="size-2.5 text-faint" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="min-w-44">
+                {statuses.map((s) => (
+                  <DropdownMenuItem
+                    key={s.key}
+                    disabled={s.key === effectiveStatus}
+                    onClick={() => {
+                      setOptimisticStatus(s.key);
+                      toast.success(`Moved to ${s.label}`);
+                      setStatus({ data: { postId: p.id, status: s.key } })
+                        .then(() => router.invalidate())
+                        .catch((err) => {
+                          setOptimisticStatus(null);
+                          toast.error(err instanceof Error ? err.message : "Could not change status");
+                        });
+                    }}
+                  >
+                    <span className="size-[7px] rounded-full" style={{ background: s.color }} />
+                    {s.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            </div>
+            <div className="flex h-8 items-center gap-3">
+              <span className="w-[60px] shrink-0 text-faint">Board</span>
+            <DropdownMenu>
+              <DropdownMenuTrigger className={chip}>
+                <span className="size-1.5 rounded-full bg-link" />
+                {p.board.name}
+                <CaretDownIcon className="size-2.5 text-faint" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="min-w-44">
+                {root.boards.map((b) => (
+                  <DropdownMenuItem key={b.id} disabled={b.id === p.boardId} onClick={() => run(() => setBoard({ data: { postId: p.id, boardId: b.id } }), "Board changed")}>
+                    {b.name}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            </div>
+            <div className="flex min-h-8 items-start gap-3">
+              <span className="w-[60px] shrink-0 pt-1.5 text-faint">Tags</span>
+              <div className="flex flex-wrap items-center gap-1.5">
+            {p.tags.map((t) => (
+              <span key={t.id} className="inline-flex h-7 items-center rounded-md border border-input px-2 text-[12px] text-muted-foreground">
+                {t.name}
+              </span>
+            ))}
+            <DropdownMenu>
+              <DropdownMenuTrigger className={cn(chip, "text-faint")} title="Tags">
+                <PlusIcon className="size-3" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="min-w-44">
+                {root.tags.length === 0 ? <div className="px-2 py-1.5 text-xs text-muted-foreground">No tags yet</div> : null}
+                {root.tags.map((t) => {
+                  const on = p.tags.some((x) => x.id === t.id);
+                  return (
+                    <DropdownMenuItem key={t.id} onClick={() => run(() => setTags({ data: { postId: p.id, tags: on ? p.tags.filter((x) => x.id !== t.id).map((x) => x.id) : [...p.tags.map((x) => x.id), t.id] } }))}>
+                      <span className={cn("size-1.5 rounded-full", on ? "bg-link" : "bg-input")} />
+                      {t.name}
+                    </DropdownMenuItem>
+                  );
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
+              </div>
+            </div>
+            <div className="flex h-8 items-center gap-3">
+              <span className="w-[60px] shrink-0 text-faint">ETA</span>
+              <input
+                value={eta}
+                onChange={(e) => setEta(e.target.value)}
+                onBlur={() => eta !== (p.eta ?? "") && run(() => setEtaFn({ data: { postId: p.id, eta } }), "ETA saved")}
+                placeholder="none"
+                aria-label="ETA"
+                className="h-6 w-20 rounded-md border border-transparent bg-transparent px-1.5 font-mono text-[12px] text-foreground outline-none placeholder:text-faint hover:border-input focus:border-ring/60"
+              />
+            </div>
+          </div>
+          <div className="flex flex-col gap-3 border-t pt-4 text-[13px]">
+            <div className="flex items-center gap-3">
+              <span className="w-[60px] shrink-0 text-faint">Created</span>
+              <span title={fullDate(p.createdAt)}>{since(p.createdAt)}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="w-[60px] shrink-0 text-faint">Author</span>
+              <span className="inline-flex items-center gap-2">
+                <Avatar name={p.author?.name ?? "?"} image={p.author?.image} size={20} />
+                {p.author?.name ?? "someone"}
+              </span>
+            </div>
+          </div>
+        </aside>
+        </div>
       </div>
 
 
@@ -561,7 +595,7 @@ function Detail({ post: p, onClose }: { post: PostData; onClose: () => void }) {
 
 function VoteChip({ n }: { n: number }) {
   return (
-    <span className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-input px-2 font-mono text-[12px] tabular-nums">
+    <span className="inline-flex h-7 w-[52px] shrink-0 items-center justify-center gap-1 rounded-md border border-input font-mono text-[12px] tabular-nums">
       <CaretUpIcon weight="bold" className="size-[9px] text-muted-foreground" /> {n}
     </span>
   );
@@ -614,9 +648,9 @@ function EmojiPicker({ onPick }: { onPick: (e: string) => void }) {
   );
 }
 
-function IconBtn({ title, onClick, children }: { title: string; onClick: () => void; children: React.ReactNode }) {
+function IconBtn({ title, onClick, children, disabled }: { title: string; onClick?: () => void; children: React.ReactNode; disabled?: boolean }) {
   return (
-    <button type="button" title={title} onClick={onClick} className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground">
+    <button type="button" title={title} onClick={onClick} disabled={disabled} className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40">
       {children}
     </button>
   );

@@ -7,12 +7,14 @@ import { Kbd } from "@/components/bits";
 import { cn } from "@openheard/ui/lib/utils";
 
 // The rounded content panel every admin page lives in, with its top bar.
-export function Panel({ title, children, className, actions }: { title: ReactNode; children: ReactNode; className?: string; actions?: ReactNode }) {
+export function Panel({ title, children, className, actions, aside, onSearch }: { title: ReactNode; children: ReactNode; className?: string; actions?: ReactNode; aside?: ReactNode; onSearch?: (q: string) => void }) {
   const navigate = useNavigate();
   const [q, setQ] = useState("");
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col py-3 pr-3">
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border bg-background">
+      <div className="flex min-h-0 flex-1 overflow-hidden rounded-xl border bg-background">
+        {aside}
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <div className="flex h-[52px] shrink-0 items-center justify-between border-b px-5">
           <div className="text-[17px] font-semibold">{title}</div>
           <div className="flex items-center gap-2">
@@ -21,14 +23,24 @@ export function Panel({ title, children, className, actions }: { title: ReactNod
               className="relative hidden md:block"
               onSubmit={(e) => {
                 e.preventDefault();
-                navigate({ to: "/", search: q ? { q } : {} });
+                if (!onSearch) navigate({ to: "/", search: q ? { q } : {} });
               }}
             >
               <MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-2.5 size-[13px] -translate-y-1/2 text-faint" />
               <input
                 data-admin-search
                 value={q}
-                onChange={(e) => setQ(e.target.value)}
+                onChange={(e) => {
+                  setQ(e.target.value);
+                  onSearch?.(e.target.value);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") {
+                    setQ("");
+                    onSearch?.("");
+                    e.currentTarget.blur();
+                  }
+                }}
                 placeholder="Search posts"
                 aria-label="Search posts"
                 className="h-[30px] w-[220px] rounded-lg border bg-card pr-10 pl-7 text-[13px] outline-none placeholder:text-faint focus:border-ring/60"
@@ -41,6 +53,7 @@ export function Panel({ title, children, className, actions }: { title: ReactNod
           </div>
         </div>
         <div key={typeof title === "string" ? title : undefined} className={cn("min-h-0 flex-1 overflow-auto scrollbar-thin animate-in fade-in-0 duration-150 motion-reduce:animate-none", className)}>{children}</div>
+        </div>
       </div>
     </div>
   );

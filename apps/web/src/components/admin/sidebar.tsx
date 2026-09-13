@@ -8,7 +8,6 @@ import {
   CircleHalfIcon,
   CircleIcon,
   GearSixIcon,
-  MagnifyingGlassIcon,
   MapTrifoldIcon,
   MegaphoneIcon,
   PlusIcon,
@@ -22,16 +21,17 @@ import {
 } from "@phosphor-icons/react";
 import { Link, useLoaderData, useLocation, useRouter } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import Logo from "@/components/logo";
 import { authClient } from "@/lib/auth-client";
 import { myWorkspaces } from "@/functions/admin";
 import { workspaceUrl } from "@/lib/workspace-url";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@openheard/ui/components/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@openheard/ui/components/dropdown-menu";
 import { Collapsible } from "@/components/collapsible";
 import { KIND_ICON, useStatuses } from "@/lib/status";
 import { cn } from "@openheard/ui/lib/utils";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@openheard/ui/components/tooltip";
 
 const GLYPH: Record<(typeof KIND_ICON)[keyof typeof KIND_ICON], Icon> = {
   "circle-dashed": CircleDashedIcon,
@@ -45,80 +45,70 @@ const GLYPH: Record<(typeof KIND_ICON)[keyof typeof KIND_ICON], Icon> = {
 // Workspace name with a menu to hop to any other workspace you belong to.
 function WorkspaceSwitcher() {
   const root = useLoaderData({ from: "__root__" });
-  const [list, setList] = useState<{ id: string; name: string; role: string }[] | null>(null);
   return (
-    <DropdownMenu onOpenChange={(o) => o && list === null && myWorkspaces().then(setList)}>
+    <DropdownMenu>
       <DropdownMenuTrigger className="group/ws flex h-7 items-center gap-2 rounded-md pr-1.5 pl-0.5 text-sm font-semibold outline-none hover:bg-accent/60 focus-visible:ring-1 focus-visible:ring-ring">
         <Logo size={22} />
         <span className="truncate text-[15px]">{root.workspace.name}</span>
         <CaretDownIcon className="size-2.5 text-faint opacity-0 group-hover/ws:opacity-100" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="min-w-52">
-        {(list ?? [{ id: root.workspace.id, name: root.workspace.name, role: "admin" }]).map((w) => (
-          <DropdownMenuItem key={w.id} disabled={w.id === root.workspace.id} onClick={() => (window.location.href = workspaceUrl(w.id, root.rootDomain, "/dashboard"))}>
-            <span className="flex-1 truncate">{w.name}</span>
-            <span className="text-xs text-faint capitalize">{w.role}</span>
-          </DropdownMenuItem>
-        ))}
-        {root.rootDomain ? (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem render={<Link to="/new" />}>
-              <PlusIcon className="size-3.5" /> New workspace
-            </DropdownMenuItem>
-          </>
-        ) : null}
+        <WorkspaceItems />
       </DropdownMenuContent>
     </DropdownMenu>
   );
 }
 
-// 240px sidebar from the size guide: 16px edges, 30px items 4px apart,
-// group labels 16 above and 8 below.
-export function AdminSidebar({ onNewPost, onCollapse }: { onNewPost?: () => void; onCollapse?: () => void }) {
+// Rows of the workspace menu: every workspace you belong to, then "New workspace".
+function WorkspaceItems() {
+  const root = useLoaderData({ from: "__root__" });
+  const [list, setList] = useState<{ id: string; name: string; role: string }[] | null>(null);
+  useEffect(() => {
+    myWorkspaces().then(setList);
+  }, []);
+  return (
+    <>
+      {(list ?? [{ id: root.workspace.id, name: root.workspace.name, role: "admin" }]).map((w) => (
+        <DropdownMenuItem key={w.id} disabled={w.id === root.workspace.id} onClick={() => (window.location.href = workspaceUrl(w.id, root.rootDomain, "/dashboard"))}>
+          <span className="flex-1 truncate">{w.name}</span>
+          <span className="text-xs text-faint capitalize">{w.role}</span>
+        </DropdownMenuItem>
+      ))}
+      {root.rootDomain ? (
+        <>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem render={<Link to="/new" />}>
+            <PlusIcon className="size-3.5" /> New workspace
+          </DropdownMenuItem>
+        </>
+      ) : null}
+    </>
+  );
+}
+
+// 220px filter column shown next to the rail on the Posts page.
+export function FilterColumn() {
   const root = useLoaderData({ from: "__root__" });
   const { pathname, search } = useLocation();
   const statuses = useStatuses();
   const status = (search as { status?: string }).status ?? "";
   const inInbox = pathname.startsWith("/dashboard/inbox");
-
+  const plain = inInbox && !status && !(search as { board?: string }).board && !(search as { tag?: string }).tag;
   return (
-    <aside className="flex h-full w-60 flex-col px-4 pt-3.5 pb-4">
-      <div className="flex items-center justify-between px-1">
-        <WorkspaceSwitcher />
-        <button type="button" onClick={onCollapse} className="inline-flex size-7 items-center justify-center rounded-md text-faint hover:bg-accent hover:text-foreground" title="Collapse sidebar">
-          <SidebarSimpleIcon className="size-[15px]" />
-        </button>
+    <aside className="flex h-full w-[220px] shrink-0 flex-col overflow-y-auto border-r px-3 pt-[15px] pb-4 [scrollbar-width:none]">
+      <div className="flex h-7 items-center pl-2">
+        <span className="text-[15px] font-semibold">Posts</span>
       </div>
-
-      <Group>
-        <Item to="/dashboard/inbox" active={inInbox && !(search as { status?: string }).status} icon={TrayIcon} label="Posts" count={root.total} />
-        <Item to="/dashboard/roadmap" icon={MapTrifoldIcon} label="Roadmap" />
-        <Item to="/dashboard/changelog" icon={MegaphoneIcon} label="Changelog" />
-        <Item icon={PlusIcon} label="New post" onClick={onNewPost} />
-        <Item icon={MagnifyingGlassIcon} label="Search" onClick={() => document.querySelector<HTMLInputElement>("[data-admin-search]")?.focus()} />
-      </Group>
-
-      <Group label="Statuses">
+      <div className="flex flex-col gap-1 pt-3">
+        <Item to="/dashboard/inbox" active={plain} icon={TrayIcon} label="All posts" count={root.total} />
+      </div>
+      <Group label="Status">
         {statuses.map((s) => {
           const G = GLYPH[KIND_ICON[s.kind]];
           const filled = s.kind === "done" || s.kind === "closed";
-          return (
-            <Item
-              key={s.key}
-              to="/dashboard/inbox"
-              search={{ status: s.key }}
-              active={inInbox && status === s.key}
-              icon={G}
-              iconColor={s.color}
-              weight={filled ? "fill" : "regular"}
-              label={s.label}
-              count={root.statusCounts[s.key] ?? 0}
-            />
-          );
+          return <Item key={s.key} to="/dashboard/inbox" search={{ status: s.key }} active={inInbox && status === s.key} icon={G} iconColor={s.color} weight={filled ? "fill" : "regular"} label={s.label} count={root.statusCounts[s.key] ?? 0} />;
         })}
       </Group>
-
       <Group label="Quick filters">
         <Expand icon={SquaresFourIcon} label="Boards">
           {root.boards.map((b) => (
@@ -131,6 +121,31 @@ export function AdminSidebar({ onNewPost, onCollapse }: { onNewPost?: () => void
             <Item key={t.id} to="/dashboard/inbox" search={{ status, tag: t.id }} active={inInbox && (search as { tag?: string }).tag === t.id} label={t.name} sub />
           ))}
         </Expand>
+      </Group>
+    </aside>
+  );
+}
+
+// Expanded nav: workspace switcher, pages, account. Same destinations as the rail.
+export function AdminSidebar({ onNewPost, onCollapse }: { onNewPost?: () => void; onCollapse?: () => void }) {
+  const root = useLoaderData({ from: "__root__" });
+  const { pathname, search } = useLocation();
+  const inInbox = pathname.startsWith("/dashboard/inbox");
+
+  return (
+    <aside className="flex h-full w-[200px] flex-col px-3 pt-3.5 pb-4">
+      <div className="flex items-center justify-between px-1">
+        <WorkspaceSwitcher />
+        <button type="button" onClick={onCollapse} className="inline-flex size-7 items-center justify-center rounded-md text-faint hover:bg-accent hover:text-foreground" title="Collapse sidebar">
+          <SidebarSimpleIcon className="size-[15px]" />
+        </button>
+      </div>
+
+      <Group>
+        <Item to="/dashboard/inbox" active={inInbox && !(search as { status?: string }).status} icon={TrayIcon} label="Posts" count={root.total} />
+        <Item to="/dashboard/roadmap" icon={MapTrifoldIcon} label="Roadmap" />
+        <Item to="/dashboard/changelog" icon={MegaphoneIcon} label="Changelog" />
+        <Item icon={PlusIcon} label="New post" onClick={onNewPost} />
       </Group>
 
       <div className="flex-1" />
@@ -263,55 +278,65 @@ function Item({
 
 // 56px rail: same destinations as the full sidebar, icons only, titles on hover.
 export function AdminRail({ onExpand, onNewPost }: { onExpand?: () => void; onNewPost?: () => void }) {
-  const { pathname, search } = useLocation();
+  const { pathname } = useLocation();
   const root = useLoaderData({ from: "__root__" });
   const router = useRouter();
-  const statuses = useStatuses();
-  const status = (search as { status?: string }).status ?? "";
   const inInbox = pathname.startsWith("/dashboard/inbox");
   const cls = (on: boolean) => cn("inline-flex size-9 items-center justify-center rounded-lg active:scale-95", on ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-accent/60 hover:text-foreground");
   return (
+    <TooltipProvider delay={300}>
     <aside className="flex h-full w-14 flex-col items-center gap-1 overflow-y-auto py-3.5 [scrollbar-width:none]">
-      <button type="button" onClick={onExpand} title="Expand sidebar" className="group/logo mb-2.5 inline-flex size-9 shrink-0 items-center justify-center rounded-lg hover:bg-accent/60">
-        <span className="group-hover/logo:hidden">
-          <Logo size={26} />
-        </span>
-        <SidebarSimpleIcon className="hidden size-[17px] text-muted-foreground group-hover/logo:block" />
-      </button>
-      <Link to="/dashboard/inbox" preload="viewport" title="Posts" className={cls(inInbox && !status)}>
-        <TrayIcon className="size-[17px]" />
-      </Link>
-      <Link to="/dashboard/roadmap" preload="viewport" title="Roadmap" className={cls(pathname.startsWith("/dashboard/roadmap"))}>
-        <MapTrifoldIcon className="size-[17px]" />
-      </Link>
-      <Link to="/dashboard/changelog" preload="viewport" title="Changelog" className={cls(pathname.startsWith("/dashboard/changelog"))}>
-        <MegaphoneIcon className="size-[17px]" />
-      </Link>
-      <button type="button" onClick={onNewPost} title="New post" className={cls(false)}>
-        <PlusIcon className="size-[17px]" />
-      </button>
-      <button type="button" onClick={() => document.querySelector<HTMLInputElement>("[data-admin-search]")?.focus()} title="Search" className={cls(false)}>
-        <MagnifyingGlassIcon className="size-[17px]" />
-      </button>
-      <span className="my-1.5 h-px w-6 shrink-0 bg-border" />
-      {statuses.map((s) => {
-        const G = GLYPH[KIND_ICON[s.kind]];
-        const filled = s.kind === "done" || s.kind === "closed";
-        const count = root.statusCounts[s.key] ?? 0;
-        return (
-          <Link key={s.key} to="/dashboard/inbox" search={{ status: s.key }} preload="viewport" title={`${s.label} · ${count}`} className={cn(cls(inInbox && status === s.key), "relative shrink-0")}>
-            <G weight={filled ? "fill" : "regular"} className="size-[17px]" style={{ color: s.color }} />
-            {count ? <span className="absolute top-1 right-1 font-mono text-[9px] leading-none text-faint tabular-nums">{count}</span> : null}
-          </Link>
-        );
-      })}
+      <DropdownMenu>
+        <Tip label={root.workspace.name}>
+          <DropdownMenuTrigger className="mb-2.5 inline-flex size-9 shrink-0 items-center justify-center rounded-lg outline-none hover:bg-accent/60 focus-visible:ring-1 focus-visible:ring-ring">
+            <Logo size={26} />
+          </DropdownMenuTrigger>
+        </Tip>
+        <DropdownMenuContent align="start" side="right" className="min-w-52">
+          <DropdownMenuGroup>
+            <DropdownMenuLabel className="text-[11px] tracking-[0.06em] text-faint uppercase">Workspaces</DropdownMenuLabel>
+            <WorkspaceItems />
+          </DropdownMenuGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <Tip label="Posts">
+        <Link to="/dashboard/inbox" preload="viewport" className={cls(inInbox)}>
+          <TrayIcon className="size-[17px]" />
+        </Link>
+      </Tip>
+      <Tip label="Roadmap">
+        <Link to="/dashboard/roadmap" preload="viewport" className={cls(pathname.startsWith("/dashboard/roadmap"))}>
+          <MapTrifoldIcon className="size-[17px]" />
+        </Link>
+      </Tip>
+      <Tip label="Changelog">
+        <Link to="/dashboard/changelog" preload="viewport" className={cls(pathname.startsWith("/dashboard/changelog"))}>
+          <MegaphoneIcon className="size-[17px]" />
+        </Link>
+      </Tip>
+      <Tip label="New post">
+        <button type="button" onClick={onNewPost} className={cls(false)}>
+          <PlusIcon className="size-[17px]" />
+        </button>
+      </Tip>
       <div className="flex-1" />
-      <Link to="/" preload="viewport" title="Public board" className={cls(false)}>
-        <ArrowSquareOutIcon className="size-[17px]" />
-      </Link>
-      <Link to="/dashboard/settings/general" preload="viewport" title="Settings" className={cls(pathname.startsWith("/dashboard/settings"))}>
-        <GearSixIcon className="size-[17px]" />
-      </Link>
+      {onExpand ? (
+        <Tip label="Expand sidebar">
+          <button type="button" onClick={onExpand} className={cls(false)}>
+            <SidebarSimpleIcon className="size-[17px]" />
+          </button>
+        </Tip>
+      ) : null}
+      <Tip label="Public board">
+        <Link to="/" preload="viewport" className={cls(false)}>
+          <ArrowSquareOutIcon className="size-[17px]" />
+        </Link>
+      </Tip>
+      <Tip label="Settings">
+        <Link to="/dashboard/settings/general" preload="viewport" className={cls(pathname.startsWith("/dashboard/settings"))}>
+          <GearSixIcon className="size-[17px]" />
+        </Link>
+      </Tip>
       <DropdownMenu>
         <DropdownMenuTrigger className="mt-1.5 inline-flex size-7 shrink-0 items-center justify-center rounded-full border border-input bg-accent outline-none focus-visible:ring-1 focus-visible:ring-ring" title={root.user?.name} />
         <DropdownMenuContent align="start" side="right" className="min-w-40">
@@ -329,5 +354,15 @@ export function AdminRail({ onExpand, onNewPost }: { onExpand?: () => void; onNe
         </DropdownMenuContent>
       </DropdownMenu>
     </aside>
+    </TooltipProvider>
+  );
+}
+
+function Tip({ label, children }: { label: string; children: React.ReactElement }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger render={children} />
+      <TooltipContent side="right" sideOffset={8}>{label}</TooltipContent>
+    </Tooltip>
   );
 }
