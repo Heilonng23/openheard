@@ -81,4 +81,4 @@ an admin panel.
 Inter, gradients as decoration, glow behind text, glassy blur panels, a card
 around every element, cards with a coloured left border, feature grids, a
 shadow and a border on the same element, spinners centred in empty space,
-purple anything, Lucide icons, emoji as icons, Claude in git history.
+purple anything, Lucide icons, emoji as icons.
