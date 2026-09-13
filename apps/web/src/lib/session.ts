@@ -1,5 +1,4 @@
-import { createAuth } from "@openheard/auth";
-import { createDb, membership, workspace } from "@openheard/db";
+import type { workspace } from "@openheard/db";
 import type { Role } from "@openheard/db/schema/feedback";
 import { notFound } from "@tanstack/react-router";
 import { createMiddleware } from "@tanstack/react-start";
@@ -42,6 +41,7 @@ export function isMarketingHost(host: string, rootDomainValue: string | null): b
 export async function workspaceFromRequest(request: Request): Promise<Workspace | null> {
   const host = request.headers.get("host") ?? "";
   const slug = workspaceSlugFromHost(host, await rootDomain());
+  const { createDb, workspace } = await import("@openheard/db");
   const [ws] = await createDb().select().from(workspace).where(eq(workspace.id, slug)).limit(1);
   return ws ?? null;
 }
@@ -49,6 +49,7 @@ export async function workspaceFromRequest(request: Request): Promise<Workspace 
 const ctxCache = new WeakMap<Request, Promise<{ user: SessionUser | null; workspace: Workspace; marketing: boolean }>>();
 
 async function resolveSession(request: Request) {
+  const [{ createDb, membership, workspace }, { createAuth }] = await Promise.all([import("@openheard/db"), import("@openheard/auth")]);
   const db = createDb();
   const host = request.headers.get("host") ?? "";
   const root = await rootDomain();
