@@ -31,6 +31,10 @@ export const web = Cloudflare.Website.Vite("web", {
     ROOT_DOMAIN: Config.string("ROOT_DOMAIN").pipe(Config.withDefault("")),
     GOOGLE_CLIENT_ID: Config.string("GOOGLE_CLIENT_ID").pipe(Config.withDefault("")),
     GOOGLE_CLIENT_SECRET: Config.string("GOOGLE_CLIENT_SECRET").pipe(Config.withDefault("")),
+    STRIPE_SECRET_KEY: Config.string("STRIPE_SECRET_KEY").pipe(Config.withDefault("")),
+    STRIPE_WEBHOOK_SECRET: Config.string("STRIPE_WEBHOOK_SECRET").pipe(Config.withDefault("")),
+    STRIPE_PRICE_MONTHLY: Config.string("STRIPE_PRICE_MONTHLY").pipe(Config.withDefault("")),
+    STRIPE_PRICE_YEARLY: Config.string("STRIPE_PRICE_YEARLY").pipe(Config.withDefault("")),
   },
   dev: {
     port: 3001,

@@ -9,6 +9,11 @@ export const user = sqliteTable("user", {
   image: text("image"),
   // "admin" sees the inline controls. The first account to sign up gets it.
   role: text("role", { enum: ["admin", "member"] }).notNull().default("member"),
+  // Billing lives on the account. Free allows a couple of workspaces, Pro more.
+  plan: text("plan", { enum: ["free", "pro"] }).notNull().default("free"),
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  planRenewsAt: integer("plan_renews_at", { mode: "timestamp_ms" }),
   createdAt: integer("created_at", { mode: "timestamp_ms" })
     .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
     .notNull(),

@@ -37,6 +37,7 @@
     "react": "catalog:",
     "react-dom": "catalog:",
     "sonner": "catalog:",
+    "stripe": "^22.6.2",
     "tailwindcss": "catalog:",
     "zod": "catalog:"
   },

@@ -5,10 +5,11 @@ import { seedStatuses } from "@/lib/status-db";
 import { user } from "@openheard/db/schema/auth";
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
-import { and, asc, desc, eq, gt, inArray, lte, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, inArray, lte, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { invalidate } from "@/lib/kv-cache";
+import { PLANS } from "@/lib/plans";
 import { requireAdmin, requireUser, sessionMiddleware } from "@/lib/session";
 
 const DAY = 86_400_000;
@@ -213,6 +214,10 @@ export const createWorkspace = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const u = requireUser(context.user);
     const db = createDb();
+    const [{ n: owned }] = await db.select({ n: count() }).from(membership).where(and(eq(membership.userId, u.id), eq(membership.role, "admin"), ne(membership.workspaceId, "default")));
+    const [acct] = await db.select({ plan: user.plan }).from(user).where(eq(user.id, u.id)).limit(1);
+    const limit = PLANS[acct?.plan ?? "free"].workspaces;
+    if (owned >= limit) throw new Error(acct?.plan === "pro" ? `Pro allows ${limit} workspaces` : `Free allows ${limit} workspaces. Upgrade to Pro for ${PLANS.pro.workspaces}.`);
     const id = slugify(data.slug || data.name);
     if (!id || RESERVED_SLUGS.includes(id)) throw new Error("Pick a different slug");
     const [taken] = await db.select({ id: workspace.id }).from(workspace).where(eq(workspace.id, id)).limit(1);
