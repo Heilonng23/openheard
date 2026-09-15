@@ -51,8 +51,9 @@ function LoginPage() {
     try {
       const workspaces = await myWorkspaces();
       const own = workspaces.filter((w) => w.id !== "default");
-      if (own.length === 1) {
-        const url = workspaceUrl(own[0]!.id, root.rootDomain, "/");
+      const latest = own[own.length - 1];
+      if (latest) {
+        const url = workspaceUrl(latest.id, root.rootDomain, "/dashboard");
         try {
           const dest = new URL(url, window.location.origin);
           if (dest.origin === window.location.origin) {
