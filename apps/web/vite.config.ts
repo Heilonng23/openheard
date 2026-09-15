@@ -40,5 +40,14 @@ export default defineConfig({
     // native sqlite driver stays external in local mode
     external: ["@libsql/client", "libsql"],
   },
+  environments: {
+    ssr: {
+      build: {
+        // One server file. Split chunks can import each other in a cycle on workerd
+        // and evaluate a drizzle table before its base class exists.
+        rolldownOptions: { output: { inlineDynamicImports: true, codeSplitting: false } },
+      },
+    },
+  },
   plugins: [tailwindcss(), tanstackStart(), viteReact({ compiler: true })],
 });
