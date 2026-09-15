@@ -186,7 +186,7 @@ function StartPage() {
     return (
       <main className="flex flex-1 items-center justify-center px-5 py-16">
         <div className="flex flex-col items-center gap-4">
-          <Logo size={40} />
+          <Logo size={32} />
           <p className="text-sm text-muted-foreground">Creating your workspace…</p>
         </div>
       </main>
@@ -196,7 +196,7 @@ function StartPage() {
   return (
     <main className="flex flex-1 items-center justify-center px-5 py-16">
       <div className="flex w-full max-w-[380px] flex-col items-center gap-6">
-        <Logo size={40} />
+        <Logo size={32} />
 
         {step === 1 && (
           <div className="flex w-full flex-col items-center gap-6">

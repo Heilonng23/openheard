@@ -23,7 +23,7 @@ function NewWorkspace() {
   return (
     <main className="flex flex-1 flex-col items-center justify-center gap-6 px-5 py-16">
       <a href="/" aria-label="openheard home">
-        <Logo size={40} />
+        <Logo size={32} />
       </a>
       <WorkspaceForm
         mode="create"

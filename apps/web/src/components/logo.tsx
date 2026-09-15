@@ -1,13 +1,15 @@
-// The mark: a sound wave, the one place besides links the accent lives.
+import { MARK_D } from "@/components/mark-path";
+
+// The character alone, no box. Sized by height so it sits level with text next to it.
 export default function Logo({ size = 24 }: { size?: number }) {
+  const h = size;
+  const w = (h * 715) / 501;
   return (
-    <span
-      className="inline-flex items-center justify-center rounded-md bg-primary"
-      style={{ width: size, height: size }}
-      aria-hidden
-    >
-      <svg width={size * 0.58} height={size * 0.58} viewBox="0 0 24 24" fill="none" stroke="var(--primary-foreground)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M4 14c3-6 5-6 8 0s5 6 8 0" />
+    <span className="inline-flex shrink-0 items-center justify-center text-foreground" style={{ width: w, height: h }} aria-hidden>
+      <svg width={w} height={h} viewBox="173 269 715 501" fill="currentColor">
+        <g transform="translate(0,1024) scale(0.1,-0.1)">
+          <path d={MARK_D} />
+        </g>
       </svg>
     </span>
   );

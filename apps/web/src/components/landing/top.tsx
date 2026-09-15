@@ -47,7 +47,7 @@ export function Nav() {
         <div className={cn("mx-auto max-w-7xl rounded-2xl transition-all duration-300 xl:px-0", scrolled ? "border border-border bg-background/75 px-2 backdrop-blur-lg" : "px-7 shadow-none")}>
           <div className="flex h-[56px] items-center justify-between p-4">
             <Link to="/" className="flex items-center gap-2.5 text-[15px] font-semibold tracking-[-0.01em] text-foreground">
-              <Logo size={26} />
+              <Logo size={22} />
               openheard
             </Link>
             <nav className="hidden items-center gap-1 md:flex">

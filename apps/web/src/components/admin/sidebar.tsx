@@ -48,7 +48,7 @@ function WorkspaceSwitcher() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className="group/ws flex h-7 items-center gap-2 rounded-md pr-1.5 pl-0.5 text-sm font-semibold outline-none hover:bg-accent/60 focus-visible:ring-1 focus-visible:ring-ring">
-        <Logo size={22} />
+        <Logo size={18} />
         <span className="truncate text-[15px]">{root.workspace.name}</span>
         <CaretDownIcon className="size-2.5 text-faint opacity-0 group-hover/ws:opacity-100" />
       </DropdownMenuTrigger>
@@ -289,7 +289,7 @@ export function AdminRail({ onExpand, onNewPost }: { onExpand?: () => void; onNe
       <DropdownMenu>
         <Tip label={root.workspace.name}>
           <DropdownMenuTrigger className="mb-2.5 inline-flex size-9 shrink-0 items-center justify-center rounded-lg outline-none hover:bg-accent/60 focus-visible:ring-1 focus-visible:ring-ring">
-            <Logo size={26} />
+            <Logo size={20} />
           </DropdownMenuTrigger>
         </Tip>
         <DropdownMenuContent align="start" side="right" className="min-w-52">

@@ -23,7 +23,7 @@ function ResetPasswordPage() {
   return (
     <main className="flex flex-1 items-center justify-center px-5 py-16">
       <div className="flex w-full max-w-[380px] flex-col items-center gap-6">
-        <Logo size={40} />
+        <Logo size={32} />
         {searchError ? (
           <div className="flex flex-col items-center gap-2 text-center">
             <h1 className="text-[22px] font-semibold tracking-[-0.02em]">Link expired</h1>

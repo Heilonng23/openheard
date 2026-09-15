@@ -75,7 +75,7 @@ function LoginPage() {
   return (
     <main className="flex flex-1 items-center justify-center px-5 py-16">
       <div className="flex w-full max-w-[380px] flex-col items-center gap-6">
-        <Logo size={40} />
+        <Logo size={32} />
         <AuthForm
           wsName={wsName}
           hasGoogle={hasGoogle}
