@@ -11,7 +11,10 @@ import geistLatinFont from "@fontsource-variable/geist/files/geist-latin-wght-no
 
 export interface RouterAppContext {}
 
-const OPENPANEL_CLIENT_ID = (import.meta as { env?: Record<string, string | undefined> }).env?.VITE_OPENPANEL_CLIENT_ID;
+const VITE_ENV = (import.meta as { env?: Record<string, string | undefined> }).env ?? {};
+const OPENPANEL_CLIENT_ID = VITE_ENV.VITE_OPENPANEL_CLIENT_ID;
+// Self-hosted or cloud OpenPanel. Script and ingest both live under this origin.
+const OPENPANEL_URL = (VITE_ENV.VITE_OPENPANEL_URL ?? "https://openpanel.dev").replace(/\/$/, "");
 
 export const Route = createRootRouteWithContext<RouterAppContext>()({
   loader: () => getWorkspace(),
@@ -31,9 +34,9 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
     // Analytics only when a client id is set at build time, so self-hosters send nothing by default.
     scripts: OPENPANEL_CLIENT_ID
       ? [
-          { src: "https://openpanel.dev/op1.js", defer: true, async: true },
+          { src: `${OPENPANEL_URL}/op1.js`, defer: true, async: true },
           {
-            children: `window.op=window.op||function(){(window.op.q=window.op.q||[]).push(arguments)};window.op('init',${JSON.stringify({ clientId: OPENPANEL_CLIENT_ID, trackScreenViews: true, trackOutgoingLinks: true, trackAttributes: true })});`,
+            children: `window.op=window.op||function(){(window.op.q=window.op.q||[]).push(arguments)};window.op('init',${JSON.stringify({ clientId: OPENPANEL_CLIENT_ID, apiUrl: `${OPENPANEL_URL}/api`, trackScreenViews: true, trackOutgoingLinks: true, trackAttributes: true })});`,
           },
         ]
       : [],

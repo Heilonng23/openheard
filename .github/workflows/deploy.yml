@@ -27,3 +27,4 @@ jobs:
           STRIPE_PRICE_MONTHLY: ${{ secrets.STRIPE_PRICE_MONTHLY }}
           STRIPE_PRICE_YEARLY: ${{ secrets.STRIPE_PRICE_YEARLY }}
           VITE_OPENPANEL_CLIENT_ID: ${{ secrets.VITE_OPENPANEL_CLIENT_ID }}
+          VITE_OPENPANEL_URL: ${{ secrets.VITE_OPENPANEL_URL }}
