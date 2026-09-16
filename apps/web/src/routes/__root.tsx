@@ -11,6 +11,8 @@ import geistLatinFont from "@fontsource-variable/geist/files/geist-latin-wght-no
 
 export interface RouterAppContext {}
 
+const OPENPANEL_CLIENT_ID = (import.meta as { env?: Record<string, string | undefined> }).env?.VITE_OPENPANEL_CLIENT_ID;
+
 export const Route = createRootRouteWithContext<RouterAppContext>()({
   loader: () => getWorkspace(),
   head: ({ loaderData }) => ({
@@ -26,6 +28,15 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
       { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
       { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
     ],
+    // Analytics only when a client id is set at build time, so self-hosters send nothing by default.
+    scripts: OPENPANEL_CLIENT_ID
+      ? [
+          { src: "https://openpanel.dev/op1.js", defer: true, async: true },
+          {
+            children: `window.op=window.op||function(){(window.op.q=window.op.q||[]).push(arguments)};window.op('init',${JSON.stringify({ clientId: OPENPANEL_CLIENT_ID, trackScreenViews: true, trackOutgoingLinks: true, trackAttributes: true })});`,
+          },
+        ]
+      : [],
   }),
   component: RootDocument,
   notFoundComponent: () => (
