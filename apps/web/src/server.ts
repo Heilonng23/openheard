@@ -3,6 +3,9 @@ import { hasSessionCookie, isPrivatePath, isPublicCacheable } from "./lib/cache"
 
 const handler = createStartHandler(defaultStreamHandler);
 
+const REQUEST_TIMEOUT_MS = 25_000;
+const MAX_CACHEABLE_BODY = 2 * 1024 * 1024;
+
 function getEdgeCache(): Cache | null {
   try {
     return (caches as unknown as { default: Cache }).default;
@@ -32,7 +35,7 @@ export default {
 };
 
 async function handle(request: Request, ctx: ExecutionContext): Promise<Response> {
-const url = new URL(request.url);
+  const url = new URL(request.url);
   const cache = getEdgeCache();
 
   if (
@@ -50,14 +53,28 @@ const url = new URL(request.url);
       return resp;
     }
 
-    const response = await handler(request);
+    const response = await bounded(request, url);
+
     if (response.status === 200) {
-      const cloned = response.clone();
-      const stored = new Response(cloned.body, cloned);
-      stored.headers.set("cache-control", "public, s-maxage=60");
-      stored.headers.delete("set-cookie");
-      stored.headers.delete("vary");
-      ctx.waitUntil(cache.put(cacheKey, stored));
+      const contentLength = parseInt(response.headers.get("content-length") ?? "", 10);
+      const tooLarge = !isNaN(contentLength) && contentLength > MAX_CACHEABLE_BODY;
+
+      if (!tooLarge) {
+        const body = await response.arrayBuffer();
+
+        if (body.byteLength <= MAX_CACHEABLE_BODY) {
+          const stored = new Response(body, response);
+          stored.headers.set("cache-control", "public, s-maxage=60");
+          stored.headers.delete("set-cookie");
+          stored.headers.delete("vary");
+          ctx.waitUntil(cache.put(cacheKey, stored));
+        }
+
+        const out = new Response(body, response);
+        out.headers.set("x-cache", "MISS");
+        out.headers.set("cache-control", "public, max-age=0, s-maxage=60");
+        return out;
+      }
     }
 
     const out = new Response(response.body, response);
@@ -66,7 +83,7 @@ const url = new URL(request.url);
     return out;
   }
 
-  const response = await handler(request);
+  const response = await bounded(request, url);
 
   if (isPrivatePath(url.pathname) || hasSessionCookie(request)) {
     const out = new Response(response.body, response);
@@ -75,4 +92,21 @@ const url = new URL(request.url);
   }
 
   return response;
+}
+
+function bounded(request: Request, url: URL): Promise<Response> {
+  return new Promise<Response>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      console.error(`request timeout: ${request.method} ${url.host}${url.pathname}`);
+      resolve(new Response("Service temporarily unavailable", {
+        status: 503,
+        headers: { "content-type": "text/plain" },
+      }));
+    }, REQUEST_TIMEOUT_MS);
+
+    Promise.resolve(handler(request)).then(
+      (res: Response) => { clearTimeout(timer); resolve(res); },
+      (err: unknown) => { clearTimeout(timer); reject(err); },
+    );
+  });
 }
