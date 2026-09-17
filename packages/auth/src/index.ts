@@ -121,10 +121,9 @@ export function createAuth() {
     databaseHooks: {
       user: {
         create: {
-          // The very first account on a fresh install owns the default
-          // workspace. Everyone after that is a member until an admin says
-          // otherwise, or until they create their own workspace.
+          // Self-host: first account becomes admin. Cloud: always member.
           before: async (u) => {
+            if (rootDomain) return { data: { ...u, role: "member" } };
             const existing = await db.select({ id: schema.user.id }).from(schema.user).limit(1);
             return { data: { ...u, role: existing.length === 0 ? "admin" : "member" } };
           },
@@ -134,10 +133,14 @@ export function createAuth() {
               await db.insert(workspace).values({ id: "default" }).onConflictDoNothing();
               await db.insert(status).values(DEFAULT_STATUSES.map((d, i) => ({ workspaceId: "default", ...d, position: i }))).onConflictDoNothing();
             }
-            const others = await db.select({ userId: membership.userId }).from(membership).where(eq(membership.workspaceId, "default")).limit(1);
+            const role = rootDomain
+              ? "member" as const
+              : (await db.select({ userId: membership.userId }).from(membership).where(eq(membership.workspaceId, "default")).limit(1)).length === 0
+                ? "admin" as const
+                : "member" as const;
             await db
               .insert(membership)
-              .values({ workspaceId: "default", userId: u.id, role: others.length === 0 ? "admin" : "member" })
+              .values({ workspaceId: "default", userId: u.id, role })
               .onConflictDoNothing();
           },
         },
