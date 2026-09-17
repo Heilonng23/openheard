@@ -18,14 +18,28 @@ const OPENPANEL_URL = (VITE_ENV.VITE_OPENPANEL_URL ?? "https://openpanel.dev").r
 
 export const Route = createRootRouteWithContext<RouterAppContext>()({
   loader: () => getWorkspace(),
-  head: ({ loaderData }) => ({
-    meta: [
-      { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: loaderData ? `${loaderData.workspace.name} · feedback` : "openheard" },
-      { name: "description", content: loaderData?.workspace.tagline ?? "Open source feedback board." },
-    ],
-    links: [
+  head: ({ loaderData }) => {
+    const title = loaderData ? `${loaderData.workspace.name} · feedback` : "openheard";
+    const description = loaderData?.workspace.tagline ?? "Open source feedback board.";
+    return {
+      meta: [
+        { charSet: "utf-8" },
+        { name: "viewport", content: "width=device-width, initial-scale=1" },
+        { title },
+        { name: "description", content: description },
+        { property: "og:type", content: "website" },
+        { property: "og:site_name", content: "openheard" },
+        { property: "og:title", content: title },
+        { property: "og:description", content: description },
+        { property: "og:image", content: "https://openheard.com/og.jpg" },
+        { property: "og:image:width", content: "1200" },
+        { property: "og:image:height", content: "630" },
+        { name: "twitter:card", content: "summary_large_image" },
+        { name: "twitter:title", content: title },
+        { name: "twitter:description", content: description },
+        { name: "twitter:image", content: "https://openheard.com/og.jpg" },
+      ],
+      links: [
       { rel: "preload", href: geistLatinFont, as: "font", type: "font/woff2", crossOrigin: "anonymous" },
       { rel: "stylesheet", href: appCss },
       { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
@@ -40,7 +54,8 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
           },
         ]
       : [],
-  }),
+    };
+  },
   component: RootDocument,
   notFoundComponent: () => (
     <main className="mx-auto max-w-3xl px-8 py-24 text-center">

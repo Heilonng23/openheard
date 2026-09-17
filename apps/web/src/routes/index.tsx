@@ -36,6 +36,22 @@ export const Route = createFileRoute("/")({
     }
     return { ...data, marketing: false as const };
   },
+  head: ({ loaderData }) => {
+    if (!loaderData?.marketing) return {};
+    const title = "openheard · the open source Canny alternative";
+    const description =
+      "Collect feedback, let users vote, ship a public roadmap and changelog. Self-host in one command or use the cloud. Works with Claude, Cursor and any MCP agent.";
+    return {
+      meta: [
+        { title },
+        { name: "description", content: description },
+        { property: "og:title", content: title },
+        { property: "og:description", content: description },
+        { name: "twitter:title", content: title },
+        { name: "twitter:description", content: description },
+      ],
+    };
+  },
   component: IndexPage,
   pendingComponent: FeedSkeleton,
 });
