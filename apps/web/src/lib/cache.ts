@@ -1,6 +1,6 @@
 const PUBLIC_PATHS = ["/", "/roadmap", "/changelog"];
 const PUBLIC_PATH_PREFIXES = ["/p/"];
-const PRIVATE_PATHS = ["/dashboard", "/login", "/api", "/new", "/welcome", "/settings"];
+const PRIVATE_PATHS = ["/dashboard", "/login", "/api", "/new", "/welcome", "/settings", "/demo"];
 
 export function isPublicCacheable(pathname: string): boolean {
   if (PUBLIC_PATHS.includes(pathname)) return true;

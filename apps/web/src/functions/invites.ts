@@ -4,6 +4,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { and, eq, gt, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 
+import { assertNotDemo } from "@/lib/demo";
 import { requireAdmin, sessionMiddleware } from "@/lib/session";
 import { sendInviteEmail } from "@/lib/email";
 
@@ -25,6 +26,7 @@ export const createInvite = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const me = requireAdmin(context.user);
+    assertNotDemo(context.workspace);
     const db = createDb();
     const token = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
@@ -46,6 +48,7 @@ export const listInvites = createServerFn({ method: "GET" })
   .middleware([sessionMiddleware])
   .handler(async ({ context }) => {
     requireAdmin(context.user);
+    assertNotDemo(context.workspace);
     const db = createDb();
     return db
       .select()
@@ -59,6 +62,7 @@ export const revokeInvite = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ token: z.string() }).parse(d))
   .handler(async ({ data, context }) => {
     requireAdmin(context.user);
+    assertNotDemo(context.workspace);
     const db = createDb();
     await db
       .delete(invite)
@@ -92,6 +96,7 @@ export const removeMember = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ userId: z.string() }).parse(d))
   .handler(async ({ data, context }) => {
     const me = requireAdmin(context.user);
+    assertNotDemo(context.workspace);
     if (data.userId === me.id) throw new Error("You cannot remove yourself");
     const db = createDb();
     await db

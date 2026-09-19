@@ -32,6 +32,17 @@ export default {
   async fetch(request: Request, _env: unknown, ctx: ExecutionContext) {
     return secure(await handle(request, ctx));
   },
+  // Nightly: the public demo workspace goes back to its seed. Bindings come
+  // from `cloudflare:workers`, which is live in a scheduled invocation too.
+  async scheduled(_controller: ScheduledController, _env: unknown, ctx: ExecutionContext) {
+    ctx.waitUntil(
+      (async () => {
+        const [{ createDb }, { resetDemoWorkspace }] = await Promise.all([import("@openheard/db"), import("./lib/demo-db")]);
+        const { posts } = await resetDemoWorkspace(createDb());
+        console.log(`demo reset: ${posts} posts`);
+      })(),
+    );
+  },
 };
 
 async function handle(request: Request, ctx: ExecutionContext): Promise<Response> {

@@ -59,7 +59,8 @@
     "destroy": "bun run --filter @openheard/infra destroy",
     "dev:local": "OPENHEARD_LOCAL=1 bun run --filter web dev:bare",
     "db:push:local": "bun run --filter @openheard/db db:push:local",
-    "db:seed": "OPENHEARD_LOCAL=1 bun run --filter web seed"
+    "db:seed": "OPENHEARD_LOCAL=1 bun run --filter web seed",
+    "demo:reset": "OPENHEARD_LOCAL=1 bun run --filter web demo:reset"
   },
   "dependencies": {
     "@openheard/env": "workspace:*",

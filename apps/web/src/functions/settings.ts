@@ -9,6 +9,7 @@ import { and, count, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { invalidate } from "@/lib/kv-cache";
+import { assertNotDemo } from "@/lib/demo";
 import { requireAdmin, requireUser, sessionMiddleware } from "@/lib/session";
 
 const slug = (s: string) =>
@@ -151,6 +152,7 @@ export const listApiKeys = createServerFn({ method: "GET" })
   .middleware([sessionMiddleware])
   .handler(async ({ context }) => {
     requireAdmin(context.user);
+    assertNotDemo(context.workspace);
     return createDb()
       .select({ id: apiKey.id, name: apiKey.name, prefix: apiKey.prefix, createdAt: apiKey.createdAt, lastUsedAt: apiKey.lastUsedAt, revokedAt: apiKey.revokedAt })
       .from(apiKey)
@@ -164,6 +166,7 @@ export const createApiKey = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ name: z.string().trim().min(1).max(40) }).parse(d))
   .handler(async ({ data, context }) => {
     const u = requireAdmin(context.user);
+    assertNotDemo(context.workspace);
     const bytes = crypto.getRandomValues(new Uint8Array(24));
     const secret = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
     const key = `oh_${secret}`;
@@ -177,6 +180,7 @@ export const revokeApiKey = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ id: z.string() }).parse(d))
   .handler(async ({ data, context }) => {
     requireAdmin(context.user);
+    assertNotDemo(context.workspace);
     await createDb().update(apiKey).set({ revokedAt: new Date() }).where(and(eq(apiKey.id, data.id), eq(apiKey.workspaceId, context.workspace.id)));
     return { ok: true };
   });
@@ -187,6 +191,7 @@ export const exportPosts = createServerFn({ method: "GET" })
   .middleware([sessionMiddleware])
   .handler(async ({ context }) => {
     requireAdmin(context.user);
+    assertNotDemo(context.workspace);
     const db = createDb();
     const rows = await db.query.post.findMany({
       where: eq(post.workspaceId, context.workspace.id),

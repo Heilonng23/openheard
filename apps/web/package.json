@@ -7,6 +7,7 @@
     "serve": "vite preview",
     "dev:bare": "vite dev",
     "seed": "bun run src/scripts/seed.ts",
+    "demo:reset": "bun run src/scripts/demo-reset.ts",
     "check-types": "tsc --noEmit",
     "test": "vitest run"
   },
@@ -52,6 +53,7 @@
     "jsdom": "^30.0.0",
     "typescript": "catalog:",
     "vite": "^8.1.5",
+    "vitest": "^3",
     "web-vitals": "^6.0.1"
   }
 }

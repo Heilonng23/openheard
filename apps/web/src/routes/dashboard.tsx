@@ -5,11 +5,14 @@ import { useCallback, useEffect, useState } from "react";
 import { AdminRail, AdminSidebar } from "@/components/admin/sidebar";
 import { NewPostDialog } from "@/components/new-post-dialog";
 import { DashboardErrorState, DashboardShellSkeleton } from "@/components/states";
+import { DemoBanner } from "@/components/demo-banner";
+import { isDemo } from "@/lib/demo";
 
 export const Route = createFileRoute("/dashboard")({
   loader: async ({ parentMatchPromise }) => {
     const parent = await parentMatchPromise;
     if (parent.loaderData?.user?.role !== "admin") throw redirect({ to: "/login" });
+    return { demo: isDemo(parent.loaderData?.workspace) };
   },
   component: AdminLayout,
   pendingComponent: DashboardShellSkeleton,
@@ -74,7 +77,10 @@ function AdminLayout() {
       >
         <ListIcon className="size-5" />
       </button>
-      <Outlet />
+      <div className="flex min-w-0 flex-1 flex-col">
+        {isDemo(root.workspace) ? <DemoBanner /> : null}
+        <Outlet />
+      </div>
       <NewPostDialog open={composing} onOpenChange={setComposing} boards={root.boards} signedIn={!!root.user} />
     </div>
   );

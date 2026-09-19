@@ -12,6 +12,7 @@ import { GearSixIcon } from "@phosphor-icons/react";
 import { Link, useLoaderData, useRouter } from "@tanstack/react-router";
 
 import { authClient } from "@/lib/auth-client";
+import { isDemo } from "@/lib/demo";
 
 import { Avatar } from "./bits";
 
@@ -21,6 +22,14 @@ export default function UserMenu() {
   const user = data?.user;
 
   if (!user) {
+    // Nobody signs up for the demo; one click puts them in its dashboard.
+    if (isDemo(data?.workspace)) {
+      return (
+        <Button variant="outline" size="sm" nativeButton={false} render={<a href="/demo" />}>
+          Open dashboard
+        </Button>
+      );
+    }
     return (
       <Link to="/login">
         <Button variant="outline" size="sm">

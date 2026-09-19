@@ -26,6 +26,7 @@ import { useEffect, useState } from "react";
 import Logo from "@/components/logo";
 import { authClient } from "@/lib/auth-client";
 import { myWorkspaces } from "@/functions/admin";
+import { isDemo } from "@/lib/demo";
 import { workspaceUrl } from "@/lib/workspace-url";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@openheard/ui/components/dropdown-menu";
 import { Collapsible } from "@/components/collapsible";
@@ -74,7 +75,7 @@ function WorkspaceItems() {
           <span className="text-xs text-faint capitalize">{w.role}</span>
         </DropdownMenuItem>
       ))}
-      {root.rootDomain ? (
+      {root.rootDomain && !isDemo(root.workspace) ? (
         <>
           <DropdownMenuSeparator />
           <DropdownMenuItem render={<Link to="/new" />}>

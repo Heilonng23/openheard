@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@openheard/ui/components/button";
 import { cn } from "@openheard/ui/lib/utils";
+import { DEMO_WORKSPACE_ID } from "@/lib/demo";
 import { workspaceUrl } from "@/lib/workspace-url";
 import Logo from "../logo";
 import { BlurFade } from "./magic/blur-fade";
@@ -115,6 +116,18 @@ const agents = [
 
 // Template hero: px-6, radial wash 600/800px tall with rounded-b-xl, pt-32,
 // max-w-3xl, gap-10. Then the product shot in px-6 mt-10 rounded-2xl.
+// The demo board lives on its own subdomain, so it needs an absolute URL.
+function DemoLink() {
+  const root = useLoaderData({ from: "__root__" });
+  const href = workspaceUrl(DEMO_WORKSPACE_ID, root?.rootDomain ?? null, "/");
+  if (href === "/") return null;
+  return (
+    <a href={href} className="inline-flex items-center gap-1.5 text-[14px] text-muted-foreground hover:text-foreground">
+      Try the demo <ArrowRightIcon className="size-3.5" />
+    </a>
+  );
+}
+
 export function Hero() {
   return (
     <section id="hero" className="relative w-full">
@@ -137,6 +150,7 @@ export function Hero() {
                 <Button size="lg" arrow nativeButton={false} render={<Link to="/start" />}>
                   Start for free
                 </Button>
+                <DemoLink />
                 <a href="#own" className="inline-flex items-center gap-1.5 text-[14px] text-muted-foreground hover:text-foreground">
                   Self-host <ArrowRightIcon className="size-3.5" />
                 </a>

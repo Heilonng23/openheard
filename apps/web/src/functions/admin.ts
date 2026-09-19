@@ -10,6 +10,7 @@ import { z } from "zod";
 
 import { invalidate } from "@/lib/kv-cache";
 import { PLANS } from "@/lib/plans";
+import { assertNotDemo } from "@/lib/demo";
 import { requireAdmin, requireUser, sessionMiddleware } from "@/lib/session";
 
 const DAY = 86_400_000;
@@ -145,6 +146,7 @@ export const setRole = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ userId: z.string(), role: z.enum(["admin", "member"]) }).parse(d))
   .handler(async ({ data, context }) => {
     const me = requireAdmin(context.user);
+    assertNotDemo(context.workspace);
     if (data.userId === me.id && data.role !== "admin") throw new Error("You cannot remove your own admin role");
     await createDb()
       .insert(membership)
@@ -213,6 +215,7 @@ export const createWorkspace = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ name: z.string().trim().min(2).max(60), slug: z.string().trim().min(2).max(32).optional(), website: z.string().trim().url().max(200).optional().or(z.literal("")), heardAboutUs: z.string().trim().max(100).optional().or(z.literal("")), whoCanPost: z.enum(["anyone", "members"]).optional() }).parse(d))
   .handler(async ({ data, context }) => {
     const u = requireUser(context.user);
+    assertNotDemo(context.workspace);
     const db = createDb();
     const [{ n: owned }] = await db.select({ n: count() }).from(membership).where(and(eq(membership.userId, u.id), eq(membership.role, "admin"), ne(membership.workspaceId, "default")));
     const [acct] = await db.select({ plan: user.plan }).from(user).where(eq(user.id, u.id)).limit(1);
