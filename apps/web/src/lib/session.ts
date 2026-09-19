@@ -30,6 +30,43 @@ export function workspaceSlugFromHost(host: string, rootDomainValue: string | nu
 
 // The bare root domain (and www) is the marketing site in the cloud, not a
 // board. Self-hosted installs have no ROOT_DOMAIN and are never marketing.
+// Local dev serves one origin, so there are no real subdomains to hand a
+// second workspace. With OPENHEARD_LOCAL=1, `?ws=<slug>` picks one and is
+// remembered in a cookie so server functions on the same origin agree. The
+// cloud never reads either: hosts are the only source of truth there.
+async function localDev(): Promise<boolean> {
+  const { env } = await import("@openheard/env/server");
+  return (env as unknown as { OPENHEARD_LOCAL?: string }).OPENHEARD_LOCAL === "1";
+}
+
+const SLUG = /^[a-z0-9][a-z0-9-]{0,31}$/;
+
+async function localWorkspaceOverride(request: Request): Promise<string | null> {
+  const fromQuery = new URL(request.url).searchParams.get("ws");
+  if (fromQuery && SLUG.test(fromQuery)) {
+    // Remember it, so the next server-function POST (no query string) agrees.
+    try {
+      const { setCookie } = await import("@tanstack/react-start/server");
+      setCookie("ws", fromQuery, { path: "/", sameSite: "lax" });
+    } catch {
+      // Raw handlers run outside the request context that owns the response.
+    }
+    return fromQuery;
+  }
+  const fromCookie = /(?:^|;\s*)ws=([^;]+)/.exec(request.headers.get("cookie") ?? "")?.[1];
+  return fromCookie && SLUG.test(fromCookie) ? fromCookie : null;
+}
+
+// The workspace slug a request is for, local override included.
+export async function workspaceSlugFromRequest(request: Request): Promise<string> {
+  const host = request.headers.get("host") ?? "";
+  const root = await rootDomain();
+  const fromHost = workspaceSlugFromHost(host, root);
+  if (fromHost !== "default") return fromHost;
+  if (!(await localDev())) return fromHost;
+  return (await localWorkspaceOverride(request)) ?? fromHost;
+}
+
 export function isMarketingHost(host: string, rootDomainValue: string | null): boolean {
   if (!rootDomainValue || rootDomainValue === "localhost") return false;
   const h = host.toLowerCase().split(":")[0]!;
@@ -39,8 +76,7 @@ export function isMarketingHost(host: string, rootDomainValue: string | null): b
 
 // Workspace for a raw request (sitemap, RSS, API routes that have no session middleware).
 export async function workspaceFromRequest(request: Request): Promise<Workspace | null> {
-  const host = request.headers.get("host") ?? "";
-  const slug = workspaceSlugFromHost(host, await rootDomain());
+  const slug = await workspaceSlugFromRequest(request);
   const { createDb, workspace } = await import("@openheard/db");
   const [ws] = await createDb().select().from(workspace).where(eq(workspace.id, slug)).limit(1);
   return ws ?? null;
@@ -54,7 +90,7 @@ async function resolveSession(request: Request) {
   const host = request.headers.get("host") ?? "";
   const root = await rootDomain();
   const marketing = isMarketingHost(host, root);
-  const slug = workspaceSlugFromHost(host, root);
+  const slug = await workspaceSlugFromRequest(request);
 
   const [wsResult, session] = await Promise.all([
     db.select().from(workspace).where(eq(workspace.id, slug)).limit(1),
