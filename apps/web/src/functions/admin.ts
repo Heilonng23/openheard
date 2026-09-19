@@ -10,7 +10,7 @@ import { z } from "zod";
 
 import { invalidate } from "@/lib/kv-cache";
 import { PLANS } from "@/lib/plans";
-import { assertNotDemo } from "@/lib/demo";
+import { DEMO_ADMIN_ID, assertNotDemo, assertNotDemoIdentity } from "@/lib/demo";
 import { requireAdmin, requireUser, sessionMiddleware } from "@/lib/session";
 
 const DAY = 86_400_000;
@@ -132,6 +132,8 @@ export const listMembers = createServerFn({ method: "GET" })
   .middleware([sessionMiddleware])
   .handler(async ({ context }) => {
     requireAdmin(context.user);
+    // Member emails are not demo content.
+    assertNotDemo(context.workspace);
     const db = createDb();
     return db
       .select({ id: user.id, name: user.name, email: user.email, image: user.image, role: membership.role, createdAt: membership.createdAt })
@@ -147,6 +149,9 @@ export const setRole = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const me = requireAdmin(context.user);
     assertNotDemo(context.workspace);
+    // The shared demo login must never gain a membership anywhere else: that
+    // membership is also what marks the demo workspace as ours to reset.
+    if (data.userId === DEMO_ADMIN_ID) throw new Error("Reserved account");
     if (data.userId === me.id && data.role !== "admin") throw new Error("You cannot remove your own admin role");
     await createDb()
       .insert(membership)
@@ -160,7 +165,12 @@ export const setBoard = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ postId: z.number().int(), boardId: z.string().min(1) }).parse(d))
   .handler(async ({ data, context }) => {
     requireAdmin(context.user);
-    await createDb().update(post).set({ boardId: data.boardId }).where(and(eq(post.id, data.postId), eq(post.workspaceId, context.workspace.id)));
+    const db = createDb();
+    // Board ids are global, so a post could otherwise be parked on another
+    // workspace's board and be deleted along with it.
+    const [target] = await db.select({ id: board.id }).from(board).where(and(eq(board.id, data.boardId), eq(board.workspaceId, context.workspace.id))).limit(1);
+    if (!target) throw new Error("Board not found");
+    await db.update(post).set({ boardId: data.boardId }).where(and(eq(post.id, data.postId), eq(post.workspaceId, context.workspace.id)));
     void invalidate(`workspace:${context.workspace.id}`);
     purgeWorkspaceCache(new URL(getRequest().url).origin, [data.postId]);
     return { ok: true };
@@ -188,7 +198,7 @@ export const myWorkspaces = createServerFn({ method: "GET" })
       .orderBy(membership.createdAt);
   });
 
-const RESERVED_SLUGS = ["default", "www", "app", "api", "admin", "mail"];
+const RESERVED_SLUGS = ["default", "www", "app", "api", "admin", "mail", "demo"];
 
 export const checkSlug = createServerFn({ method: "GET" })
   .validator((d: unknown) => z.object({ slug: z.string().trim().min(1).max(32) }).parse(d))
@@ -216,13 +226,17 @@ export const createWorkspace = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const u = requireUser(context.user);
     assertNotDemo(context.workspace);
+    // The workspace guard is not enough on its own: the demo cookie also
+    // reaches the apex host, where the workspace resolves to default.
+    assertNotDemoIdentity(u);
     const db = createDb();
     const [{ n: owned }] = await db.select({ n: count() }).from(membership).where(and(eq(membership.userId, u.id), eq(membership.role, "admin"), ne(membership.workspaceId, "default")));
     const [acct] = await db.select({ plan: user.plan }).from(user).where(eq(user.id, u.id)).limit(1);
     const limit = PLANS[acct?.plan ?? "free"].workspaces;
     if (owned >= limit) throw new Error(acct?.plan === "pro" ? `Pro allows ${limit} workspaces` : `Free allows ${limit} workspaces. Upgrade to Pro for ${PLANS.pro.workspaces}.`);
     const id = slugify(data.slug || data.name);
-    if (!id || RESERVED_SLUGS.includes(id)) throw new Error("Pick a different slug");
+    // checkSlug applies the same floor; the mutation cannot rely on it.
+    if (!id || id.length < 5 || RESERVED_SLUGS.includes(id)) throw new Error("Pick a different slug");
     const [taken] = await db.select({ id: workspace.id }).from(workspace).where(eq(workspace.id, id)).limit(1);
     if (taken) throw new Error("That slug is taken");
     await db.insert(workspace).values({ id, name: data.name, website: data.website || null, heardAboutUs: data.heardAboutUs || null, ...(data.whoCanPost ? { whoCanPost: data.whoCanPost } : {}) });

@@ -4,6 +4,8 @@ import { notFound } from "@tanstack/react-router";
 import { createMiddleware } from "@tanstack/react-start";
 import { and, eq } from "drizzle-orm";
 
+import { DEMO_ADMIN_ID, DEMO_WORKSPACE_ID } from "./demo";
+
 export type SessionUser = { id: string; name: string; email: string; role: Role | "guest"; image?: string | null };
 export type Workspace = typeof workspace.$inferSelect;
 
@@ -28,8 +30,6 @@ export function workspaceSlugFromHost(host: string, rootDomainValue: string | nu
   return "default";
 }
 
-// The bare root domain (and www) is the marketing site in the cloud, not a
-// board. Self-hosted installs have no ROOT_DOMAIN and are never marketing.
 // Local dev serves one origin, so there are no real subdomains to hand a
 // second workspace. With OPENHEARD_LOCAL=1, `?ws=<slug>` picks one and is
 // remembered in a cookie so server functions on the same origin agree. The
@@ -67,6 +67,8 @@ export async function workspaceSlugFromRequest(request: Request): Promise<string
   return (await localWorkspaceOverride(request)) ?? fromHost;
 }
 
+// The bare root domain (and www) is the marketing site in the cloud, not a
+// board. Self-hosted installs have no ROOT_DOMAIN and are never marketing.
 export function isMarketingHost(host: string, rootDomainValue: string | null): boolean {
   if (!rootDomainValue || rootDomainValue === "localhost") return false;
   const h = host.toLowerCase().split(":")[0]!;
@@ -94,7 +96,7 @@ async function resolveSession(request: Request) {
 
   const [wsResult, session] = await Promise.all([
     db.select().from(workspace).where(eq(workspace.id, slug)).limit(1),
-    createAuth().api.getSession({ headers: request.headers }),
+    createAuth({ demo: slug === DEMO_WORKSPACE_ID }).api.getSession({ headers: request.headers }),
   ]);
 
   let [ws] = wsResult;
@@ -105,6 +107,12 @@ async function resolveSession(request: Request) {
     [ws] = await db.select().from(workspace).where(eq(workspace.id, slug)).limit(1);
   }
   if (!ws) throw notFound();
+
+  // The shared demo login is nobody outside the demo, whatever memberships
+  // happen to exist. One check here covers every server function at once.
+  if (session && session.user.id === DEMO_ADMIN_ID && ws.id !== DEMO_WORKSPACE_ID) {
+    return { user: null, workspace: ws, marketing };
+  }
 
   let user: SessionUser | null = null;
   if (session) {

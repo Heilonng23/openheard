@@ -4,7 +4,7 @@ import { and, count, eq, ne } from "drizzle-orm";
 import { z } from "zod";
 
 import { PLANS } from "@/lib/plans";
-import { assertNotDemo } from "@/lib/demo";
+import { assertNotDemo, assertNotDemoIdentity } from "@/lib/demo";
 import { requireUser, sessionMiddleware } from "@/lib/session";
 
 // Plan, limits and usage for the signed-in account.
@@ -12,6 +12,7 @@ export const getBilling = createServerFn({ method: "GET" })
   .middleware([sessionMiddleware])
   .handler(async ({ context }) => {
     const u = requireUser(context.user);
+    assertNotDemoIdentity(u);
     const db = createDb();
     const [row] = await db.select({ plan: user.plan, renewsAt: user.planRenewsAt, customer: user.stripeCustomerId }).from(user).where(eq(user.id, u.id)).limit(1);
     const [{ n: owned }] = await db.select({ n: count() }).from(membership).where(and(eq(membership.userId, u.id), eq(membership.role, "admin"), ne(membership.workspaceId, "default")));
@@ -28,6 +29,7 @@ export const startCheckout = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const u = requireUser(context.user);
     assertNotDemo(context.workspace);
+    assertNotDemoIdentity(u);
     const { getStripe, priceFor, billingEnv } = await import("@/lib/billing");
     const stripe = await getStripe();
     if (!stripe) throw new Error("Billing is not configured");
@@ -61,6 +63,7 @@ export const openPortal = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     const u = requireUser(context.user);
     assertNotDemo(context.workspace);
+    assertNotDemoIdentity(u);
     const { getStripe, billingEnv } = await import("@/lib/billing");
     const stripe = await getStripe();
     if (!stripe) throw new Error("Billing is not configured");

@@ -15,3 +15,12 @@ export const DEMO_HIDDEN_SETTINGS = ["billing", "team", "access", "api-keys", "e
 export function assertNotDemo(workspace: { id: string }) {
   if (isDemo(workspace)) throw new Error("Not available in the demo workspace");
 }
+
+// The demo login is shared, so it is an identity anyone can assume. Guard on
+// the account as well as the workspace: a workspace check alone still lets the
+// account act on the apex host, where the workspace resolves to default.
+export const isDemoIdentity = (user: { id: string } | null | undefined) => user?.id === DEMO_ADMIN_ID;
+
+export function assertNotDemoIdentity(user: { id: string } | null | undefined) {
+  if (isDemoIdentity(user)) throw new Error("Not available for the demo account");
+}

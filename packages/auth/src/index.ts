@@ -57,7 +57,12 @@ async function authSendEmail(to: string, subject: string, html: string, text: st
   }
 }
 
-export function createAuth() {
+// The demo workspace signs everyone into one shared account. Its cookies get
+// their own name and stay host-only, so entering the demo cannot overwrite a
+// real login that spans the root domain.
+export const DEMO_COOKIE_PREFIX = "openheard-demo";
+
+export function createAuth(opts?: { demo?: boolean }) {
   const db = createDb();
   // Browsers refuse Domain=localhost cookies, so cross-subdomain sessions only
   // apply on a real root domain. Locally you sign in per subdomain.
@@ -87,7 +92,7 @@ export function createAuth() {
       },
     },
     advanced: {
-      ...(rootDomain ? { crossSubDomainCookies: { enabled: true, domain: "." + rootDomain } } : {}),
+      ...(opts?.demo ? { cookiePrefix: DEMO_COOKIE_PREFIX } : rootDomain ? { crossSubDomainCookies: { enabled: true, domain: "." + rootDomain } } : {}),
       ipAddress: {
         ipAddressHeaders: ["cf-connecting-ip", "x-forwarded-for"],
       },

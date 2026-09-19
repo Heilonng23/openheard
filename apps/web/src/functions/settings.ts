@@ -9,7 +9,7 @@ import { and, count, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { invalidate } from "@/lib/kv-cache";
-import { assertNotDemo } from "@/lib/demo";
+import { assertNotDemo, assertNotDemoIdentity, isDemo } from "@/lib/demo";
 import { requireAdmin, requireUser, sessionMiddleware } from "@/lib/session";
 
 const slug = (s: string) =>
@@ -18,6 +18,15 @@ const slug = (s: string) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 40) || "x";
+
+// Board and tag ids are a single global namespace: "Demo private" in default
+// and "Private" in demo both slugify to `demo-private`. Prefixes narrow the
+// collisions, they do not remove them, so every write proves ownership first.
+async function assertIdFree(db: ReturnType<typeof createDb>, table: typeof board | typeof tag, id: string, ws: string) {
+  const [row] = await db.select({ workspaceId: table.workspaceId }).from(table).where(eq(table.id, id)).limit(1);
+  if (row && row.workspaceId !== ws) throw new Error("That name is already in use");
+  return !!row;
+}
 
 export const saveWorkspace = createServerFn({ method: "POST" })
   .middleware([sessionMiddleware])
@@ -41,6 +50,13 @@ export const saveWorkspace = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     requireAdmin(context.user);
+    // Branding is fair game in the demo; the settings that decide whether a
+    // visitor can post or vote are what make it a demo at all.
+    if (isDemo(context.workspace)) {
+      for (const key of ["whoCanPost", "anonymousVoting", "requireApproval"] as const) {
+        if (data[key] !== undefined && data[key] !== context.workspace[key]) throw new Error("Demo access settings cannot be changed");
+      }
+    }
     const db = createDb();
     await db.update(workspace).set(data).where(eq(workspace.id, context.workspace.id));
     void invalidate(`workspace:${context.workspace.id}`);
@@ -64,8 +80,8 @@ export const saveBoard = createServerFn({ method: "POST" })
     const [{ n }] = await db.select({ n: count() }).from(board).where(eq(board.workspaceId, ws));
     // Board ids are global (they sit in URLs), so prefix outside the default workspace.
     let id = ws === "default" ? slug(data.name) : `${ws}-${slug(data.name)}`;
-    const taken = await db.select({ id: board.id }).from(board).where(eq(board.id, id));
-    if (taken.length) id = `${id}-${n + 1}`;
+    if (await assertIdFree(db, board, id, ws)) id = `${id}-${n + 1}`;
+    await assertIdFree(db, board, id, ws);
     await db.insert(board).values({ id, workspaceId: ws, name: data.name, description: data.description ?? null, position: n });
     void invalidate(`workspace:${ws}`);
     purgeWorkspaceCache(new URL(getRequest().url).origin);
@@ -78,7 +94,7 @@ export const deleteBoard = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     requireAdmin(context.user);
     const db = createDb();
-    const [{ n }] = await db.select({ n: count() }).from(post).where(eq(post.boardId, data.id));
+    const [{ n }] = await db.select({ n: count() }).from(post).where(and(eq(post.boardId, data.id), eq(post.workspaceId, context.workspace.id)));
     if (n > 0) throw new Error(`This board has ${n} posts. Move or delete them first.`);
     await db.delete(board).where(and(eq(board.id, data.id), eq(board.workspaceId, context.workspace.id)));
     void invalidate(`workspace:${context.workspace.id}`);
@@ -93,7 +109,12 @@ export const saveTag = createServerFn({ method: "POST" })
     requireAdmin(context.user);
     const ws = context.workspace.id;
     const id = ws === "default" ? slug(data.name) : `${ws}-${slug(data.name)}`;
-    await createDb().insert(tag).values({ id, workspaceId: ws, name: data.name }).onConflictDoUpdate({ target: tag.id, set: { name: data.name } });
+    const db = createDb();
+    await assertIdFree(db, tag, id, ws);
+    await db
+      .insert(tag)
+      .values({ id, workspaceId: ws, name: data.name })
+      .onConflictDoUpdate({ target: tag.id, set: { name: data.name }, setWhere: eq(tag.workspaceId, ws) });
     void invalidate(`workspace:${ws}`);
     purgeWorkspaceCache(new URL(getRequest().url).origin);
     return { id };
@@ -117,6 +138,7 @@ export const saveProfile = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ name: z.string().trim().min(1).max(60) }).parse(d))
   .handler(async ({ data, context }) => {
     const u = requireUser(context.user);
+    assertNotDemoIdentity(u);
     await createDb().update(user).set({ name: data.name }).where(eq(user.id, u.id));
     return { ok: true };
   });
@@ -244,6 +266,9 @@ export const importPosts = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ rows: z.array(importRow).min(1).max(2000) }).parse(d))
   .handler(async ({ data, context }) => {
     const me = requireAdmin(context.user);
+    // Import reads and writes the global user table keyed by email, so it can
+    // mint accounts the nightly reset would never clean up.
+    assertNotDemo(context.workspace);
     const db = createDb();
     const ws = context.workspace.id;
     const statuses = await listStatuses(db, ws);
@@ -264,6 +289,7 @@ export const importPosts = createServerFn({ method: "POST" })
       if (!boardId) {
         boardId = (ws === "default" ? slug(boardName) : `${ws}-${slug(boardName)}`) || "board";
         if ([...boards.values()].includes(boardId)) boardId = `${boardId}-${nextBoardPos + 1}`;
+        await assertIdFree(db, board, boardId, ws);
         await db.insert(board).values({ id: boardId, workspaceId: ws, name: boardName, position: nextBoardPos++ }).onConflictDoNothing();
         boards.set(boardName.toLowerCase(), boardId);
       }
@@ -294,6 +320,7 @@ export const importPosts = createServerFn({ method: "POST" })
         let tagId = tags.get(name.toLowerCase());
         if (!tagId) {
           tagId = ws === "default" ? slug(name) : `${ws}-${slug(name)}`;
+          await assertIdFree(db, tag, tagId, ws);
           await db.insert(tag).values({ id: tagId, workspaceId: ws, name }).onConflictDoNothing();
           tags.set(name.toLowerCase(), tagId);
         }

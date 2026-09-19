@@ -12,7 +12,7 @@ import { GearSixIcon } from "@phosphor-icons/react";
 import { Link, useLoaderData, useRouter } from "@tanstack/react-router";
 
 import { authClient } from "@/lib/auth-client";
-import { isDemo } from "@/lib/demo";
+import { DEMO_ADMIN_ID, isDemo } from "@/lib/demo";
 
 import { Avatar } from "./bits";
 
@@ -21,15 +21,18 @@ export default function UserMenu() {
   const data = useLoaderData({ from: "__root__" });
   const user = data?.user;
 
+  // Nobody signs up for the demo; one click puts them in its dashboard. A
+  // customer who is signed in elsewhere arrives here as a guest and needs the
+  // same button.
+  if (isDemo(data?.workspace) && user?.id !== DEMO_ADMIN_ID) {
+    return (
+      <Button variant="outline" size="sm" nativeButton={false} render={<a href="/demo" />}>
+        Open dashboard
+      </Button>
+    );
+  }
+
   if (!user) {
-    // Nobody signs up for the demo; one click puts them in its dashboard.
-    if (isDemo(data?.workspace)) {
-      return (
-        <Button variant="outline" size="sm" nativeButton={false} render={<a href="/demo" />}>
-          Open dashboard
-        </Button>
-      );
-    }
     return (
       <Link to="/login">
         <Button variant="outline" size="sm">

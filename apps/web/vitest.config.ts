@@ -9,5 +9,7 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["src/**/*.test.ts"],
+    // The demo helpers refuse to derive a password without one.
+    env: { BETTER_AUTH_SECRET: "test-secret-not-a-real-one-32chars" },
   },
 });

@@ -4,7 +4,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { and, eq, gt, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 
-import { assertNotDemo } from "@/lib/demo";
+import { assertNotDemo, assertNotDemoIdentity } from "@/lib/demo";
 import { requireAdmin, sessionMiddleware } from "@/lib/session";
 import { sendInviteEmail } from "@/lib/email";
 
@@ -76,12 +76,15 @@ export const acceptInvite = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const user = context.user;
     if (!user) throw new Error("Sign in first");
+    assertNotDemoIdentity(user);
     const db = createDb();
     const [inv] = await db
       .select()
       .from(invite)
       .where(and(eq(invite.token, data.token), gt(invite.expiresAt, new Date()), isNull(invite.acceptedAt)));
     if (!inv) throw new Error("Invite not found or expired");
+    // A token is an invitation to one address, not a bearer credential.
+    if (inv.email.toLowerCase() !== user.email.toLowerCase()) throw new Error("Sign in with the invited email");
 
     await db
       .insert(membership)

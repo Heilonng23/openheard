@@ -2,7 +2,7 @@ import { createDb } from "@openheard/db";
 import { createFileRoute } from "@tanstack/react-router";
 
 import { DEMO_ADMIN_EMAIL, DEMO_WORKSPACE_ID } from "@/lib/demo";
-import { demoAdminPassword, ensureDemoWorkspace } from "@/lib/demo-db";
+import { demoAdminPassword, ensureDemoContent } from "@/lib/demo-db";
 import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import { workspaceSlugFromRequest } from "@/lib/session";
 
@@ -16,14 +16,17 @@ export const Route = createFileRoute("/demo")({
           return new Response("Not found", { status: 404 });
         }
         const ip = request.headers.get("cf-connecting-ip") ?? request.headers.get("x-forwarded-for") ?? "local";
-        const { allowed, retryAfter } = await rateLimit(`demo-session:${ip}`, { window: 60, max: 20 });
+        // Hands out an admin session, so a limiter outage refuses rather than waves through.
+        const { allowed, retryAfter } = await rateLimit(`demo-session:${ip}`, { window: 60, max: 20, failClosed: true });
         if (!allowed) return rateLimitResponse(retryAfter ?? 60);
 
         const db = createDb();
-        await ensureDemoWorkspace(db);
+        // First hit on a fresh deployment provisions the whole board, so the
+        // landing page link works before the first nightly run.
+        await ensureDemoContent(db);
 
         const { createAuth } = await import("@openheard/auth");
-        const signIn = await createAuth().api.signInEmail({
+        const signIn = await createAuth({ demo: true }).api.signInEmail({
           body: { email: DEMO_ADMIN_EMAIL, password: await demoAdminPassword() },
           headers: request.headers,
           asResponse: true,

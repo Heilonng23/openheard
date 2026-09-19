@@ -38,20 +38,32 @@ export const saveChangelog = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const u = requireAdmin(context.user);
     const db = createDb();
+    const ws = context.workspace.id;
     let id = data.id;
-    const values = { workspaceId: context.workspace.id, title: data.title, body: data.body, version: data.version || null, authorId: u.id, publishedAt: data.publish ? new Date() : null };
+    const values = { workspaceId: ws, title: data.title, body: data.body, version: data.version || null, authorId: u.id, publishedAt: data.publish ? new Date() : null };
+    // Entry and post ids are global. A scoped UPDATE that matches nothing is
+    // silent, so prove ownership of everything this touches before writing.
     if (id) {
-      await db.update(changelogEntry).set(values).where(and(eq(changelogEntry.id, id), eq(changelogEntry.workspaceId, context.workspace.id)));
+      const [owned] = await db.select({ id: changelogEntry.id }).from(changelogEntry).where(and(eq(changelogEntry.id, id), eq(changelogEntry.workspaceId, ws))).limit(1);
+      if (!owned) throw new Error("Changelog entry not found");
+    }
+    const postIds = [...new Set(data.postIds)];
+    if (postIds.length) {
+      const owned = await db.select({ id: post.id }).from(post).where(and(eq(post.workspaceId, ws), inArray(post.id, postIds)));
+      if (owned.length !== postIds.length) throw new Error("Post not found");
+    }
+    if (id) {
+      await db.update(changelogEntry).set(values).where(and(eq(changelogEntry.id, id), eq(changelogEntry.workspaceId, ws)));
       await db.delete(changelogPost).where(eq(changelogPost.entryId, id));
     } else {
       [{ id }] = await db.insert(changelogEntry).values(values).returning({ id: changelogEntry.id });
     }
-    if (data.postIds.length) {
-      await db.insert(changelogPost).values(data.postIds.map((postId) => ({ entryId: id!, postId })));
+    if (postIds.length) {
+      await db.insert(changelogPost).values(postIds.map((postId) => ({ entryId: id!, postId })));
       if (data.publish) {
         // Shipping closes the loop: linked posts move to done.
-        const linked = await db.select({ id: post.id, status: post.status }).from(post).where(and(eq(post.workspaceId, context.workspace.id), inArray(post.id, data.postIds)));
-        const done = (await statusOfKind(db, context.workspace.id, "done"))?.key ?? "done";
+        const linked = await db.select({ id: post.id, status: post.status }).from(post).where(and(eq(post.workspaceId, ws), inArray(post.id, postIds)));
+        const done = (await statusOfKind(db, ws, "done"))?.key ?? "done";
         const toShip = linked.filter((p) => p.status !== done);
         if (toShip.length) {
           await db.update(post).set({ status: done, statusChangedAt: new Date() }).where(inArray(post.id, toShip.map((p) => p.id)));

@@ -3,11 +3,13 @@ import { env } from "@openheard/env/server";
 type KV = {
   get(key: string): Promise<string | null>;
   put(key: string, value: string, opts?: { expirationTtl: number }): Promise<void>;
+  // Present on a Durable-Object-backed store. KV proper has no atomic counter.
+  increment?(key: string, ttl: number): Promise<number>;
 };
 
 const memStore = new Map<string, { count: number; expires: number }>();
 
-function getStore(): { get(k: string): Promise<string | null>; put(k: string, v: string, o: { expirationTtl: number }): Promise<void> } {
+function getStore(): KV {
   const kvBinding = (env as unknown as { CACHE?: KV }).CACHE;
   if (kvBinding) return kvBinding;
   return {
@@ -25,29 +27,34 @@ function getStore(): { get(k: string): Promise<string | null>; put(k: string, v:
 const DEFAULT_WINDOW = 60;
 const DEFAULT_MAX = 60;
 
+// `failClosed` is for endpoints that hand out something valuable. Everywhere
+// else a limiter outage should not take the site down with it.
 export async function rateLimit(
   key: string,
-  opts?: { window?: number; max?: number },
+  opts?: { window?: number; max?: number; failClosed?: boolean },
 ): Promise<{ allowed: boolean; retryAfter: number | null }> {
   const store = getStore();
   const window = opts?.window ?? DEFAULT_WINDOW;
   const max = opts?.max ?? DEFAULT_MAX;
   const bucket = Math.floor(Date.now() / 1000 / window);
   const rlKey = `rl:${key}:${bucket}`;
+  const retryAfter = () => Math.max(bucket * window + window - Math.floor(Date.now() / 1000), 1);
 
   try {
-    const raw = await store.get(rlKey);
-    const count = raw ? parseInt(raw, 10) : 0;
-
-    if (count >= max) {
-      const bucketStart = bucket * window;
-      const retryAfter = bucketStart + window - Math.floor(Date.now() / 1000);
-      return { allowed: false, retryAfter: Math.max(retryAfter, 1) };
-    }
-
-    await store.put(rlKey, String(count + 1), { expirationTtl: window + 10 });
+    // Reserve the slot, then judge it. Read-then-write lets concurrent
+    // requests all read the same stale count and all be let through.
+    const taken = store.increment
+      ? await store.increment(rlKey, window + 10)
+      : await (async () => {
+          const raw = await store.get(rlKey);
+          const next = (raw ? parseInt(raw, 10) : 0) + 1;
+          await store.put(rlKey, String(next), { expirationTtl: window + 10 });
+          return next;
+        })();
+    if (taken > max) return { allowed: false, retryAfter: retryAfter() };
     return { allowed: true, retryAfter: null };
   } catch {
+    if (opts?.failClosed) return { allowed: false, retryAfter: retryAfter() };
     return { allowed: true, retryAfter: null };
   }
 }

@@ -4,7 +4,7 @@
 // workspace but "default" prefixes them with its own id.
 import type { Db } from "@openheard/db";
 import * as schema from "@openheard/db/schema/index";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 
 const day = 86_400_000;
 const at = (daysAgo: number) => new Date(Date.now() - daysAgo * day);
@@ -12,7 +12,7 @@ const at = (daysAgo: number) => new Date(Date.now() - daysAgo * day);
 // Reserved by RFC 6761: nothing can ever be delivered to it.
 export const SEED_EMAIL_DOMAIN = "demo.invalid";
 
-const PEOPLE = [
+export const SEED_PEOPLE = [
   ["Sarah Chen", "sarah"],
   ["Alex Rivera", "alex"],
   ["Jordan Lee", "jordan"],
@@ -65,17 +65,30 @@ export const scopedId = (workspaceId: string, slug: string) => (workspaceId === 
 // The seeded accounts a reset can safely delete again.
 export const seedUserId = (workspaceId: string, handle: string) => `${workspaceId}-user-${handle}`;
 
+async function assertUnowned(db: Db, table: typeof schema.board | typeof schema.tag, ids: string[], ws: string) {
+  const rows = await db.select({ id: table.id, workspaceId: table.workspaceId }).from(table).where(inArray(table.id, ids));
+  const foreign = rows.find((r) => r.workspaceId !== ws);
+  if (foreign) throw new Error(`Id ${foreign.id} is already in use by another workspace`);
+}
+
 export async function seedDemoContent(db: Db, workspaceId: string, adminId: string) {
   const ws = workspaceId;
   const scoped = (slug: string) => scopedId(ws, slug);
 
   const members: string[] = [];
-  for (const [name, handle] of PEOPLE) {
+  for (const [name, handle] of SEED_PEOPLE) {
     const id = seedUserId(ws, handle);
-    await db.insert(schema.user).values({ id, name, email: `${handle}.${ws}@${SEED_EMAIL_DOMAIN}`, role: "member", emailVerified: true }).onConflictDoNothing();
+    await db
+      .insert(schema.user)
+      .values({ id, name, email: `${handle}.${ws}@${SEED_EMAIL_DOMAIN}`, role: "member", emailVerified: true })
+      .onConflictDoUpdate({ target: schema.user.id, set: { name } });
     members.push(id);
   }
 
+  // Board and tag ids are global primary keys. Refuse to seed over a row that
+  // belongs to somebody else rather than silently adopting or renaming it.
+  await assertUnowned(db, schema.board, BOARDS.map((b) => scoped(b.slug)), ws);
+  await assertUnowned(db, schema.tag, TAGS.map((t) => scoped(t.toLowerCase())), ws);
   await db
     .insert(schema.board)
     .values(BOARDS.map((b, i) => ({ id: scoped(b.slug), workspaceId: ws, name: b.name, description: b.description, position: i })))
