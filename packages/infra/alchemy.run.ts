@@ -39,6 +39,10 @@ export const web = Cloudflare.Website.Vite("web", {
     STRIPE_WEBHOOK_SECRET: Config.string("STRIPE_WEBHOOK_SECRET").pipe(Config.withDefault("")),
     STRIPE_PRICE_MONTHLY: Config.string("STRIPE_PRICE_MONTHLY").pipe(Config.withDefault("")),
     STRIPE_PRICE_YEARLY: Config.string("STRIPE_PRICE_YEARLY").pipe(Config.withDefault("")),
+    // Server-side revenue tracking. Empty means no analytics call is ever made.
+    OPENPANEL_CLIENT_ID: Config.string("OPENPANEL_CLIENT_ID").pipe(Config.withDefault("")),
+    OPENPANEL_CLIENT_SECRET: Config.string("OPENPANEL_CLIENT_SECRET").pipe(Config.withDefault("")),
+    OPENPANEL_URL: Config.string("OPENPANEL_URL").pipe(Config.withDefault("")),
   },
   dev: {
     port: 3001,

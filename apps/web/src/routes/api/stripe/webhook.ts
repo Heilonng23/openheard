@@ -39,6 +39,18 @@ export const Route = createFileRoute("/api/stripe/webhook")({
             if (s.mode === "subscription" && s.subscription) {
               const sub = await stripe.subscriptions.retrieve(typeof s.subscription === "string" ? s.subscription : s.subscription.id);
               await apply(sub, s.client_reference_id);
+              // Revenue is reported here and nowhere else: customer.subscription.created
+              // fires for the same purchase and would double it. The plan write above
+              // already happened, and trackRevenue never throws.
+              if (s.payment_status === "paid" && s.amount_total) {
+                const { trackRevenue } = await import("@/lib/analytics");
+                await trackRevenue({
+                  dedupeKey: s.id,
+                  amountMinor: s.amount_total,
+                  currency: s.currency ?? "usd",
+                  profileId: sub.metadata?.userId || s.client_reference_id || null,
+                });
+              }
             }
             break;
           }
