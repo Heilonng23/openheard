@@ -2,47 +2,14 @@ import { createDb } from "@openheard/db";
 import * as schema from "@openheard/db/schema/auth";
 import { DEFAULT_STATUSES, membership, status, workspace } from "@openheard/db/schema/feedback";
 import { env } from "@openheard/env/server";
-import { betterAuth, type SecondaryStorage } from "better-auth";
+import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { magicLink } from "better-auth/plugins";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { eq } from "drizzle-orm";
 
 import { ACCESS_JWT_HEADER, accessConfigFrom, cloudflareAccess } from "./cloudflare-access";
-
-type KV = {
-  get(key: string): Promise<string | null>;
-  put(key: string, value: string, opts?: { expirationTtl: number }): Promise<void>;
-  delete(key: string): Promise<void>;
-};
-
-function createKvSecondaryStorage(store: KV): SecondaryStorage {
-  return {
-    async get(key: string) {
-      const raw = await store.get(key);
-      if (raw === null) return null;
-      try { return JSON.parse(raw); } catch { return raw; }
-    },
-    async getAndDelete(key: string) {
-      const raw = await store.get(key);
-      if (raw !== null) await store.delete(key);
-      if (raw === null) return null;
-      try { return JSON.parse(raw); } catch { return raw; }
-    },
-    async increment(key: string, ttl: number) {
-      const raw = await store.get(key);
-      const next = (raw ? parseInt(raw, 10) : 0) + 1;
-      await store.put(key, String(next), { expirationTtl: ttl });
-      return next;
-    },
-    async set(key: string, value: string, ttl?: number) {
-      await store.put(key, value, ttl ? { expirationTtl: ttl } : { expirationTtl: 3600 });
-    },
-    async delete(key: string) {
-      await store.delete(key);
-    },
-  };
-}
+import { createKvSecondaryStorage, type KV } from "./kv-secondary-storage";
 
 const AUTH_FROM = { email: "hello@openheard.com", name: "openheard" };
 
