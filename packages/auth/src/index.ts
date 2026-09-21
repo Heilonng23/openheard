@@ -8,6 +8,8 @@ import { magicLink } from "better-auth/plugins";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { eq } from "drizzle-orm";
 
+import { ACCESS_JWT_HEADER, accessConfigFrom, cloudflareAccess } from "./cloudflare-access";
+
 type KV = {
   get(key: string): Promise<string | null>;
   put(key: string, value: string, opts?: { expirationTtl: number }): Promise<void>;
@@ -73,6 +75,9 @@ export function createAuth(opts?: { demo?: boolean }) {
   const googleSecret = (env as unknown as { GOOGLE_CLIENT_SECRET?: string }).GOOGLE_CLIENT_SECRET;
 
   const kvStore = (env as unknown as { CACHE?: KV }).CACHE;
+
+  // The demo is one shared account; an Access identity never signs into it.
+  const access = opts?.demo ? null : accessConfigFrom(env as unknown as { CF_ACCESS_TEAM_DOMAIN?: string; CF_ACCESS_AUD?: string });
 
   return betterAuth({
     database: drizzleAdapter(db, {
@@ -154,7 +159,7 @@ export function createAuth(opts?: { demo?: boolean }) {
     secret: env.BETTER_AUTH_SECRET,
     baseURL: env.BETTER_AUTH_URL || undefined,
     plugins: [
-      tanstackStartCookies(),
+      cloudflareAccess(access),
       magicLink({
         sendMagicLink: async ({ email, url }, ctx?) => {
           let link = url;
@@ -176,6 +181,20 @@ export function createAuth(opts?: { demo?: boolean }) {
           );
         },
       }),
+      // Must stay last: it forwards cookies the plugins above set.
+      tanstackStartCookies(),
     ],
   });
+}
+
+// Signs in the Cloudflare Access user behind this request, if Access is
+// configured and the request carries a valid assertion. Null otherwise.
+export async function sessionFromCloudflareAccess(auth: ReturnType<typeof createAuth>, headers: Headers) {
+  if (!headers.get(ACCESS_JWT_HEADER)) return null;
+  try {
+    return await auth.api.signInCloudflareAccess({ headers });
+  } catch (err: any) {
+    console.error("[auth] cloudflare access sign-in failed:", err?.message ?? err);
+    return null;
+  }
 }

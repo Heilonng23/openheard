@@ -88,6 +88,22 @@ bun run deploy
 That provisions the Worker, the D1 database and KV, applies migrations and
 prints your URL. The first account to sign up becomes the admin.
 
+#### Behind Cloudflare Access
+
+To keep a board internal, put a [Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/applications/)
+application in front of it. Set these in `packages/infra/.env` and redeploy,
+and people signed in to Access (or to WARP) land in openheard already signed
+in, with no second login:
+
+```bash
+CF_ACCESS_TEAM_DOMAIN=yourteam.cloudflareaccess.com   # Zero Trust > Settings
+CF_ACCESS_AUD=<the application's Audience (AUD) tag>  # Access application overview
+```
+
+The Access identity's email is matched to an existing account or creates one,
+exactly like a magic link. Signing out of openheard only lasts until the next
+page load while Access is in front; sign out of Access to leave.
+
 ### Run locally
 
 No Cloudflare account needed. A SQLite file stands in for D1.
