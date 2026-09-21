@@ -87,7 +87,7 @@ export async function workspaceFromRequest(request: Request): Promise<Workspace 
 const ctxCache = new WeakMap<Request, Promise<{ user: SessionUser | null; workspace: Workspace; marketing: boolean }>>();
 
 async function resolveSession(request: Request) {
-  const [{ createDb, membership, workspace }, { createAuth, sessionFromCloudflareAccess }] = await Promise.all([import("@openheard/db"), import("@openheard/auth")]);
+  const [{ createDb, membership, workspace }, { createAuth, sessionForRequest }] = await Promise.all([import("@openheard/db"), import("@openheard/auth")]);
   const db = createDb();
   const host = request.headers.get("host") ?? "";
   const root = await rootDomain();
@@ -97,8 +97,8 @@ async function resolveSession(request: Request) {
   const auth = createAuth({ demo: slug === DEMO_WORKSPACE_ID });
   const [wsResult, session] = await Promise.all([
     db.select().from(workspace).where(eq(workspace.id, slug)).limit(1),
-    // No openheard session yet? Behind Cloudflare Access, the Access login is one.
-    auth.api.getSession({ headers: request.headers }).then((s) => s ?? sessionFromCloudflareAccess(auth, request.headers)),
+    // Behind Cloudflare Access, the Access login is the session and outranks the cookie.
+    sessionForRequest(auth, request.headers),
   ]);
 
   let [ws] = wsResult;

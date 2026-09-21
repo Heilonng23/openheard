@@ -1,6 +1,6 @@
 // The Access assertion is the only thing standing between a request header and
 // a session, so every rejection path runs against a real RS256 signature.
-import { ACCESS_JWT_HEADER, accessConfigFrom, cloudflareAccess, verifyAccessJwt, type AccessConfig } from "@openheard/auth/cloudflare-access";
+import { ACCESS_JWT_HEADER, accessConfigFrom, cloudflareAccess, sessionForRequest, verifyAccessJwt, type AccessConfig } from "@openheard/auth/cloudflare-access";
 import { createKvSecondaryStorage, type KV } from "@openheard/auth/kv-secondary-storage";
 import { betterAuth } from "better-auth";
 import { memoryAdapter } from "better-auth/adapters/memory";
@@ -44,7 +44,7 @@ const fetchCerts = (async () => {
   return new Response(JSON.stringify({ keys: certs }));
 }) as unknown as typeof fetch;
 
-const verify = (token: string, cfg = config) => verifyAccessJwt(token, cfg, { fetch: fetchCerts, now });
+const verify = (token: string, cfg = config, at = now) => verifyAccessJwt(token, cfg, { fetch: fetchCerts, now: at });
 
 beforeAll(async () => {
   keys = (await crypto.subtle.generateKey(rsa, true, ["sign", "verify"])) as CryptoKeyPair;
@@ -84,9 +84,18 @@ describe("verifyAccessJwt", () => {
     expect(await verify("garbage")).toBeNull();
   });
 
-  it("refetches the keys once for an unknown kid", async () => {
+  it("refetches the keys once for an unknown kid, then not again for a minute", async () => {
+    // The keys were fetched at `now`; a rotation check is allowed once they are a minute old.
+    const later = now + 61_000;
     const before = fetches;
-    expect(await verify(await sign(claims(), { kid: "rotated" }))).toBeNull();
+    expect(await verify(await sign(claims(), { kid: "rotated" }), config, later)).toBeNull();
+    expect(fetches - before).toBe(1);
+    // A flood of junk kids right after does not turn into a flood of upstream fetches.
+    expect(await verify(await sign(claims(), { kid: "junk-1" }), config, later + 1000)).toBeNull();
+    expect(await verify(await sign(claims(), { kid: "junk-2" }), config, later + 2000)).toBeNull();
+    expect(fetches - before).toBe(1);
+    // Known keys keep verifying from the cache throughout.
+    expect(await verify(await sign(claims()), config, later + 3000)).toBeTruthy();
     expect(fetches - before).toBe(1);
   });
 });
@@ -189,5 +198,60 @@ describe("signInCloudflareAccess", () => {
     const { auth } = makeAuth();
     const headers = new Headers({ [ACCESS_JWT_HEADER]: "not.a.jwt" });
     expect(await auth.api.signInCloudflareAccess({ headers })).toBeNull();
+  });
+
+  // Signs up a verified user and returns the cookie header their browser would send.
+  async function signedInCookie(auth: ReturnType<typeof makeAuth>["auth"], rows: Record<string, unknown[]>, email: string) {
+    const { headers: h, response } = await auth.api.signUpEmail({ body: { email, password: "a-long-enough-password", name: email }, returnHeaders: true });
+    const i = rows.user.findIndex((u) => (u as { email: string }).email === email);
+    rows.user[i] = { ...(rows.user[i] as object), emailVerified: true };
+    const cookie = (h.get("set-cookie") ?? "").split(/,(?=[^;]+=)/).map((c) => c.split(";")[0]!.trim()).join("; ");
+    return { cookie, token: response.token as string };
+  }
+
+  it("keeps the existing session when it already belongs to the Access identity", async () => {
+    const { auth, rows } = makeAuth();
+    const ctx = await auth.$context;
+    const { cookie, token } = await signedInCookie(auth, rows, "same@example.com");
+
+    globalThis.fetch = fetchCerts;
+    const headers = new Headers({ cookie, [ACCESS_JWT_HEADER]: await assertion("Same@Example.com") });
+    const result = await sessionForRequest(auth, headers);
+
+    expect(result?.user.email).toBe("same@example.com");
+    expect(result?.session.token).toBe(token);
+    expect(await ctx.internalAdapter.findSession(token)).toBeTruthy();
+  });
+
+  it("replaces another user's session with one for the Access identity", async () => {
+    const { auth, rows } = makeAuth();
+    const ctx = await auth.$context;
+    const { cookie, token: adminToken } = await signedInCookie(auth, rows, "admin@example.com");
+
+    globalThis.fetch = fetchCerts;
+    const headers = new Headers({ cookie, [ACCESS_JWT_HEADER]: await assertion("visitor@example.com") });
+    const result = await sessionForRequest(auth, headers);
+
+    expect(result?.user.email).toBe("visitor@example.com");
+    expect(result?.session.token).not.toBe(adminToken);
+    // The admin's session is revoked, not merely ignored: the cookie is now worthless.
+    expect(await ctx.internalAdapter.findSession(adminToken)).toBeFalsy();
+    expect(await auth.api.getSession({ headers: new Headers({ cookie }) })).toBeNull();
+  });
+
+  it("leaves the existing session alone without an assertion or with a bad one", async () => {
+    const { auth, rows } = makeAuth();
+    const { cookie, token } = await signedInCookie(auth, rows, "admin@example.com");
+
+    const bare = await sessionForRequest(auth, new Headers({ cookie }));
+    expect(bare?.session.token).toBe(token);
+
+    const bad = await sessionForRequest(auth, new Headers({ cookie, [ACCESS_JWT_HEADER]: "not.a.jwt" }));
+    expect(bad?.session.token).toBe(token);
+
+    globalThis.fetch = fetchCerts;
+    const forged = await sign(claims({ email: "visitor@example.com", exp: sec + 3600 }), { key: otherKeys.privateKey });
+    const unsigned = await sessionForRequest(auth, new Headers({ cookie, [ACCESS_JWT_HEADER]: forged }));
+    expect(unsigned?.session.token).toBe(token);
   });
 });

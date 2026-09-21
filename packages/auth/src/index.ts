@@ -8,7 +8,7 @@ import { magicLink } from "better-auth/plugins";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { eq } from "drizzle-orm";
 
-import { ACCESS_JWT_HEADER, accessConfigFrom, cloudflareAccess } from "./cloudflare-access";
+import { accessConfigFrom, cloudflareAccess } from "./cloudflare-access";
 import { createKvSecondaryStorage, type KV } from "./kv-secondary-storage";
 
 const AUTH_FROM = { email: "hello@openheard.com", name: "openheard" };
@@ -154,14 +154,4 @@ export function createAuth(opts?: { demo?: boolean }) {
   });
 }
 
-// Signs in the Cloudflare Access user behind this request, if Access is
-// configured and the request carries a valid assertion. Null otherwise.
-export async function sessionFromCloudflareAccess(auth: ReturnType<typeof createAuth>, headers: Headers) {
-  if (!headers.get(ACCESS_JWT_HEADER)) return null;
-  try {
-    return await auth.api.signInCloudflareAccess({ headers });
-  } catch (err: any) {
-    console.error("[auth] cloudflare access sign-in failed:", err?.message ?? err);
-    return null;
-  }
-}
+export { sessionForRequest } from "./cloudflare-access";
