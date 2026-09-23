@@ -19,6 +19,10 @@ export const email = Cloudflare.Email.SendEmail("EMAIL");
 // Images attached to posts and comments. Private: the Worker serves them.
 export const uploads = Cloudflare.R2.Bucket("UPLOADS");
 
+// Upload bursts, per account and per address. The daily byte quota lives in D1.
+export const uploadUserLimit = Cloudflare.RateLimit("UPLOAD_USER_LIMIT", { namespaceId: 1101, simple: { limit: 10, period: 60 } });
+export const uploadIpLimit = Cloudflare.RateLimit("UPLOAD_IP_LIMIT", { namespaceId: 1102, simple: { limit: 30, period: 60 } });
+
 export const web = Cloudflare.Website.Vite("web", {
   rootDir: "../../apps/web",
   placement: { region: "aws:us-west-2" },
@@ -32,6 +36,8 @@ export const web = Cloudflare.Website.Vite("web", {
     CACHE: cache,
     EMAIL: email,
     UPLOADS: uploads,
+    UPLOAD_USER_LIMIT: uploadUserLimit,
+    UPLOAD_IP_LIMIT: uploadIpLimit,
     BETTER_AUTH_SECRET: Config.redacted("BETTER_AUTH_SECRET"),
     BETTER_AUTH_URL: Config.string("BETTER_AUTH_URL").pipe(Config.withDefault("")),
     ROOT_DOMAIN: Config.string("ROOT_DOMAIN").pipe(Config.withDefault("")),

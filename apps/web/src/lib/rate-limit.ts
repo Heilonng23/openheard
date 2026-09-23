@@ -59,6 +59,27 @@ export async function rateLimit(
   }
 }
 
+// Cloudflare's Rate Limiting binding: counted at the edge, so parallel requests
+// cannot all read the same stale count. Local dev gets an in-memory stand-in
+// from packages/env/src/local.ts.
+type Limiter = { limit(opts: { key: string }): Promise<{ success: boolean }> };
+
+// Image uploads cost storage, so every check fails closed: no binding, or a
+// binding that throws, means no upload.
+export async function uploadAllowed(userId: string, ip: string | null): Promise<boolean> {
+  const bindings = env as unknown as { UPLOAD_USER_LIMIT?: Limiter; UPLOAD_IP_LIMIT?: Limiter };
+  const perUser = bindings.UPLOAD_USER_LIMIT;
+  const perIp = bindings.UPLOAD_IP_LIMIT;
+  if (!perUser || !perIp) return false;
+  try {
+    const checks = [perUser.limit({ key: userId })];
+    if (ip) checks.push(perIp.limit({ key: ip }));
+    return (await Promise.all(checks)).every((r) => r.success);
+  } catch {
+    return false;
+  }
+}
+
 export function rateLimitResponse(retryAfter: number): Response {
   return new Response(JSON.stringify({ error: "Too many requests" }), {
     status: 429,

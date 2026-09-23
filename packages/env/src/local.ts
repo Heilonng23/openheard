@@ -58,12 +58,28 @@ function localBucket() {
   };
 }
 
+// The Rate Limiting binding's shape, counted in memory per process.
+function localLimiter(limit: number, periodSeconds: number) {
+  const hits = new Map<string, { count: number; resets: number }>();
+  return {
+    async limit({ key }: { key: string }) {
+      const now = Date.now();
+      let entry = hits.get(key);
+      if (!entry || now >= entry.resets) hits.set(key, (entry = { count: 0, resets: now + periodSeconds * 1000 }));
+      entry.count++;
+      return { success: entry.count <= limit };
+    },
+  };
+}
+
 export const env = {
   ...process.env,
   DB: undefined,
   DB_LOCAL: typeof window === "undefined" ? drizzle(createClient({ url }), { schema }) : undefined,
   EMAIL: undefined,
   UPLOADS: typeof window === "undefined" ? localBucket() : undefined,
+  UPLOAD_USER_LIMIT: localLimiter(10, 60),
+  UPLOAD_IP_LIMIT: localLimiter(30, 60),
   BETTER_AUTH_URL: process.env.BETTER_AUTH_URL ?? "http://localhost:3001",
   // Workspaces live on subdomains of this. *.localhost resolves to loopback in every browser.
   ROOT_DOMAIN: process.env.ROOT_DOMAIN ?? "localhost",

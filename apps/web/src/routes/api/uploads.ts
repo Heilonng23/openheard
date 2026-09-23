@@ -32,8 +32,8 @@ async function readCapped(request: Request, max: number): Promise<Uint8Array | n
   return out;
 }
 
-// One image per request, the raw file as the body. Signed-in users only, in
-// the workspace the host names; the upload stays unclaimed until the post or
+// One image per request, the raw file as the body. Signed-in users who may post
+// in the workspace the host names; the upload stays unclaimed until the post or
 // comment it belongs to is published.
 export const Route = createFileRoute("/api/uploads")({
   server: {
@@ -46,10 +46,11 @@ export const Route = createFileRoute("/api/uploads")({
         const { user, workspace } = await getSessionContext(request);
         if (!user) return json({ error: "Sign in to attach images" }, 401);
         if (isDemo(workspace)) return json({ error: "Image uploads are off in the demo" }, 403);
+        // Whoever may post here may attach images, nobody else.
+        if (workspace.whoCanPost === "members" && user.role === "guest") return json({ error: "Only team members can post on this board" }, 403);
 
-        const { rateLimit } = await import("@/lib/rate-limit");
-        const limit = await rateLimit(`upload:${user.id}`, { window: 600, max: 40 });
-        if (!limit.allowed) return json({ error: "Too many uploads. Try again in a few minutes." }, 429, { "retry-after": String(limit.retryAfter) });
+        const { uploadAllowed } = await import("@/lib/rate-limit");
+        if (!(await uploadAllowed(user.id, request.headers.get("cf-connecting-ip")))) return json({ error: "Too many uploads. Try again in a minute." }, 429, { "retry-after": "60" });
 
         const declared = Number(request.headers.get("content-length") ?? "");
         if (declared > MAX_IMAGE_BYTES) return json({ error: "Images can be up to 5 MB." }, 413);
