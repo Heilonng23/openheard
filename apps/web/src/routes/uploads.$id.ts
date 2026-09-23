@@ -6,13 +6,15 @@ const notFound = () => new Response("Not found", { status: 404, headers: { "cont
 
 // Serves an attached image. The object key starts with the workspace the host
 // names, so another board's image does not resolve here whatever id is asked
-// for. Images on internal notes are for the team only.
+// for. Only an image on content anyone can read is public and cacheable:
+// a fresh upload is its uploader's until published, an internal note is for
+// the team, and a post awaiting approval is for its author and the team.
 export const Route = createFileRoute("/uploads/$id")({
   server: {
     handlers: {
       GET: async ({ request, params }) => {
         if (!ID.test(params.id)) return notFound();
-        const [{ workspaceSlugFromRequest, getSessionContext }, { createDb, attachment, comment }, { uploadsBucket, objectKey }, { and, eq }] = await Promise.all([
+        const [{ workspaceSlugFromRequest, getSessionContext }, { createDb, attachment, comment, post, status }, { uploadsBucket, objectKey }, { and, eq, sql }] = await Promise.all([
           import("@/lib/session"),
           import("@openheard/db"),
           import("@/lib/attachment-db"),
@@ -20,27 +22,44 @@ export const Route = createFileRoute("/uploads/$id")({
         ]);
         const workspaceId = await workspaceSlugFromRequest(request);
         const [row] = await createDb()
-          .select({ key: attachment.key, contentType: attachment.contentType, internal: comment.internal })
+          .select({
+            key: attachment.key,
+            contentType: attachment.contentType,
+            uploaderId: attachment.uploaderId,
+            claimed: sql<number>`${attachment.postId} is not null or ${attachment.commentId} is not null`,
+            internal: comment.internal,
+            postAuthorId: post.authorId,
+            statusKind: status.kind,
+          })
           .from(attachment)
           .leftJoin(comment, eq(comment.id, attachment.commentId))
+          .leftJoin(post, eq(post.id, sql`coalesce(${attachment.postId}, ${comment.postId})`))
+          .leftJoin(status, and(eq(status.workspaceId, post.workspaceId), eq(status.key, post.status)))
           .where(and(eq(attachment.id, params.id), eq(attachment.workspaceId, workspaceId)))
           .limit(1);
         if (!row || row.key !== objectKey(workspaceId, params.id)) return notFound();
-        if (row.internal) {
+
+        const unclaimed = !row.claimed;
+        const inReview = row.statusKind === "review";
+        const isPublic = !unclaimed && !row.internal && !inReview;
+        if (!isPublic) {
           const { user } = await getSessionContext(request);
-          if (user?.role !== "admin") return notFound();
+          const admin = user?.role === "admin";
+          const allowed = unclaimed ? !!user && user.id === row.uploaderId : row.internal ? admin : admin || (!!user && user.id === row.postAuthorId);
+          if (!allowed) return notFound();
         }
 
         const headers: Record<string, string> = {
           "content-type": row.contentType,
-          "cache-control": `${row.internal ? "private" : "public"}, max-age=31536000, immutable`,
+          // Ids are never reused, so a public copy is current forever. A private
+          // one is not cached at all: its visibility can still change.
+          "cache-control": isPublic ? "public, max-age=31536000, immutable" : "private, no-store",
           "x-content-type-options": "nosniff",
           "content-security-policy": "default-src 'none'; sandbox",
           "content-disposition": "inline",
           etag: `"${params.id}"`,
         };
-        // Ids are never reused, so a cached copy is always current.
-        if (request.headers.get("if-none-match") === headers.etag) return new Response(null, { status: 304, headers });
+        if (isPublic && request.headers.get("if-none-match") === headers.etag) return new Response(null, { status: 304, headers });
 
         const object = await uploadsBucket()?.get(row.key);
         if (!object) return notFound();
