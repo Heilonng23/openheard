@@ -29,6 +29,7 @@ function AdminLayout() {
       { to: "/dashboard/inbox" },
       { to: "/dashboard/roadmap" },
       { to: "/dashboard/changelog" },
+      { to: "/dashboard/help" },
       { to: "/dashboard/settings/general" },
     ];
     for (const s of siblings) router.preloadRoute(s as unknown as Parameters<typeof router.preloadRoute>[0]);

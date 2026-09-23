@@ -1,10 +1,11 @@
 import { Dialog, DialogContent, DialogTitle } from "@openheard/ui/components/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@openheard/ui/components/dropdown-menu";
-import { CaretDownIcon, ImageIcon, LightningIcon, PlusIcon, XIcon } from "@phosphor-icons/react";
+import { CaretDownIcon, FileTextIcon, ImageIcon, LightningIcon, PlusIcon, XIcon } from "@phosphor-icons/react";
 import { Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { searchHelp } from "@/functions/help";
 import { createPost, searchPosts } from "@/functions/posts";
 import { openSignIn } from "@/lib/pending-action";
 import { findStatus, useStatuses } from "@/lib/status";
@@ -55,6 +56,7 @@ export function NewPostDialog({
   const [body, setBody] = useState("");
   const [boardId, setBoardId] = useState(defaultBoard ?? boards[0]?.id ?? "");
   const [similar, setSimilar] = useState<Similar>([]);
+  const [articles, setArticles] = useState<Awaited<ReturnType<typeof searchHelp>>>([]);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
   const statuses = useStatuses();
   const board = boards.find((b) => b.id === boardId) ?? boards[0];
@@ -65,8 +67,11 @@ export function NewPostDialog({
 
   useEffect(() => {
     const q = title.trim();
-    if (q.length < 6) return setSimilar([]);
-    const t = setTimeout(() => searchPosts({ data: { q } }).then(setSimilar).catch(() => setSimilar([])), 200);
+    if (q.length < 6) return setSimilar([]), setArticles([]);
+    const t = setTimeout(() => {
+      searchPosts({ data: { q } }).then(setSimilar).catch(() => setSimilar([]));
+      searchHelp({ data: { q, suggest: true } }).then(setArticles).catch(() => setArticles([]));
+    }, 200);
     return () => clearTimeout(t);
   }, [title]);
 
@@ -194,6 +199,19 @@ export function NewPostDialog({
                     {findStatus(statuses, s.status).label}
                   </span>
                 ) : null}
+              </Link>
+            ))}
+          </div>
+        ) : null}
+
+        {articles.length ? (
+          <div className="flex flex-col gap-1 px-4 pb-3 sm:px-5">
+            <div className="pt-1 pb-1.5 font-mono text-[11px] tracking-[0.06em] text-faint uppercase">From the help center</div>
+            {articles.map((a) => (
+              <Link key={a.id} to="/help/$slug" params={{ slug: a.slug }} onClick={() => onOpenChange(false)} className="flex min-h-11 items-center gap-2.5 rounded-lg bg-secondary px-2.5 py-2 text-[13px] transition-colors hover:bg-accent">
+                <FileTextIcon className="size-4 shrink-0 text-faint" />
+                <span className="flex-1 truncate">{a.title}</span>
+                {a.collection ? <span className="hidden shrink-0 font-mono text-[11px] text-faint lowercase sm:inline">{a.collection.title}</span> : null}
               </Link>
             ))}
           </div>
