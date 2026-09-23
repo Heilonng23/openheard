@@ -75,7 +75,11 @@ Calls made before the script has loaded are safe if you queue them:
 </script>
 ```
 
-Escape closes the panel.
+Escape or a click anywhere on your page closes the panel, except while a post
+is still sending.
+
+The panel is always dark, in openheard's colours, with your workspace accent
+on the launcher and on voted pills, so it reads as one object on any page.
 
 ## The "new" badge
 
