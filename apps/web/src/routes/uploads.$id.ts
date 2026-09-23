@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
+import { isPublicImage } from "@/lib/attachments";
+
 const ID = /^[A-Za-z0-9_-]{16,32}$/;
 
 const notFound = () => new Response("Not found", { status: 404, headers: { "content-type": "text/plain", "cache-control": "no-store" } });
@@ -14,7 +16,7 @@ export const Route = createFileRoute("/uploads/$id")({
     handlers: {
       GET: async ({ request, params }) => {
         if (!ID.test(params.id)) return notFound();
-        const [{ workspaceSlugFromRequest, getSessionContext }, { createDb, attachment, comment, post, status }, { uploadsBucket, objectKey }, { and, eq, sql }] = await Promise.all([
+        const [{ workspaceSlugFromRequest, getSessionContext }, { createDb, attachment, comment, post, status, workspace }, { uploadsBucket, objectKey }, { and, eq, sql }] = await Promise.all([
           import("@/lib/session"),
           import("@openheard/db"),
           import("@/lib/attachment-db"),
@@ -30,18 +32,19 @@ export const Route = createFileRoute("/uploads/$id")({
             internal: comment.internal,
             postAuthorId: post.authorId,
             statusKind: status.kind,
+            requireApproval: workspace.requireApproval,
           })
           .from(attachment)
           .leftJoin(comment, eq(comment.id, attachment.commentId))
           .leftJoin(post, eq(post.id, sql`coalesce(${attachment.postId}, ${comment.postId})`))
           .leftJoin(status, and(eq(status.workspaceId, post.workspaceId), eq(status.key, post.status)))
+          .leftJoin(workspace, eq(workspace.id, attachment.workspaceId))
           .where(and(eq(attachment.id, params.id), eq(attachment.workspaceId, workspaceId)))
           .limit(1);
         if (!row || row.key !== objectKey(workspaceId, params.id)) return notFound();
 
         const unclaimed = !row.claimed;
-        const inReview = row.statusKind === "review";
-        const isPublic = !unclaimed && !row.internal && !inReview;
+        const isPublic = isPublicImage({ ...row, claimed: !unclaimed });
         if (!isPublic) {
           const { user } = await getSessionContext(request);
           const admin = user?.role === "admin";

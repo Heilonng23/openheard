@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { MAX_IMAGE_BYTES, checkImage, formatBytes, imageSize, sniffImageType, toAttachmentView } from "./attachments";
+import { MAX_IMAGE_BYTES, checkImage, formatBytes, imageSize, isPublicImage, sniffImageType, toAttachmentView } from "./attachments";
 
 const bytes = (b64: string) => Uint8Array.from(Buffer.from(b64, "base64"));
 
@@ -92,4 +92,26 @@ it("formats sizes the way the errors read", () => {
   expect(formatBytes(512)).toBe("512 B");
   expect(formatBytes(2048)).toBe("2 KB");
   expect(formatBytes(10.24 * 1024 * 1024)).toBe("10.2 MB");
+});
+
+describe("isPublicImage", () => {
+  const published = { claimed: true, internal: false, statusKind: "open", requireApproval: false };
+
+  it("shows an image on a published post or comment to everyone", () => {
+    expect(isPublicImage(published)).toBe(true);
+  });
+
+  it("shows an image on a post under review when the workspace does not hold posts for approval", () => {
+    expect(isPublicImage({ ...published, statusKind: "review", requireApproval: false })).toBe(true);
+    expect(isPublicImage({ ...published, statusKind: "review", requireApproval: null })).toBe(true);
+  });
+
+  it("hides an image on a post held for approval", () => {
+    expect(isPublicImage({ ...published, statusKind: "review", requireApproval: true })).toBe(false);
+  });
+
+  it("hides unpublished uploads and images on internal notes", () => {
+    expect(isPublicImage({ ...published, claimed: false })).toBe(false);
+    expect(isPublicImage({ ...published, internal: true })).toBe(false);
+  });
 });

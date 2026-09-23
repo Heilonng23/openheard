@@ -16,6 +16,13 @@ export function toAttachmentView(a: { id: string; contentType: string; width: nu
   return { id: a.id, url: origin + attachmentPath(a.id), contentType: a.contentType, width: a.width, height: a.height };
 }
 
+// Whether anyone may see an image: it was published, not on an internal note,
+// and not on a post held for approval. A post in a review status is only held
+// when the workspace requires approval; otherwise the post itself is public.
+export function isPublicImage(r: { claimed: boolean; internal: boolean | null; statusKind: string | null; requireApproval: boolean | null }): boolean {
+  return r.claimed && !r.internal && !(r.requireApproval && r.statusKind === "review");
+}
+
 export function formatBytes(n: number): string {
   if (n >= 1024 * 1024) return `${(n / 1024 / 1024).toFixed(1).replace(/\.0$/, "")} MB`;
   if (n >= 1024) return `${Math.round(n / 1024)} KB`;
