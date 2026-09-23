@@ -61,3 +61,6 @@ temp
 
 # Private working notes (AI-written md files, never published)
 /notes/
+
+# Images uploaded in local dev (packages/env/src/local.ts)
+apps/web/.local-uploads

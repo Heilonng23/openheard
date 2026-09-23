@@ -16,6 +16,9 @@ export const cache = Cloudflare.KV.Namespace("CACHE");
 
 export const email = Cloudflare.Email.SendEmail("EMAIL");
 
+// Images attached to posts and comments. Private: the Worker serves them.
+export const uploads = Cloudflare.R2.Bucket("UPLOADS");
+
 export const web = Cloudflare.Website.Vite("web", {
   rootDir: "../../apps/web",
   placement: { region: "aws:us-west-2" },
@@ -28,6 +31,7 @@ export const web = Cloudflare.Website.Vite("web", {
     DB: db,
     CACHE: cache,
     EMAIL: email,
+    UPLOADS: uploads,
     BETTER_AUTH_SECRET: Config.redacted("BETTER_AUTH_SECRET"),
     BETTER_AUTH_URL: Config.string("BETTER_AUTH_URL").pipe(Config.withDefault("")),
     ROOT_DOMAIN: Config.string("ROOT_DOMAIN").pipe(Config.withDefault("")),

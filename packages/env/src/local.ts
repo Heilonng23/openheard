@@ -11,11 +11,51 @@ if (typeof window === "undefined") config({ path: new URL("../../../apps/web/.en
 
 const url = process.env.DATABASE_URL ?? "file:./local.db";
 
+// Just enough of an R2 bucket for image uploads: files on disk under
+// apps/web/.local-uploads, content type in a sidecar next to each one.
+const uploadsDir = new URL("../../../apps/web/.local-uploads/", import.meta.url);
+type LocalObject = { body: ReadableStream; size: number; httpEtag: string; httpMetadata: { contentType?: string } };
+
+function localBucket() {
+  const fs = () => import("node:fs/promises");
+  const file = (key: string) => {
+    if (!/^[a-z0-9-]+\/[A-Za-z0-9_-]+$/.test(key)) throw new Error(`Bad upload key: ${key}`);
+    return new URL(key, uploadsDir);
+  };
+  return {
+    async put(key: string, value: ArrayBuffer | Uint8Array, opts?: { httpMetadata?: { contentType?: string } }) {
+      const { mkdir, writeFile } = await fs();
+      const path = file(key);
+      await mkdir(new URL(".", path), { recursive: true });
+      await writeFile(path, new Uint8Array(value));
+      await writeFile(new URL(`${key}.json`, uploadsDir), JSON.stringify(opts?.httpMetadata ?? {}));
+    },
+    async get(key: string): Promise<LocalObject | null> {
+      const { readFile } = await fs();
+      try {
+        const bytes = await readFile(file(key));
+        const httpMetadata = JSON.parse(await readFile(new URL(`${key}.json`, uploadsDir), "utf8"));
+        return { body: new Blob([bytes]).stream(), size: bytes.byteLength, httpEtag: `"${key.split("/")[1]}"`, httpMetadata };
+      } catch {
+        return null;
+      }
+    },
+    async delete(keys: string | string[]) {
+      const { rm } = await fs();
+      for (const key of Array.isArray(keys) ? keys : [keys]) {
+        await rm(file(key), { force: true });
+        await rm(new URL(`${key}.json`, uploadsDir), { force: true });
+      }
+    },
+  };
+}
+
 export const env = {
   ...process.env,
   DB: undefined,
   DB_LOCAL: typeof window === "undefined" ? drizzle(createClient({ url }), { schema }) : undefined,
   EMAIL: undefined,
+  UPLOADS: typeof window === "undefined" ? localBucket() : undefined,
   BETTER_AUTH_URL: process.env.BETTER_AUTH_URL ?? "http://localhost:3001",
   // Workspaces live on subdomains of this. *.localhost resolves to loopback in every browser.
   ROOT_DOMAIN: process.env.ROOT_DOMAIN ?? "localhost",
