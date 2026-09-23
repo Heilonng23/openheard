@@ -4,7 +4,7 @@ import { getRequest } from "@tanstack/react-start/server";
 import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 
-import { HELP_SLUG, uniqueSlug } from "@/lib/help";
+import { HELP_ICONS, HELP_SLUG, uniqueSlug } from "@/lib/help";
 import { helpArticleBySlug, helpCenterIndex, helpCollectionBySlug, searchHelpArticles } from "@/lib/help-db";
 import { invalidate } from "@/lib/kv-cache";
 import { rateLimit } from "@/lib/rate-limit";
@@ -45,15 +45,19 @@ export const getHelpCollection = createServerFn({ method: "GET" })
     const db = createDb();
     const [collection, index] = await Promise.all([helpCollectionBySlug(db, context.workspace.id, data.slug), helpCenterIndex(db, context.workspace.id)]);
     if (!collection) return null;
-    return { collection, collections: index.collections.map((c) => ({ slug: c.slug, title: c.title, count: c.articles.length })) };
+    return { collection, collections: index.collections.map((c) => ({ slug: c.slug, title: c.title, icon: c.icon, count: c.articles.length })) };
   });
 
 export const getHelpArticle = createServerFn({ method: "GET" })
   .middleware([sessionMiddleware])
   .validator((d: unknown) => z.object({ slug: z.string().max(80) }).parse(d))
   .handler(async ({ data, context }) => {
+    const db = createDb();
+    const [article, index] = await Promise.all([helpArticleBySlug(db, context.workspace.id, data.slug, { drafts: isTeam(context.user) }), helpCenterIndex(db, context.workspace.id)]);
     // Null rather than a throw, so the route can answer with a real 404.
-    return helpArticleBySlug(createDb(), context.workspace.id, data.slug, { drafts: isTeam(context.user) });
+    if (!article) return null;
+    const nav = index.collections.map((c) => ({ slug: c.slug, title: c.title, icon: c.icon, articles: c.articles.map((a) => ({ slug: a.slug, title: a.title })) }));
+    return { article, nav };
   });
 
 export const searchHelp = createServerFn({ method: "GET" })
@@ -200,6 +204,7 @@ export const saveHelpCollection = createServerFn({ method: "POST" })
         id: z.number().int().optional(),
         title: z.string().trim().min(2).max(80),
         description: z.string().trim().max(200).default(""),
+        icon: z.enum(HELP_ICONS).nullable().default(null),
         slug: slugField.default(""),
       })
       .parse(d),
@@ -215,7 +220,7 @@ export const saveHelpCollection = createServerFn({ method: "POST" })
     const taken = (await db.select({ slug: helpCollection.slug }).from(helpCollection).where(and(eq(helpCollection.workspaceId, ws), data.id ? ne(helpCollection.id, data.id) : undefined))).map((r) => r.slug);
     if (data.slug && taken.includes(data.slug)) throw new Error(`Another collection already uses ${data.slug}`);
     const slug = data.slug || uniqueSlug(data.title, taken, "collection");
-    const values = { title: data.title, description: data.description || null, slug };
+    const values = { title: data.title, description: data.description || null, icon: data.icon, slug };
     let id = data.id;
     if (id) {
       await db.update(helpCollection).set(values).where(and(eq(helpCollection.id, id), eq(helpCollection.workspaceId, ws)));

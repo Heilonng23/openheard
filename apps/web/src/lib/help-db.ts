@@ -2,8 +2,9 @@
 // (later) the widget. Server only: import from functions and API routes, never
 // from a route component.
 import type { Db } from "@openheard/db";
+import { user } from "@openheard/db/schema/auth";
 import { helpArticle, helpCollection } from "@openheard/db/schema/help";
-import { and, asc, desc, eq, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, notInArray, sql, type SQL } from "drizzle-orm";
 
 import { escapeLike, searchTerms, summary } from "./help";
 
@@ -56,17 +57,22 @@ export async function searchHelpArticles(db: Db, workspaceId: string, q: string,
 // nothing published are left out; so are uncategorised articles' empty group.
 export async function helpCenterIndex(db: Db, workspaceId: string) {
   const [collections, articles] = await Promise.all([
-    db.select({ id: helpCollection.id, slug: helpCollection.slug, title: helpCollection.title, description: helpCollection.description }).from(helpCollection).where(eq(helpCollection.workspaceId, workspaceId)).orderBy(asc(helpCollection.position), asc(helpCollection.id)),
+    db.select({ id: helpCollection.id, slug: helpCollection.slug, title: helpCollection.title, description: helpCollection.description, icon: helpCollection.icon }).from(helpCollection).where(eq(helpCollection.workspaceId, workspaceId)).orderBy(asc(helpCollection.position), asc(helpCollection.id)),
     db
-      .select({ id: helpArticle.id, slug: helpArticle.slug, title: helpArticle.title, excerpt: helpArticle.excerpt, body: helpArticle.body, collectionId: helpArticle.collectionId, updatedAt: helpArticle.updatedAt })
+      .select({ id: helpArticle.id, slug: helpArticle.slug, title: helpArticle.title, excerpt: helpArticle.excerpt, body: helpArticle.body, collectionId: helpArticle.collectionId, helpfulCount: helpArticle.helpfulCount, updatedAt: helpArticle.updatedAt })
       .from(helpArticle)
       .where(published(workspaceId))
       .orderBy(asc(helpArticle.position), asc(helpArticle.id)),
   ]);
-  const slim = articles.map(({ body, ...a }) => ({ ...a, excerpt: a.excerpt || summary(body, 140) }));
+  const slim = articles.map(({ body, helpfulCount, ...a }) => ({ ...a, excerpt: a.excerpt || summary(body, 140) }));
   const grouped = collections.map((c) => ({ ...c, articles: slim.filter((a) => a.collectionId === c.id) })).filter((c) => c.articles.length);
   const loose = slim.filter((a) => a.collectionId === null || !collections.some((c) => c.id === a.collectionId));
-  return { collections: grouped, uncategorised: loose, total: slim.length };
+  // "Popular" is whatever readers found most helpful. Ties keep the team's order.
+  const popular = [...articles]
+    .sort((a, b) => b.helpfulCount - a.helpfulCount)
+    .slice(0, 3)
+    .map((a) => ({ slug: a.slug, title: a.title, collection: collections.find((c) => c.id === a.collectionId)?.title ?? null }));
+  return { collections: grouped, uncategorised: loose, popular, total: slim.length };
 }
 
 // One article by slug. Drafts only when the caller is on the team.
@@ -84,27 +90,45 @@ export async function helpArticleBySlug(db: Db, workspaceId: string, slug: strin
       unhelpfulCount: helpArticle.unhelpfulCount,
       publishedAt: helpArticle.publishedAt,
       updatedAt: helpArticle.updatedAt,
+      authorName: user.name,
+      authorImage: user.image,
     })
     .from(helpArticle)
+    .leftJoin(user, eq(user.id, helpArticle.authorId))
     .where(and(eq(helpArticle.workspaceId, workspaceId), eq(helpArticle.slug, slug), opts.drafts ? undefined : eq(helpArticle.status, "published")))
     .limit(1);
   if (!row) return null;
   const collection = row.collectionId
-    ? ((await db.select({ id: helpCollection.id, slug: helpCollection.slug, title: helpCollection.title }).from(helpCollection).where(and(eq(helpCollection.id, row.collectionId), eq(helpCollection.workspaceId, workspaceId))).limit(1))[0] ?? null)
+    ? ((await db.select({ id: helpCollection.id, slug: helpCollection.slug, title: helpCollection.title, icon: helpCollection.icon }).from(helpCollection).where(and(eq(helpCollection.id, row.collectionId), eq(helpCollection.workspaceId, workspaceId))).limit(1))[0] ?? null)
     : null;
-  const related = collection
+  // Related: the rest of this collection first, topped up with the most
+  // helpful articles elsewhere.
+  const relatedCols = { slug: helpArticle.slug, title: helpArticle.title, collection: helpCollection.title };
+  const sameCollection = collection
     ? await db
-        .select({ slug: helpArticle.slug, title: helpArticle.title })
+        .select(relatedCols)
         .from(helpArticle)
+        .leftJoin(helpCollection, eq(helpCollection.id, helpArticle.collectionId))
         .where(and(published(workspaceId), eq(helpArticle.collectionId, collection.id), sql`${helpArticle.id} != ${row.id}`))
         .orderBy(asc(helpArticle.position), asc(helpArticle.id))
-        .limit(6)
+        .limit(3)
     : [];
-  return { ...row, excerpt: row.excerpt || summary(row.body), collection, related };
+  const elsewhere =
+    sameCollection.length < 3
+      ? await db
+          .select(relatedCols)
+          .from(helpArticle)
+          .leftJoin(helpCollection, eq(helpCollection.id, helpArticle.collectionId))
+          .where(and(published(workspaceId), sql`${helpArticle.id} != ${row.id}`, sameCollection.length ? notInArray(helpArticle.slug, sameCollection.map((r) => r.slug)) : undefined))
+          .orderBy(desc(helpArticle.helpfulCount), asc(helpArticle.position))
+          .limit(3 - sameCollection.length)
+      : [];
+  const { authorName, authorImage, ...article } = row;
+  return { ...article, excerpt: row.excerpt || summary(row.body), author: authorName ? { name: authorName, image: authorImage } : null, collection, related: [...sameCollection, ...elsewhere] };
 }
 
 export async function helpCollectionBySlug(db: Db, workspaceId: string, slug: string) {
-  const [c] = await db.select({ id: helpCollection.id, slug: helpCollection.slug, title: helpCollection.title, description: helpCollection.description }).from(helpCollection).where(and(eq(helpCollection.workspaceId, workspaceId), eq(helpCollection.slug, slug))).limit(1);
+  const [c] = await db.select({ id: helpCollection.id, slug: helpCollection.slug, title: helpCollection.title, description: helpCollection.description, icon: helpCollection.icon }).from(helpCollection).where(and(eq(helpCollection.workspaceId, workspaceId), eq(helpCollection.slug, slug))).limit(1);
   if (!c) return null;
   const articles = await db
     .select({ id: helpArticle.id, slug: helpArticle.slug, title: helpArticle.title, excerpt: helpArticle.excerpt, body: helpArticle.body })

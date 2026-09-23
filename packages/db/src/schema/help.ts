@@ -21,6 +21,8 @@ export const helpCollection = sqliteTable(
     slug: text("slug").notNull(),
     title: text("title").notNull(),
     description: text("description"),
+    // A name from a short fixed list of icons, picked in the dashboard.
+    icon: text("icon"),
     position: integer("position").notNull().default(0),
     createdAt: integer("created_at", { mode: "timestamp_ms" }).default(now).notNull(),
   },

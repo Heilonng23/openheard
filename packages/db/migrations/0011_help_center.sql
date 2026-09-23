@@ -4,11 +4,14 @@ CREATE TABLE `help_collection` (
 	`slug` text NOT NULL,
 	`title` text NOT NULL,
 	`description` text,
+	`icon` text,
 	`position` integer DEFAULT 0 NOT NULL,
 	`created_at` integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
 	FOREIGN KEY (`workspace_id`) REFERENCES `workspace`(`id`) ON UPDATE no action ON DELETE cascade
-);--> statement-breakpoint
-CREATE UNIQUE INDEX `help_collection_slug_uidx` ON `help_collection` (`workspace_id`,`slug`);--> statement-breakpoint
+);
+--> statement-breakpoint
+CREATE UNIQUE INDEX `help_collection_slug_uidx` ON `help_collection` (`workspace_id`,`slug`);
+--> statement-breakpoint
 CREATE TABLE `help_article` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`workspace_id` text NOT NULL,
@@ -28,10 +31,14 @@ CREATE TABLE `help_article` (
 	FOREIGN KEY (`workspace_id`) REFERENCES `workspace`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`collection_id`) REFERENCES `help_collection`(`id`) ON UPDATE no action ON DELETE set null,
 	FOREIGN KEY (`author_id`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE set null
-);--> statement-breakpoint
-CREATE UNIQUE INDEX `help_article_slug_uidx` ON `help_article` (`workspace_id`,`slug`);--> statement-breakpoint
-CREATE INDEX `help_article_ws_status_idx` ON `help_article` (`workspace_id`,`status`);--> statement-breakpoint
-CREATE INDEX `help_article_collection_idx` ON `help_article` (`collection_id`);--> statement-breakpoint
+);
+--> statement-breakpoint
+CREATE UNIQUE INDEX `help_article_slug_uidx` ON `help_article` (`workspace_id`,`slug`);
+--> statement-breakpoint
+CREATE INDEX `help_article_ws_status_idx` ON `help_article` (`workspace_id`,`status`);
+--> statement-breakpoint
+CREATE INDEX `help_article_collection_idx` ON `help_article` (`collection_id`);
+--> statement-breakpoint
 CREATE TABLE `help_article_feedback` (
 	`article_id` integer NOT NULL,
 	`voter` text NOT NULL,

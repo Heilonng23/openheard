@@ -105,8 +105,9 @@ describe("help center reads", () => {
     expect((await helpArticleBySlug(db, "other", "export-csv"))?.title).toBe("Export for another workspace");
   });
 
-  it("lists other published articles in the same collection", async () => {
+  it("lists the collection's other articles first as related", async () => {
     const a = await helpArticleBySlug(db, "acme", "invoices");
-    expect(a?.related.map((r) => r.slug)).toEqual(["discounts"]);
+    // The rest of billing first, then the most helpful elsewhere.
+    expect(a?.related.map((r) => r.slug)).toEqual(["discounts", "export-csv", "loose"]);
   });
 });

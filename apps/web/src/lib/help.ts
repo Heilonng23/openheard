@@ -4,6 +4,11 @@
 
 export const HELP_SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
+// Collection icons. Stored by name; components/help-icon.tsx maps each to a
+// Phosphor glyph.
+export const HELP_ICONS = ["book", "rocket", "card", "plug", "shield", "gear", "users", "chat", "lightbulb", "code"] as const;
+export type HelpIcon = (typeof HELP_ICONS)[number];
+
 // "How do I export my data?" -> "how-do-i-export-my-data". Accents fold to
 // their base letter; anything else that is not a letter or digit becomes a
 // dash. Empty input gives an empty slug, which callers must replace.

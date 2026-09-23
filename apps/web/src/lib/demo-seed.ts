@@ -63,6 +63,7 @@ const HELP = [
   {
     slug: "getting-started",
     title: "Getting started",
+    icon: "rocket",
     description: "Set up your board and invite the people who will use it.",
     articles: [
       {
@@ -88,6 +89,7 @@ const HELP = [
   {
     slug: "account-and-billing",
     title: "Account and billing",
+    icon: "card",
     description: "Sign-in, email updates, plans and invoices.",
     articles: [
       {
@@ -192,7 +194,7 @@ export async function seedDemoContent(db: Db, workspaceId: string, adminId: stri
   for (const [i, c] of hasHelp ? [] : HELP.entries()) {
     const [col] = await db
       .insert(schema.helpCollection)
-      .values({ workspaceId: ws, slug: c.slug, title: c.title, description: c.description, position: i })
+      .values({ workspaceId: ws, slug: c.slug, title: c.title, description: c.description, icon: c.icon, position: i })
       .returning({ id: schema.helpCollection.id });
     for (const [j, a] of c.articles.entries()) {
       const when = at(30 - articles * 4);
