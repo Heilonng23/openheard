@@ -43,6 +43,7 @@ pay for. Self-hosting is the default, not the afterthought.
 **Collect**
 - Public board with voting, search, sorting and keyboard navigation
 - Posts with comments, reactions and a status timeline
+- Images on posts and comments: paste, drop or pick, stored in R2
 - Anonymous voting, sign-in gate on posting, optional approval queue
 - Sign in with Google, magic link or password
 
@@ -63,7 +64,7 @@ pay for. Self-hosting is the default, not the afterthought.
   triage feedback ([docs](docs/mcp.md))
 - Multi-workspace: each workspace lives on its own subdomain
 
-Coming next: image uploads, changelog email subscribers, an embeddable widget,
+Coming next: changelog email subscribers, an embeddable widget,
 a CLI and a docs site.
 
 ## Get started
@@ -85,8 +86,9 @@ cd packages/infra && bunx alchemy login --configure && cd ../..
 bun run deploy
 ```
 
-That provisions the Worker, the D1 database and KV, applies migrations and
-prints your URL. The first account to sign up becomes the admin.
+That provisions the Worker, the D1 database, KV and an R2 bucket for images,
+applies migrations and prints your URL. R2 has to be switched on once in the
+Cloudflare dashboard before the first deploy; its free tier covers 10 GB. The first account to sign up becomes the admin.
 
 #### Behind Cloudflare Access
 
@@ -121,7 +123,7 @@ Keyboard on the board: `j` `k` move, `v` vote, `enter` open, `/` search,
 ## Stack
 
 - [TanStack Start](https://tanstack.com/start), React 19, TypeScript
-- Cloudflare Workers, D1 and KV, provisioned with [Alchemy](https://alchemy.run)
+- Cloudflare Workers, D1, KV and R2, provisioned with [Alchemy](https://alchemy.run)
 - [Drizzle ORM](https://orm.drizzle.team), [Better Auth](https://better-auth.com)
 - Tailwind 4, Base UI primitives, Phosphor icons, Geist
 

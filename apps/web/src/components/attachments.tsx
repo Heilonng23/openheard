@@ -66,6 +66,19 @@ export function useImageDrafts({ blocked, onBlocked }: { blocked?: string | null
     [blocked, onBlocked],
   );
 
+  // For the picker: say no before the file dialog opens, not after.
+  const gate = useCallback(() => {
+    if (onBlocked) {
+      onBlocked();
+      return false;
+    }
+    if (blocked) {
+      setError(blocked);
+      return false;
+    }
+    return true;
+  }, [blocked, onBlocked]);
+
   const remove = useCallback((key: string) => {
     setDrafts((d) => {
       const gone = d.find((x) => x.key === key);
@@ -122,7 +135,7 @@ export function useImageDrafts({ blocked, onBlocked }: { blocked?: string | null
   const ids = drafts.flatMap((d) => (d.status === "done" && d.id ? [d.id] : []));
   // What an optimistic post or comment renders until the real one arrives.
   const views: AttachmentView[] = drafts.map((d) => ({ id: d.id ?? d.key, url: d.preview, contentType: "", width: d.width ?? null, height: d.height ?? null }));
-  return { drafts, ids, views, uploading, error, setError, dragging, add, remove, reset, onPaste, dropProps, full: drafts.length >= MAX_IMAGES };
+  return { drafts, ids, views, uploading, error, setError, dragging, add, gate, remove, reset, onPaste, dropProps, full: drafts.length >= MAX_IMAGES };
 }
 
 export type ImageDrafts = ReturnType<typeof useImageDrafts>;
@@ -132,7 +145,7 @@ export function AttachButton({ drafts, className, children, title = "Attach imag
   const input = useRef<HTMLInputElement>(null);
   return (
     <>
-      <button type="button" title={title} aria-label={title} disabled={drafts.full} onClick={() => input.current?.click()} className={cn("disabled:pointer-events-none disabled:opacity-40", className)}>
+      <button type="button" title={title} aria-label={title} disabled={drafts.full} onClick={() => drafts.gate() && input.current?.click()} className={cn("disabled:pointer-events-none disabled:opacity-40", className)}>
         {children}
       </button>
       <input
