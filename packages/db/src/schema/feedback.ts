@@ -216,6 +216,34 @@ export const commentReaction = sqliteTable(
   (t) => [primaryKey({ columns: [t.commentId, t.userId, t.emoji] })],
 );
 
+// Images on posts and comments. The file lives in object storage under `key`
+// (workspace id, then this id); the row says who it belongs to. A fresh upload
+// has neither post nor comment until the post or comment it was pasted into
+// is published, and unclaimed rows are swept nightly.
+export const attachment = sqliteTable(
+  "attachment",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspace.id, { onDelete: "cascade" }),
+    postId: integer("post_id").references(() => post.id, { onDelete: "cascade" }),
+    commentId: integer("comment_id").references(() => comment.id, { onDelete: "cascade" }),
+    uploaderId: text("uploader_id").references(() => user.id, { onDelete: "set null" }),
+    key: text("key").notNull(),
+    contentType: text("content_type").notNull(),
+    size: integer("size").notNull(),
+    width: integer("width"),
+    height: integer("height"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).default(now).notNull(),
+  },
+  (t) => [
+    index("attachment_workspace_idx").on(t.workspaceId),
+    index("attachment_post_idx").on(t.postId),
+    index("attachment_comment_idx").on(t.commentId),
+  ],
+);
+
 // Status changes, merges and pins. Rendered inline with comments as a timeline.
 export const activity = sqliteTable(
   "activity",
@@ -318,6 +346,7 @@ export const postRelations = relations(post, ({ one, many }) => ({
   votes: many(vote),
   comments: many(comment),
   activity: many(activity),
+  attachments: many(attachment),
 }));
 
 export const postTagRelations = relations(postTag, ({ one }) => ({
@@ -338,6 +367,12 @@ export const commentRelations = relations(comment, ({ one, many }) => ({
   post: one(post, { fields: [comment.postId], references: [post.id] }),
   author: one(user, { fields: [comment.authorId], references: [user.id] }),
   reactions: many(commentReaction),
+  attachments: many(attachment),
+}));
+
+export const attachmentRelations = relations(attachment, ({ one }) => ({
+  post: one(post, { fields: [attachment.postId], references: [post.id] }),
+  comment: one(comment, { fields: [attachment.commentId], references: [comment.id] }),
 }));
 
 export const commentReactionRelations = relations(commentReaction, ({ one }) => ({
