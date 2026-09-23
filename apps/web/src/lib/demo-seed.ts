@@ -70,7 +70,7 @@ const HELP = [
         slug: "post-your-first-idea",
         title: "Post your first idea",
         excerpt: "Where to click, what makes a good title, and what happens after you post.",
-        body: "Anyone with the link can suggest something. Click **Post idea** on the board, or press `c` anywhere.\n\n## Write a title people can vote on\n\nOne sentence that says what you want, not how to build it. \"Export posts to CSV\" gets more votes than \"Add a button to settings\".\n\n## Check for duplicates first\n\nAs you type, similar posts and help articles appear under the title. If one already covers it, vote on that instead: votes on one post count for more than the same request split across three.\n\n## After you post\n\nYou get the first vote. The team moves the post through **Under review**, **Planned**, **In progress** and **Shipped**, and everyone who voted hears about each step.",
+        body: "Anyone with the link can suggest something. Click **Post idea** on the board, or press `c` anywhere.\n\n## Write a title people can vote on\n\nOne sentence that says what you want, not how to build it. \"Export posts to CSV\" gets more votes than \"Add a button to settings\".\n\n## Check for duplicates first\n\nAs you type, similar posts and help articles appear under the title. If one already covers it, vote on that instead: votes on one post count for more than the same request split across three.\n\n> Three posts asking for the same thing with ten votes each read as three small requests. One post with thirty reads as a priority.\n\n## After you post\n\nYou get the first vote. The team moves the post through **Under review**, **Planned**, **In progress** and **Shipped**, and everyone who voted hears about each step.",
       },
       {
         slug: "how-voting-works",
@@ -187,8 +187,14 @@ export async function seedDemoContent(db: Db, workspaceId: string, adminId: stri
     if (ids.length) await db.insert(schema.changelogPost).values(ids.map((postId) => ({ entryId: row.id, postId })));
   }
 
-  // Slugs are unique per workspace, so a second seed leaves an existing help
-  // center alone instead of failing on it.
+  const articles = await seedHelpCenter(db, ws, adminId);
+
+  return { posts: POSTS.length, entries: ENTRIES.length, articles };
+}
+
+// Slugs are unique per workspace, so a second seed leaves an existing help
+// center alone instead of failing on it.
+export async function seedHelpCenter(db: Db, ws: string, adminId: string): Promise<number> {
   let articles = 0;
   const hasHelp = (await db.select({ id: schema.helpCollection.id }).from(schema.helpCollection).where(eq(schema.helpCollection.workspaceId, ws)).limit(1)).length > 0;
   for (const [i, c] of hasHelp ? [] : HELP.entries()) {
@@ -217,6 +223,5 @@ export async function seedDemoContent(db: Db, workspaceId: string, adminId: stri
       articles++;
     }
   }
-
-  return { posts: POSTS.length, entries: ENTRIES.length, articles };
+  return articles;
 }

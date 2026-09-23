@@ -212,3 +212,63 @@ export function DashboardPanelSkeleton() {
     </div>
   );
 }
+
+export function HelpHomeSkeleton() {
+  return (
+    <div className="mx-auto flex w-full max-w-[1072px] flex-1 flex-col px-4 md:px-8">
+      <div className="mx-auto flex w-full max-w-[560px] flex-col items-center pt-14 pb-12 md:pt-20">
+        <Skeleton className="h-3 w-24" />
+        <Skeleton className="mt-4 h-9 w-72" />
+        <Skeleton className="mt-4 h-4 w-64" />
+        <Skeleton className="mt-8 h-12 w-full rounded-xl" />
+        <div className="mt-8 flex w-full flex-col gap-4">
+          {Array.from({ length: 3 }, (_, i) => (
+            <Skeleton key={i} className="h-4 w-3/4" />
+          ))}
+        </div>
+      </div>
+      <div className="grid grid-cols-1 border-t md:grid-cols-2">
+        {Array.from({ length: 2 }, (_, i) => (
+          <div key={i} className="flex gap-4 border-b py-8 md:px-10 md:first:border-r md:first:pl-0">
+            <Skeleton className="size-8 rounded-lg" />
+            <div className="flex flex-1 flex-col gap-3">
+              <Skeleton className="h-4 w-40" />
+              <Skeleton className="h-3 w-56" />
+              <Skeleton className="mt-2 h-3 w-3/4" />
+              <Skeleton className="h-3 w-2/3" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function HelpArticleSkeleton() {
+  return (
+    <div className="mx-auto grid w-full max-w-[1072px] flex-1 grid-cols-1 gap-10 px-4 pt-8 pb-10 md:px-8 md:pt-12 lg:grid-cols-[200px_minmax(0,1fr)_200px] lg:gap-12">
+      <div className="hidden flex-col gap-3 lg:flex">
+        <Skeleton className="h-4 w-32" />
+        {Array.from({ length: 5 }, (_, i) => (
+          <Skeleton key={i} className="h-3 w-40" />
+        ))}
+      </div>
+      <div className="flex flex-col gap-4">
+        <Skeleton className="h-3 w-48" />
+        <Skeleton className="h-8 w-3/4" />
+        <Skeleton className="h-5 w-full" />
+        <Skeleton className="h-4 w-56" />
+        <div className="mt-6 flex flex-col gap-3">
+          {Array.from({ length: 6 }, (_, i) => (
+            <Skeleton key={i} className="h-3 w-full" />
+          ))}
+        </div>
+      </div>
+      <div className="hidden flex-col gap-3 lg:flex">
+        <Skeleton className="h-3 w-24" />
+        <Skeleton className="h-3 w-32" />
+        <Skeleton className="h-3 w-28" />
+      </div>
+    </div>
+  );
+}

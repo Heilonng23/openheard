@@ -34,6 +34,10 @@ const slugField = z
 // ---------------------------------------------------------------------------
 // Public reads
 
+// The left-hand nav on article and collection pages: titles only.
+const navOf = (index: Awaited<ReturnType<typeof helpCenterIndex>>) =>
+  index.collections.map((c) => ({ slug: c.slug, title: c.title, icon: c.icon, articles: c.articles.map((a) => ({ slug: a.slug, title: a.title })) }));
+
 export const getHelpCenter = createServerFn({ method: "GET" })
   .middleware([sessionMiddleware])
   .handler(async ({ context }) => helpCenterIndex(createDb(), context.workspace.id));
@@ -45,7 +49,7 @@ export const getHelpCollection = createServerFn({ method: "GET" })
     const db = createDb();
     const [collection, index] = await Promise.all([helpCollectionBySlug(db, context.workspace.id, data.slug), helpCenterIndex(db, context.workspace.id)]);
     if (!collection) return null;
-    return { collection, collections: index.collections.map((c) => ({ slug: c.slug, title: c.title, icon: c.icon, count: c.articles.length })) };
+    return { collection, nav: navOf(index) };
   });
 
 export const getHelpArticle = createServerFn({ method: "GET" })
@@ -56,8 +60,7 @@ export const getHelpArticle = createServerFn({ method: "GET" })
     const [article, index] = await Promise.all([helpArticleBySlug(db, context.workspace.id, data.slug, { drafts: isTeam(context.user) }), helpCenterIndex(db, context.workspace.id)]);
     // Null rather than a throw, so the route can answer with a real 404.
     if (!article) return null;
-    const nav = index.collections.map((c) => ({ slug: c.slug, title: c.title, icon: c.icon, articles: c.articles.map((a) => ({ slug: a.slug, title: a.title })) }));
-    return { article, nav };
+    return { article, nav: navOf(index) };
   });
 
 export const searchHelp = createServerFn({ method: "GET" })
