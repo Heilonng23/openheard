@@ -153,6 +153,11 @@ export async function resetDemoWorkspace(db: Db, workspaceId: string = DEMO_WORK
   const comments = db.select({ id: schema.comment.id }).from(schema.comment).where(inArray(schema.comment.postId, posts));
   const entries = db.select({ id: schema.changelogEntry.id }).from(schema.changelogEntry).where(eq(schema.changelogEntry.workspaceId, ws));
 
+  const articles = db.select({ id: schema.helpArticle.id }).from(schema.helpArticle).where(eq(schema.helpArticle.workspaceId, ws));
+
+  await db.delete(schema.helpArticleFeedback).where(inArray(schema.helpArticleFeedback.articleId, articles));
+  await db.delete(schema.helpArticle).where(eq(schema.helpArticle.workspaceId, ws));
+  await db.delete(schema.helpCollection).where(eq(schema.helpCollection.workspaceId, ws));
   await db.delete(schema.changelogPost).where(inArray(schema.changelogPost.entryId, entries));
   await db.delete(schema.changelogEntry).where(eq(schema.changelogEntry.workspaceId, ws));
   await db.delete(schema.commentReaction).where(inArray(schema.commentReaction.commentId, comments));

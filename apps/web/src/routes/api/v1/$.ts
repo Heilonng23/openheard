@@ -13,6 +13,7 @@ import {
   mutateDraftChangelog,
   mutatePublishChangelog,
 } from "@/lib/api-actions";
+import { helpArticleBySlug, helpCenterIndex, searchHelpArticles } from "@/lib/help-db";
 
 type RouteHandler = (request: Request, params: Record<string, string>) => Promise<Response>;
 
@@ -65,6 +66,25 @@ const getRoutes: RouteHandler = async (request, params) => {
   if (segments[0] === "changelog" && segments.length === 1) {
     const result = await queryChangelog(ctx.db, ctx.workspaceId);
     return apiJson({ entries: result });
+  }
+
+  // Help center, published articles only.
+  if (segments[0] === "help" && segments[1] === "collections" && segments.length === 2) {
+    const { collections, uncategorised } = await helpCenterIndex(ctx.db, ctx.workspaceId);
+    return apiJson({ collections, uncategorised });
+  }
+
+  if (segments[0] === "help" && segments[1] === "articles" && segments.length === 2) {
+    const q = url.searchParams.get("q")?.trim() ?? "";
+    if (!q) throw new ApiError(422, "Pass a search query as ?q=");
+    const limit = url.searchParams.has("limit") ? Number(url.searchParams.get("limit")) : undefined;
+    return apiJson({ articles: await searchHelpArticles(ctx.db, ctx.workspaceId, q.slice(0, 120), { limit }) });
+  }
+
+  if (segments[0] === "help" && segments[1] === "articles" && segments.length === 3) {
+    const article = await helpArticleBySlug(ctx.db, ctx.workspaceId, segments[2]!);
+    if (!article) throw new ApiError(404, "Article not found");
+    return apiJson(article);
   }
 
   throw new ApiError(404, "Not found");

@@ -57,6 +57,55 @@ const ENTRIES = [
   { title: "Self-host in one command", version: "v0.3.0", days: 16, body: "The whole thing is one Cloudflare Worker with D1 behind it. Point a domain at it and you have a board. Runs on the free tier.", posts: [] },
 ];
 
+// A small help center: two collections, five articles, one of them with
+// enough structure to show the table of contents.
+const HELP = [
+  {
+    slug: "getting-started",
+    title: "Getting started",
+    description: "Set up your board and invite the people who will use it.",
+    articles: [
+      {
+        slug: "post-your-first-idea",
+        title: "Post your first idea",
+        excerpt: "Where to click, what makes a good title, and what happens after you post.",
+        body: "Anyone with the link can suggest something. Click **Post idea** on the board, or press `c` anywhere.\n\n## Write a title people can vote on\n\nOne sentence that says what you want, not how to build it. \"Export posts to CSV\" gets more votes than \"Add a button to settings\".\n\n## Check for duplicates first\n\nAs you type, similar posts and help articles appear under the title. If one already covers it, vote on that instead: votes on one post count for more than the same request split across three.\n\n## After you post\n\nYou get the first vote. The team moves the post through **Under review**, **Planned**, **In progress** and **Shipped**, and everyone who voted hears about each step.",
+      },
+      {
+        slug: "how-voting-works",
+        title: "How voting works",
+        excerpt: "One vote per person per post, and what the team does with the count.",
+        body: "Each person gets one vote per post. Click the arrow on the right of a post to vote, click it again to take the vote back.\n\nVotes are a signal, not a queue. The team reads the comments too, so say what you are trying to do and what you use today.\n\n> Signed out? Some boards let you vote without an account. If yours does not, sign in with your email and the vote is kept.",
+      },
+      {
+        slug: "keyboard-shortcuts",
+        title: "Keyboard shortcuts",
+        excerpt: "Move through the board without a mouse.",
+        body: "## On the board\n\n- `j` and `k` move between posts\n- `v` votes on the selected post\n- `enter` opens it\n- `/` jumps to search\n- `c` starts a new post\n\n## In a dialog\n\n- `cmd enter` submits\n- `esc` closes without saving",
+      },
+    ],
+  },
+  {
+    slug: "account-and-billing",
+    title: "Account and billing",
+    description: "Sign-in, email updates, plans and invoices.",
+    articles: [
+      {
+        slug: "sign-in-with-a-magic-link",
+        title: "Sign in with a magic link",
+        excerpt: "No password: enter your email and click the link we send.",
+        body: "Enter your email on the sign-in screen and we send you a link. Click it on the same device and you are in.\n\n## The email did not arrive\n\n1. Check spam and promotions folders.\n2. Wait a minute: some company mail servers hold new senders briefly.\n3. Ask for a new link. Each link works once and expires after 10 minutes.\n\n## Signing in on a new device\n\nRequest a link from that device. Links opened elsewhere sign in the browser that opened them.",
+      },
+      {
+        slug: "change-plan-or-download-invoices",
+        title: "Change your plan or download invoices",
+        excerpt: "Upgrade, cancel, or get a PDF invoice from the billing page.",
+        body: "Open **Settings**, then **Billing**. From there you can switch between monthly and yearly, cancel, or update your card.\n\n## Invoices\n\nEvery payment has a PDF invoice under **Billing history**. Add your company name and VAT number before downloading and they appear on every future invoice.\n\n## Cancelling\n\nYour board stays online until the end of the period you paid for, then moves to the free plan. Nothing is deleted.",
+      },
+    ],
+  },
+] as const;
+
 // Board and tag ids sit in URLs and are unique across the whole install, so
 // every workspace but "default" carries its id as a prefix. Same rule as
 // saveBoard in functions/settings.ts.
@@ -136,5 +185,36 @@ export async function seedDemoContent(db: Db, workspaceId: string, adminId: stri
     if (ids.length) await db.insert(schema.changelogPost).values(ids.map((postId) => ({ entryId: row.id, postId })));
   }
 
-  return { posts: POSTS.length, entries: ENTRIES.length };
+  // Slugs are unique per workspace, so a second seed leaves an existing help
+  // center alone instead of failing on it.
+  let articles = 0;
+  const hasHelp = (await db.select({ id: schema.helpCollection.id }).from(schema.helpCollection).where(eq(schema.helpCollection.workspaceId, ws)).limit(1)).length > 0;
+  for (const [i, c] of hasHelp ? [] : HELP.entries()) {
+    const [col] = await db
+      .insert(schema.helpCollection)
+      .values({ workspaceId: ws, slug: c.slug, title: c.title, description: c.description, position: i })
+      .returning({ id: schema.helpCollection.id });
+    for (const [j, a] of c.articles.entries()) {
+      const when = at(30 - articles * 4);
+      await db.insert(schema.helpArticle).values({
+        workspaceId: ws,
+        collectionId: col.id,
+        slug: a.slug,
+        title: a.title,
+        excerpt: a.excerpt,
+        body: a.body,
+        status: "published",
+        position: j,
+        helpfulCount: 12 - articles * 2,
+        unhelpfulCount: articles % 2,
+        authorId: adminId,
+        publishedAt: when,
+        createdAt: when,
+        updatedAt: when,
+      });
+      articles++;
+    }
+  }
+
+  return { posts: POSTS.length, entries: ENTRIES.length, articles };
 }

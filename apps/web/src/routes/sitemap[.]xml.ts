@@ -1,4 +1,4 @@
-import { createDb, post } from "@openheard/db";
+import { createDb, helpArticle, helpCollection, post } from "@openheard/db";
 import { workspaceFromRequest } from "@/lib/session";
 import { createFileRoute } from "@tanstack/react-router";
 import { and, eq, sql } from "drizzle-orm";
@@ -31,6 +31,25 @@ export const Route = createFileRoute("/sitemap.xml")({
             urls.push(
               `  <url><loc>${esc(`${origin}/p/${p.id}`)}</loc><lastmod>${lastmod}</lastmod></url>`,
             );
+          }
+
+          // Help center: the index, every collection with something
+          // published, and every published article.
+          const articles = await db
+            .select({ slug: helpArticle.slug, collectionId: helpArticle.collectionId, updatedAt: helpArticle.updatedAt })
+            .from(helpArticle)
+            .where(and(eq(helpArticle.workspaceId, ws.id), eq(helpArticle.status, "published")))
+            .limit(5000);
+          if (articles.length) {
+            urls.push(`  <url><loc>${esc(origin + "/help")}</loc><changefreq>weekly</changefreq></url>`);
+            const collections = await db.select({ id: helpCollection.id, slug: helpCollection.slug }).from(helpCollection).where(eq(helpCollection.workspaceId, ws.id));
+            for (const c of collections) {
+              if (articles.some((a) => a.collectionId === c.id)) urls.push(`  <url><loc>${esc(`${origin}/help/collections/${c.slug}`)}</loc><changefreq>weekly</changefreq></url>`);
+            }
+            for (const a of articles) {
+              const lastmod = new Date(a.updatedAt).toISOString().split("T")[0];
+              urls.push(`  <url><loc>${esc(`${origin}/help/${a.slug}`)}</loc><lastmod>${lastmod}</lastmod></url>`);
+            }
           }
         }
 

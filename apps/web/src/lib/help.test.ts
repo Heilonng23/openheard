@@ -67,9 +67,9 @@ describe("escapeLike", () => {
 });
 
 describe("summary", () => {
-  it("strips markdown and cuts on a word", () => {
+  it("strips markdown, skips headings and cuts on a word", () => {
     const s = summary("## Setup\n\nOpen **Settings**, then [API keys](/dashboard) and create one for your integration today.", 50);
-    expect(s).toBe("Setup Open Settings, then API keys and create one…");
+    expect(s).toBe("Open Settings, then API keys and create one for…");
   });
 });
 

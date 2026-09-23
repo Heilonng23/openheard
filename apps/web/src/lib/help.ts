@@ -64,8 +64,9 @@ export function plainText(md: string): string {
     .trim();
 }
 
+// Headings are skipped: "Steps Open settings." reads worse than the prose.
 export function summary(md: string, max = 160): string {
-  const text = plainText(md);
+  const text = plainText(md.replace(/^\s{0,3}#{1,6}\s.*$/gm, ""));
   if (text.length <= max) return text;
   const cut = text.slice(0, max);
   return cut.slice(0, cut.lastIndexOf(" ") > max * 0.6 ? cut.lastIndexOf(" ") : max).replace(/[,.;:]$/, "") + "…";
