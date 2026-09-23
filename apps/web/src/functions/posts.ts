@@ -7,7 +7,7 @@ import { getRequest } from "@tanstack/react-start/server";
 import { and, asc, desc, eq, inArray, like, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
-import { claimAttachments } from "@/lib/attachment-db";
+import { AttachmentGoneError, claimQuery, reserveAttachments } from "@/lib/attachment-db";
 import { MAX_IMAGES, toAttachmentView } from "@/lib/attachments";
 import { invalidate } from "@/lib/kv-cache";
 import { requireAdmin, requireUser, sessionMiddleware } from "@/lib/session";
@@ -42,7 +42,7 @@ async function ownPost(db: ReturnType<typeof createDb>, postId: number, workspac
   if (!row) throw new Error("Post not found");
 }
 
-// Ids from /api/uploads. Only the caller's own unclaimed uploads stick.
+// Ids from /api/uploads: the caller's own unclaimed uploads, or the submit fails.
 const attachmentIds = z.array(z.string().max(40)).max(MAX_IMAGES, `Up to ${MAX_IMAGES} images each`).default([]);
 const attachmentColumns = { id: true, contentType: true, width: true, height: true } as const;
 
@@ -225,16 +225,29 @@ export const createPost = createServerFn({ method: "POST" })
       const reviewStatus = await statusOfKind(db, context.workspace.id, "review");
       if (reviewStatus) initialStatus = reviewStatus.key;
     }
-    const [created] = await db
-      .insert(post)
-      .values({ workspaceId: context.workspace.id, boardId: data.boardId, authorId: u.id, title: data.title, body: data.body, voteCount: 1, status: initialStatus })
-      .returning({ id: post.id });
-    await db.insert(vote).values({ postId: created.id, userId: u.id });
-    if (tagIds.length) await db.insert(postTag).values(tagIds.map((tagId) => ({ postId: created.id, tagId })));
-    await claimAttachments(db, data.attachments, { workspaceId: context.workspace.id, uploaderId: u.id }, { postId: created.id });
+    const owner = { workspaceId: context.workspace.id, uploaderId: u.id };
+    const images = await reserveAttachments(db, data.attachments, owner);
+    // One batch, so nothing is published unless all of it is. The statements
+    // after the insert find the new post as this author's newest.
+    const newest = sql<number>`(select max(${post.id}) from ${post} where ${post.authorId} = ${u.id})`;
+    const steps = [
+      db
+        .insert(post)
+        .values({ workspaceId: context.workspace.id, boardId: data.boardId, authorId: u.id, title: data.title, body: data.body, voteCount: 1, status: initialStatus })
+        .returning({ id: post.id }),
+      claimQuery(db, images, owner, { postId: newest }),
+      db.insert(vote).values({ postId: newest, userId: u.id }),
+      ...(tagIds.length ? [db.insert(postTag).values(tagIds.map((tagId) => ({ postId: newest, tagId })))] : []),
+    ];
+    const [[created], claimed] = (await db.batch(steps as unknown as Parameters<typeof db.batch>[0])) as unknown as [{ id: number }[], { id: string }[]];
+    if (claimed.length !== images.length) {
+      // Only a second submit of the same images gets here: the first one took them.
+      await db.batch([db.update(attachment).set({ postId: null }).where(eq(attachment.postId, created!.id)), db.delete(post).where(eq(post.id, created!.id))]);
+      throw new AttachmentGoneError();
+    }
     void invalidate(`workspace:${context.workspace.id}`);
     purgeWorkspaceCache(originFromRequest());
-    return { id: created.id, pending: initialStatus !== "open" };
+    return { id: created!.id, pending: initialStatus !== "open" };
   });
 
 export const toggleVote = createServerFn({ method: "POST" })
@@ -293,9 +306,24 @@ export const addComment = createServerFn({ method: "POST" })
     const internal = data.internal && u.role === "admin";
     const db = createDb();
     await ownPost(db, data.postId, context.workspace.id);
-    const [created] = await db.insert(comment).values({ postId: data.postId, authorId: u.id, body: data.body, internal }).returning({ id: comment.id });
-    await claimAttachments(db, data.attachments, { workspaceId: context.workspace.id, uploaderId: u.id }, { commentId: created!.id });
-    if (!internal) await db.update(post).set({ commentCount: sql`${post.commentCount} + 1` }).where(eq(post.id, data.postId));
+    const owner = { workspaceId: context.workspace.id, uploaderId: u.id };
+    const images = await reserveAttachments(db, data.attachments, owner);
+    // Same shape as createPost: one batch, the claim finds the comment as this author's newest.
+    const newest = sql<number>`(select max(${comment.id}) from ${comment} where ${comment.authorId} = ${u.id})`;
+    const steps = [
+      db.insert(comment).values({ postId: data.postId, authorId: u.id, body: data.body, internal }).returning({ id: comment.id }),
+      claimQuery(db, images, owner, { commentId: newest }),
+      ...(internal ? [] : [db.update(post).set({ commentCount: sql`${post.commentCount} + 1` }).where(eq(post.id, data.postId))]),
+    ];
+    const [[created], claimed] = (await db.batch(steps as unknown as Parameters<typeof db.batch>[0])) as unknown as [{ id: number }[], { id: string }[]];
+    if (claimed.length !== images.length) {
+      await db.batch([
+        db.update(attachment).set({ commentId: null }).where(eq(attachment.commentId, created!.id)),
+        db.delete(comment).where(eq(comment.id, created!.id)),
+        ...(internal ? [] : [db.update(post).set({ commentCount: sql`max(${post.commentCount} - 1, 0)` }).where(eq(post.id, data.postId))]),
+      ] as unknown as Parameters<typeof db.batch>[0]);
+      throw new AttachmentGoneError();
+    }
     if (!internal) purgeWorkspaceCache(originFromRequest(), [data.postId]);
     return { ok: true };
   });
