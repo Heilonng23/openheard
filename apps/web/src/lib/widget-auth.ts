@@ -37,4 +37,5 @@ export const MSG = {
   open: "openheard:open",
   seen: "openheard:changelog-seen",
   ready: "openheard:ready",
+  busy: "openheard:busy",
 } as const;

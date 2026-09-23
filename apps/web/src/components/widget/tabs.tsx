@@ -1,5 +1,7 @@
 import { Skeleton } from "@openheard/ui/components/skeleton";
+import { cn } from "@openheard/ui/lib/utils";
 import { useLoaderData } from "@tanstack/react-router";
+import { useState } from "react";
 
 import { VoteButton } from "@/components/vote-button";
 import { getRoadmap } from "@/functions/posts";
@@ -20,29 +22,29 @@ export function RoadmapTab() {
   if (loading && !posts) return <ListSkeleton />;
 
   return (
-    <div className="flex flex-col gap-2 pb-4">
+    <div className="flex flex-col gap-1 pt-1 pb-3">
       {columns.map((meta) => {
         const items = (posts ?? []).filter((p) => p.status === meta.key);
         return (
           <section key={meta.key} className="flex flex-col">
-            <header className="sticky top-0 z-10 flex h-11 items-center gap-2 border-b bg-background px-4 text-[13px] font-semibold">
-              <span className="size-2 rounded-full" style={{ background: meta.color }} />
+            <header className="flex h-10 items-center gap-2 px-5 pt-2 font-mono text-xs lowercase" style={{ color: meta.color }}>
+              <span className="size-1.5 rounded-full" style={{ background: meta.color }} />
               {meta.label}
-              <span className="ml-auto font-mono text-xs font-normal text-faint">{items.length}</span>
+              <span className="ml-auto text-faint">{items.length}</span>
             </header>
-            {items.length === 0 ? <p className="px-4 py-3.5 text-xs text-faint">Nothing here yet</p> : null}
-            <ol role="list" className="divide-y divide-white/6">
+            {items.length === 0 ? <p className="px-5 pb-3 text-xs text-faint">Nothing here yet</p> : null}
+            <ol role="list" className="mx-2 flex flex-col">
               {items.map((p) => (
-                <li key={p.id}>
+                <li key={p.id} className="border-b border-white/6 last:border-b-0">
                   <div
                     role="button"
                     tabIndex={0}
                     onClick={() => openPost(p.id)}
                     onKeyDown={(e) => e.key === "Enter" && openPost(p.id)}
-                    className="group/card flex cursor-pointer items-center gap-3 px-4 py-3 outline-none transition-colors hover:bg-card focus-visible:bg-card"
+                    className="flex cursor-pointer items-center gap-3 rounded-xl px-2.5 py-3 outline-none hover:bg-card focus-visible:bg-card"
                   >
                     <div className="flex min-w-0 flex-1 flex-col gap-1">
-                      <span className="line-clamp-2 text-[13px]/5 font-semibold text-foreground/90 group-hover/card:text-foreground">{p.title}</span>
+                      <span className="line-clamp-2 text-[14px]/5 font-semibold tracking-[-0.01em]">{p.title}</span>
                       {boardName(p.boardId) || p.eta ? (
                         <span className="text-[12px] text-faint">
                           {boardName(p.boardId)}
@@ -58,7 +60,6 @@ export function RoadmapTab() {
                       anonymousVoting={root.workspace.anonymousVoting}
                       headers={headers}
                       onSignIn={() => requireSignIn()}
-                      size="sm"
                     />
                   </div>
                 </li>
@@ -74,7 +75,7 @@ export function RoadmapTab() {
 export type ChangelogEntry = Awaited<ReturnType<typeof listChangelog>>[number];
 
 function shortDate(d: Date | string | number) {
-  return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }).toUpperCase();
+  return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }).toLowerCase();
 }
 
 export function ChangelogTab({ entries, error, retry, seenAt }: { entries?: ChangelogEntry[]; error?: string; retry: () => void; seenAt: number }) {
@@ -90,45 +91,66 @@ export function ChangelogTab({ entries, error, retry, seenAt }: { entries?: Chan
     );
   }
   return (
-    <div className="flex flex-col divide-y">
-      {entries.map((e) => {
-        const at = new Date(e.publishedAt ?? e.createdAt).getTime();
-        const fresh = at > seenAt;
-        return (
-          <article key={e.id} className="flex flex-col gap-2.5 px-4 py-5">
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-[11px] tracking-[0.04em] text-faint">{shortDate(at)}</span>
-              {e.version ? <span className="inline-flex h-5 items-center rounded-md border border-input bg-secondary px-1.5 font-mono text-[11px] text-foreground">{e.version}</span> : null}
-              {fresh ? <span className="inline-flex h-5 items-center rounded-full bg-link/12 px-2 font-mono text-[11px] font-semibold text-link">new</span> : null}
-            </div>
-            <h3 className="text-[15px]/5 font-semibold tracking-[-0.015em]">{e.title}</h3>
-            {e.body ? <p className="text-[13px]/[1.6] whitespace-pre-wrap text-muted-foreground">{e.body}</p> : null}
-            {e.posts.length ? (
-              <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                <span className="mr-1 font-mono text-[11px] tracking-[0.06em] text-faint uppercase">Shipped from</span>
-                {e.posts.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => openPost(p.id)}
-                    className="inline-flex h-6 max-w-full items-center gap-1.5 rounded-full border border-input pr-2.5 pl-2 text-xs text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
-                  >
-                    <span className="size-1.5 shrink-0 rounded-full bg-status-shipped" />
-                    <span className="truncate">{p.title}</span>
-                  </button>
-                ))}
-              </div>
-            ) : null}
-          </article>
-        );
-      })}
-    </div>
+    <ol role="list" className="mx-2 flex flex-col py-1">
+      {entries.map((e) => (
+        <ChangelogRow key={e.id} entry={e} fresh={new Date(e.publishedAt ?? e.createdAt).getTime() > seenAt} onPost={openPost} />
+      ))}
+    </ol>
+  );
+}
+
+function ChangelogRow({ entry: e, fresh, onPost }: { entry: ChangelogEntry; fresh: boolean; onPost: (id: number) => void }) {
+  const [open, setOpen] = useState(false);
+  const long = e.body.length > 160 || e.posts.length > 0;
+  return (
+    <li className="border-b border-white/6 last:border-b-0">
+      <div
+        role={long ? "button" : undefined}
+        tabIndex={long ? 0 : undefined}
+        aria-expanded={long ? open : undefined}
+        onClick={() => long && setOpen((o) => !o)}
+        onKeyDown={(ev) => long && ev.key === "Enter" && setOpen((o) => !o)}
+        className={cn("flex flex-col gap-1.5 rounded-xl px-2.5 py-3.5 outline-none", long && "cursor-pointer hover:bg-card focus-visible:bg-card")}
+      >
+        <div className="flex items-center gap-2 font-mono text-xs">
+          <span className="text-faint">{shortDate(e.publishedAt ?? e.createdAt)}</span>
+          {e.version ? <span className="text-muted-foreground">{e.version}</span> : null}
+          {fresh ? (
+            <span className="inline-flex items-center gap-1.5 text-link">
+              <span className="size-1.5 rounded-full bg-link" />
+              new
+            </span>
+          ) : null}
+        </div>
+        <h3 className="text-[14px]/5 font-semibold tracking-[-0.01em]">{e.title}</h3>
+        {e.body ? <p className={cn("text-[13px]/5 whitespace-pre-wrap text-muted-foreground", !open && "line-clamp-2")}>{e.body}</p> : null}
+        {open && e.posts.length ? (
+          <div className="flex flex-wrap items-center gap-1.5 pt-1.5">
+            <span className="mr-1 font-mono text-[11px] tracking-[0.06em] text-faint uppercase">Shipped from</span>
+            {e.posts.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={(ev) => {
+                  ev.stopPropagation();
+                  onPost(p.id);
+                }}
+                className="inline-flex h-6 max-w-full items-center gap-1.5 rounded-full border border-input pr-2.5 pl-2 text-xs text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
+              >
+                <span className="size-1.5 shrink-0 rounded-full bg-status-shipped" />
+                <span className="truncate">{p.title}</span>
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    </li>
   );
 }
 
 function ListSkeleton() {
   return (
-    <div className="flex flex-col gap-5 px-4 py-5">
+    <div className="flex flex-col gap-5 px-5 py-5">
       {Array.from({ length: 4 }, (_, i) => (
         <div key={i} className="flex flex-col gap-2.5">
           <Skeleton className="h-3 w-20" />

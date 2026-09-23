@@ -1,12 +1,12 @@
 import { Button } from "@openheard/ui/components/button";
 import { cn } from "@openheard/ui/lib/utils";
-import { ArrowSquareOutIcon, XIcon } from "@phosphor-icons/react";
+import { ArrowsOutSimpleIcon, XIcon } from "@phosphor-icons/react";
 import { createFileRoute, useLoaderData } from "@tanstack/react-router";
+import { AnimatePresence, motion, useAnimationControls, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { Avatar } from "@/components/bits";
-import { WidgetContext, useLoad, type FeedbackView, type WidgetCtx, type WidgetTab } from "@/components/widget/context";
-import { Composer, FeedbackList, PostDetail } from "@/components/widget/feedback";
+import { WidgetContext, toParent, useLoad, type FeedbackView, type WidgetCtx, type WidgetTab } from "@/components/widget/context";
+import { Composer, FeedbackList, PostDetail, Sent } from "@/components/widget/feedback";
 import { ChangelogTab, RoadmapTab } from "@/components/widget/tabs";
 import { listChangelog } from "@/functions/changelog";
 import { getUser } from "@/functions/get-user";
@@ -33,9 +33,12 @@ export const Route = createFileRoute("/widget")({
   component: Widget,
 });
 
-function toParent(msg: Record<string, unknown>) {
-  if (typeof window !== "undefined" && window.parent !== window) window.parent.postMessage(msg, "*");
-}
+// Switching tabs or views: the old one lifts away blurred, the new one settles in.
+const VIEW = {
+  initial: { opacity: 0, y: 8, filter: "blur(4px)" },
+  animate: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: 0.24, ease: "easeOut" } },
+  exit: { opacity: 0, y: -8, filter: "blur(4px)", transition: { duration: 0.16, ease: "easeIn" } },
+} as const;
 
 function Widget() {
   const root = useLoaderData({ from: "__root__" });
@@ -46,6 +49,16 @@ function Widget() {
   const [view, setView] = useState<FeedbackView>({ kind: "list" });
   const [embedded, setEmbedded] = useState(false);
   const scroller = useRef<HTMLDivElement>(null);
+  const reduced = useReducedMotion();
+  // Bumped each time the loader opens the panel, to replay the entrance.
+  const [opened, setOpened] = useState(0);
+  const entrance = useAnimationControls();
+  useEffect(() => {
+    if (!opened || reduced) return;
+    // The shell leads, the content follows.
+    entrance.set({ opacity: 0, x: 40, scale: 0.97, filter: "blur(2px)" });
+    void entrance.start({ opacity: 1, x: 0, scale: 1, filter: "blur(0px)", transition: { duration: 0.22, delay: 0.08, ease: [0.22, 1, 0.36, 1] } });
+  }, [opened, reduced, entrance]);
 
   // Session: a bearer token from the sign-in popup, or a first-party cookie
   // when the host shares our site. `undefined` means not known yet.
@@ -98,9 +111,12 @@ function Widget() {
         if (then) setTimeout(then, 0);
         return;
       }
-      if (e.source === window.parent && e.data?.type === MSG.open && tabs.includes(e.data.tab)) {
-        setTab(e.data.tab);
-        setView({ kind: "list" });
+      if (e.source === window.parent && e.data?.type === MSG.open) {
+        if (tabs.includes(e.data.tab)) {
+          setTab(e.data.tab);
+          setView({ kind: "list" });
+        }
+        if (e.data.fresh) setOpened((n) => n + 1);
       }
     }
     window.addEventListener("message", onMessage);
@@ -131,7 +147,8 @@ function Widget() {
   const changelog = useLoad(() => listChangelog({ headers }).then((all) => all.filter((e) => e.publishedAt)), [me?.id]);
   const latest = changelog.data?.[0]?.publishedAt ? new Date(changelog.data[0].publishedAt).getTime() : 0;
   // "New" marks stay put for this visit; the loader clears its badge now.
-  const [seenAt] = useState(() => search.seen ?? 0);
+  // Never opened before: only the last 30 days count as new, as on the launcher.
+  const [seenAt] = useState(() => search.seen ?? Date.now() - 30 * 86_400_000);
   const unseen = latest > seenAt && tab !== "changelog";
 
   useEffect(() => {
@@ -162,6 +179,10 @@ function Widget() {
       setTab("feedback");
       setView({ kind: "new" });
     },
+    sent: (post) => {
+      setTab("feedback");
+      setView({ kind: "sent", post });
+    },
     back: () => setView({ kind: "list" }),
   };
 
@@ -176,24 +197,36 @@ function Widget() {
     return () => window.removeEventListener("keydown", onKey);
   }, [auth, tab, view]);
 
+  const viewKey = tab === "feedback" ? `feedback:${view.kind}:${view.kind === "post" ? view.id : ""}` : tab;
+  const fade = reduced ? { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 } } : VIEW;
+
   return (
     <WidgetContext.Provider value={ctx}>
-      <div className="relative flex h-dvh flex-col overflow-hidden bg-background text-foreground">
-        <header className="flex h-[52px] shrink-0 items-center gap-2.5 pr-2.5 pl-4">
-          <Avatar name={ws.name} image={ws.logoUrl} size={22} className="rounded-md" />
-          <span className="min-w-0 flex-1 truncate text-[14px] font-semibold tracking-[-0.01em]">{ws.name}</span>
-          <a href="/" target="_blank" rel="noopener" title="Open the board" className="inline-flex size-8 items-center justify-center rounded-md text-faint transition-colors hover:bg-accent hover:text-foreground">
-            <ArrowSquareOutIcon className="size-[15px]" />
+      <motion.div
+        animate={entrance}
+        className="relative flex h-dvh flex-col overflow-hidden bg-background text-foreground"
+      >
+        <header className="flex h-14 shrink-0 items-center gap-2.5 pr-3 pl-4">
+          {ws.logoUrl ? (
+            <img src={ws.logoUrl} alt="" className="size-[26px] rounded-lg border object-cover" />
+          ) : (
+            <span aria-hidden className="grid size-[26px] place-items-center rounded-lg border bg-card text-[13px] font-semibold lowercase">
+              {ws.name.slice(0, 1)}
+            </span>
+          )}
+          <span className="min-w-0 flex-1 truncate text-[15px] font-semibold tracking-[-0.01em]">{ws.name} feedback</span>
+          <a href="/" target="_blank" rel="noopener" title="Open the full board" aria-label="Open the full board" className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
+            <ArrowsOutSimpleIcon className="size-4" />
           </a>
           {embedded ? (
-            <button type="button" onClick={() => toParent({ type: MSG.close })} aria-label="Close" className="inline-flex size-8 items-center justify-center rounded-md text-faint transition-colors hover:bg-accent hover:text-foreground">
-              <XIcon className="size-[15px]" />
+            <button type="button" onClick={() => toParent({ type: MSG.close })} aria-label="Close" className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
+              <XIcon className="size-4" />
             </button>
           ) : null}
         </header>
 
         {tabs.length > 1 ? (
-          <nav className="flex h-10 shrink-0 items-center gap-5 border-b px-4 font-mono text-[12px]" aria-label="Sections">
+          <nav className="flex h-11 shrink-0 items-stretch border-b px-2 font-mono text-[13px]" aria-label="Sections">
             {tabs.map((t) => (
               <button
                 key={t}
@@ -204,13 +237,13 @@ function Widget() {
                 }}
                 aria-current={tab === t ? "page" : undefined}
                 className={cn(
-                  "relative inline-flex h-full items-center gap-1.5 outline-none focus-visible:text-foreground",
-                  tab === t ? "text-foreground after:absolute after:inset-x-0 after:-bottom-px after:h-px after:bg-foreground" : "text-muted-foreground hover:text-foreground",
+                  "relative inline-flex items-center gap-2 px-3 outline-none focus-visible:text-foreground",
+                  tab === t ? "text-foreground" : "text-faint hover:text-muted-foreground",
                 )}
               >
-                {tab === t ? <span className="size-[5px] rounded-full bg-link" /> : null}
                 {t}
                 {t === "changelog" && unseen ? <span className="size-1.5 rounded-full bg-link" aria-label="new updates" /> : null}
+                {tab === t ? <motion.span layoutId="widget-tab" transition={reduced ? { duration: 0 } : { type: "spring", stiffness: 500, damping: 40 }} className="absolute inset-x-0 -bottom-px h-[1.5px] bg-foreground" /> : null}
               </button>
             ))}
           </nav>
@@ -219,60 +252,68 @@ function Widget() {
         )}
 
         <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto overscroll-contain scrollbar-thin">
-          {tab === "feedback" ? (
-            view.kind === "post" ? (
-              <PostDetail id={view.id} />
-            ) : view.kind === "new" ? (
-              <Composer />
-            ) : (
-              <FeedbackList />
-            )
-          ) : tab === "roadmap" ? (
-            <RoadmapTab />
-          ) : (
-            <ChangelogTab entries={changelog.data} error={changelog.error} retry={changelog.reload} seenAt={seenAt} />
-          )}
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div key={viewKey} {...fade} className="flex min-h-full flex-col">
+              {tab === "feedback" ? (
+                view.kind === "post" ? (
+                  <PostDetail id={view.id} />
+                ) : view.kind === "new" ? (
+                  <Composer />
+                ) : view.kind === "sent" ? (
+                  <Sent post={view.post} />
+                ) : (
+                  <FeedbackList />
+                )
+              ) : tab === "roadmap" ? (
+                <RoadmapTab />
+              ) : (
+                <ChangelogTab entries={changelog.data} error={changelog.error} retry={changelog.reload} seenAt={seenAt} />
+              )}
+            </motion.div>
+          </AnimatePresence>
         </div>
 
-        <footer className="flex h-10 shrink-0 items-center justify-between gap-3 border-t px-4 text-xs text-faint">
-          {ws.poweredBy ? (
-            <a href="https://openheard.com" target="_blank" rel="noopener" className="hover:text-muted-foreground">
-              powered by <span className="font-semibold">openheard</span>
-            </a>
-          ) : (
-            <span />
-          )}
-          {me === undefined ? null : me ? (
-            <span className="flex min-w-0 items-center gap-2">
-              <span className="truncate">{me.name}</span>
-              {token ? (
-                <button type="button" onClick={ctx.signOut} className="shrink-0 hover:text-foreground">
-                  Sign out
-                </button>
-              ) : null}
-            </span>
-          ) : (
-            <button type="button" onClick={() => ctx.requireSignIn()} className="hover:text-foreground">
-              Sign in
-            </button>
-          )}
-        </footer>
+        {ws.poweredBy || token ? (
+          <footer className="relative flex h-11 shrink-0 items-center justify-center border-t px-4 font-mono text-xs text-faint">
+            {ws.poweredBy ? (
+              <a href="https://openheard.com" target="_blank" rel="noopener" className="transition-colors hover:text-muted-foreground">
+                powered by <span className="text-foreground">openheard</span>
+              </a>
+            ) : null}
+            {token && me ? (
+              <button type="button" onClick={ctx.signOut} title={`Signed in as ${me.name}`} className="absolute right-4 transition-colors hover:text-foreground">
+                sign out
+              </button>
+            ) : null}
+          </footer>
+        ) : null}
 
-        {auth !== "idle" ? <SignInSheet state={auth} wsName={ws.name} onContinue={openPopup} onCancel={() => setAuth("idle")} /> : null}
-      </div>
+        <AnimatePresence>{auth !== "idle" ? <SignInSheet key="sign-in" state={auth} wsName={ws.name} onContinue={openPopup} onCancel={() => setAuth("idle")} /> : null}</AnimatePresence>
+      </motion.div>
     </WidgetContext.Provider>
   );
 }
 
 function SignInSheet({ state, wsName, onContinue, onCancel }: { state: "ask" | "waiting" | "retry"; wsName: string; onContinue: () => void; onCancel: () => void }) {
   return (
-    <div className="absolute inset-0 z-20 flex flex-col justify-end bg-black/50 animate-in fade-in-0 duration-150 motion-reduce:animate-none" onClick={onCancel}>
-      <div
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.15 }}
+      className="absolute inset-0 z-20 flex flex-col justify-end bg-black/50"
+      onClick={onCancel}
+    >
+      <motion.div
+        initial={{ y: 24 }}
+        animate={{ y: 0 }}
+        exit={{ y: 24 }}
+        transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
         role="dialog"
         aria-modal="true"
         aria-labelledby="widget-sign-in"
         onClick={(e) => e.stopPropagation()}
-        className="flex flex-col gap-4 rounded-t-xl border-t border-input bg-card px-5 pt-5 pb-6 animate-in slide-in-from-bottom-4 duration-200 motion-reduce:animate-none"
+        className="flex flex-col gap-4 rounded-t-xl border-t border-input bg-card px-5 pt-5 pb-6"
       >
         <div className="flex flex-col gap-1">
           <h2 id="widget-sign-in" className="text-[16px] font-semibold tracking-[-0.02em]">
@@ -294,7 +335,7 @@ function SignInSheet({ state, wsName, onContinue, onCancel }: { state: "ask" | "
         <button type="button" onClick={onCancel} className="self-center text-xs text-faint hover:text-foreground">
           Not now
         </button>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

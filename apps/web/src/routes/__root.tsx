@@ -77,7 +77,9 @@ function RootDocument() {
   // the marketing page is the home page.
   const marketing = pathname === "/landing" || (!!data?.marketing && pathname === "/");
   const bare = BARE_PAGES.some((p) => pathname === p || pathname.startsWith(p));
-  const theme = data?.workspace.theme === "light" && !admin && !marketing ? "" : "dark";
+  // The embedded widget is always dark so it reads as one object on any host page.
+  const widget = pathname.startsWith("/widget");
+  const theme = data?.workspace.theme === "light" && !admin && !marketing && !widget ? "" : "dark";
   // Workspace accent applies to the public board only; the dashboard keeps ours.
   const accent = !admin && data?.workspace.accent ? ({ "--link": data.workspace.accent, "--ring": data.workspace.accent } as React.CSSProperties) : undefined;
   return (

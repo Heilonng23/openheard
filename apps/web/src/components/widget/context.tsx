@@ -3,7 +3,8 @@ import { createContext, useContext, useEffect, useState } from "react";
 import type { SessionUser } from "@/lib/session";
 
 export type WidgetTab = "feedback" | "roadmap" | "changelog";
-export type FeedbackView = { kind: "list" } | { kind: "post"; id: number } | { kind: "new" };
+export type SentPost = { id: number; title: string; status: string; pending: boolean };
+export type FeedbackView = { kind: "list" } | { kind: "post"; id: number } | { kind: "new" } | { kind: "sent"; post: SentPost };
 
 export type WidgetCtx = {
   me: SessionUser | null;
@@ -13,6 +14,7 @@ export type WidgetCtx = {
   signOut: () => void;
   openPost: (id: number) => void;
   compose: () => void;
+  sent: (post: SentPost) => void;
   back: () => void;
 };
 
@@ -22,6 +24,12 @@ export function useWidget() {
   const ctx = useContext(WidgetContext);
   if (!ctx) throw new Error("useWidget outside the widget");
   return ctx;
+}
+
+// Messages to the loader on the host page. They carry nothing private, and the
+// host's origin is unknown, so they go to any parent.
+export function toParent(msg: Record<string, unknown>) {
+  if (typeof window !== "undefined" && window.parent !== window) window.parent.postMessage(msg, "*");
 }
 
 // Client-only fetch with loading and error state. The widget's data depends on
