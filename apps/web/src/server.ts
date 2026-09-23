@@ -22,15 +22,24 @@ const SECURITY_HEADERS: Record<string, string> = {
   "permissions-policy": "camera=(), microphone=(), geolocation=()",
 };
 
-function secure(response: Response): Response {
+// The widget panel is the one page meant to live inside other sites' iframes.
+// Everything else, the sign-in popup included, stays unframeable.
+const FRAMEABLE_PATHS = ["/widget"];
+
+function secure(response: Response, pathname: string): Response {
   const out = new Response(response.body, response);
-  for (const [k, v] of Object.entries(SECURITY_HEADERS)) if (!out.headers.has(k)) out.headers.set(k, v);
+  const frameable = FRAMEABLE_PATHS.includes(pathname);
+  for (const [k, v] of Object.entries(SECURITY_HEADERS)) {
+    if (frameable && k === "x-frame-options") continue;
+    if (!out.headers.has(k)) out.headers.set(k, v);
+  }
+  if (frameable) out.headers.set("content-security-policy", "frame-ancestors *");
   return out;
 }
 
 export default {
   async fetch(request: Request, _env: unknown, ctx: ExecutionContext) {
-    return secure(await handle(request, ctx));
+    return secure(await handle(request, ctx), new URL(request.url).pathname);
   },
   // Nightly: the public demo workspace goes back to its seed. Bindings come
   // from `cloudflare:workers`, which is live in a scheduled invocation too.
