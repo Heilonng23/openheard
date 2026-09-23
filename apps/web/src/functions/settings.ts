@@ -8,6 +8,7 @@ import { getRequest } from "@tanstack/react-start/server";
 import { and, count, eq } from "drizzle-orm";
 import { z } from "zod";
 
+import { toAttachmentView } from "@/lib/attachments";
 import { invalidate } from "@/lib/kv-cache";
 import { assertNotDemo, assertNotDemoIdentity, isDemo } from "@/lib/demo";
 import { requireAdmin, requireUser, sessionMiddleware } from "@/lib/session";
@@ -215,9 +216,11 @@ export const exportPosts = createServerFn({ method: "GET" })
     requireAdmin(context.user);
     assertNotDemo(context.workspace);
     const db = createDb();
+    const images = { columns: { id: true, contentType: true, width: true, height: true } } as const;
+    const origin = new URL(getRequest().url).origin;
     const rows = await db.query.post.findMany({
       where: eq(post.workspaceId, context.workspace.id),
-      with: { author: { columns: { name: true, email: true } }, board: { columns: { name: true } }, tags: { with: { tag: true } }, comments: { with: { author: { columns: { name: true, email: true } } } } },
+      with: { author: { columns: { name: true, email: true } }, board: { columns: { name: true } }, tags: { with: { tag: true } }, attachments: images, comments: { with: { author: { columns: { name: true, email: true } }, attachments: images } } },
     });
     return rows.map((p) => ({
       id: p.id,
@@ -229,7 +232,8 @@ export const exportPosts = createServerFn({ method: "GET" })
       votes: p.voteCount,
       author: p.author ? { name: p.author.name, email: p.author.email } : null,
       createdAt: p.createdAt,
-      comments: p.comments.filter((c) => !c.internal).map((c) => ({ body: c.body, author: c.author?.name ?? null, createdAt: c.createdAt })),
+      attachments: p.attachments.map((a) => toAttachmentView(a, origin)),
+      comments: p.comments.filter((c) => !c.internal).map((c) => ({ body: c.body, author: c.author?.name ?? null, createdAt: c.createdAt, attachments: c.attachments.map((a) => toAttachmentView(a, origin)) })),
     }));
   });
 

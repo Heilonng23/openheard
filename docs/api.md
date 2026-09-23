@@ -71,6 +71,19 @@ curl -H "Authorization: Bearer $KEY" \
   http://localhost:3001/api/v1/posts/1
 ```
 
+The post and each comment carry `attachments`, the images attached to them,
+oldest first:
+
+```json
+"attachments": [
+  { "id": "k3Vx9…", "url": "https://acme.openheard.com/uploads/k3Vx9…", "contentType": "image/png", "width": 1280, "height": 720 }
+]
+```
+
+`width` and `height` are `null` when the image header could not be read. The
+`url` needs no key: images are served to anyone who has the link. The MCP
+`get_post` tool returns the same shape.
+
 ### POST /api/v1/posts
 
 Create a post. Returns `{ id }` with status `201`.

@@ -17,7 +17,7 @@ import {
 } from "@/lib/api-actions";
 import { z } from "zod";
 
-function createMcpServer(workspaceId: string, db: Parameters<typeof queryListPosts>[0]) {
+function createMcpServer(workspaceId: string, db: Parameters<typeof queryListPosts>[0], origin: string) {
   const server = new McpServer({
     name: "openheard",
     version: "0.1.0",
@@ -41,12 +41,12 @@ function createMcpServer(workspaceId: string, db: Parameters<typeof queryListPos
 
   server.tool(
     "get_post",
-    "Get a single post with its comments and status history.",
+    "Get a single post with its comments, status history and image attachments.",
     {
       id: z.number().describe("Post ID"),
     },
     async ({ id }) => {
-      const result = await queryGetPost(db, workspaceId, id);
+      const result = await queryGetPost(db, workspaceId, id, origin);
       return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
     },
   );
@@ -161,7 +161,7 @@ async function handleMcp(request: Request): Promise<Response> {
     if (!rl.allowed) return rateLimitResponse(rl.retryAfter!);
 
     const ctx = await authenticateApiKey(request);
-    const server = createMcpServer(ctx.workspaceId, ctx.db);
+    const server = createMcpServer(ctx.workspaceId, ctx.db, new URL(request.url).origin);
     const transport = new WebStandardStreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
       enableJsonResponse: true,
