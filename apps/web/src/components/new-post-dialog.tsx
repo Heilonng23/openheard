@@ -124,6 +124,7 @@ export function NewPostDialog({
       _optimistic: true,
     };
     const attachments = images.ids;
+    const saved = images.drafts;
 
     onOptimisticPost?.(tempPost);
     onOpenChange(false);
@@ -140,6 +141,10 @@ export function NewPostDialog({
       })
       .catch((err) => {
         onOptimisticPost?.(null);
+        // Keep the draft for the next time the composer opens.
+        setTitle((t) => t || postTitle);
+        setBody((b) => b || postBody);
+        images.restore(saved);
         toast.error(err instanceof Error ? err.message : "Could not post");
       });
   }

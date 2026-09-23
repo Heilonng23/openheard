@@ -77,6 +77,8 @@ function PostPage() {
   });
   useEffect(() => setReady(true), []);
 
+  const shownId = useRef(p.id);
+  shownId.current = p.id;
   const prevTimeline = useRef(p.timeline);
   if (p.timeline !== prevTimeline.current) {
     prevTimeline.current = p.timeline;
@@ -96,6 +98,7 @@ function PostPage() {
     if (!reply.trim() && !images.ids.length) return;
     const body = reply.trim();
     const attachments = images.ids;
+    const saved = images.drafts;
     const tempId = -Date.now();
     const optimistic: OptimisticComment = {
       id: tempId,
@@ -116,6 +119,12 @@ function PostPage() {
       .then(() => router.invalidate())
       .catch((err) => {
         setPendingComments((prev) => prev.filter((c) => c.id !== tempId));
+        // Give the reply back so nothing typed or attached is lost, unless
+        // the page has moved on to another post.
+        if (shownId.current === p.id) {
+          setReply((r) => r || body);
+          images.restore(saved);
+        }
         toast.error(err instanceof Error ? err.message : "Could not comment");
       });
   }

@@ -299,6 +299,7 @@ function Detail({ post: p, onClose, nav }: { post: PostData; onClose: () => void
     if (!reply.trim() && !images.ids.length) return;
     const body = reply.trim();
     const attachments = images.ids;
+    const saved = images.drafts;
     const isInternal = internal;
     const tempId = -Date.now();
     const optimistic: OptimisticComment = {
@@ -320,6 +321,12 @@ function Detail({ post: p, onClose, nav }: { post: PostData; onClose: () => void
       .then(() => router.invalidate())
       .catch((err) => {
         setPendingComments((prev) => prev.filter((c) => c.id !== tempId));
+        // Give the reply back so nothing typed or attached is lost, unless
+        // the composer has moved on to another post.
+        if (prevId.current === p.id) {
+          setReply((r) => r || body);
+          images.restore(saved);
+        }
         toast.error(err instanceof Error ? err.message : "Could not comment");
       });
   }

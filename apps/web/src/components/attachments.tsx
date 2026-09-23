@@ -30,6 +30,9 @@ export function useImageDrafts({ blocked, onBlocked }: { blocked?: string | null
   const depth = useRef(0);
   const count = useRef(0);
   count.current = drafts.length;
+  // Drafts still in the composer. An upload that fails after its draft was
+  // removed has nothing left to report or clean up.
+  const live = useRef(new Set<string>());
 
   const add = useCallback(
     (files: File[]) => {
@@ -52,10 +55,12 @@ export function useImageDrafts({ blocked, onBlocked }: { blocked?: string | null
         const key = crypto.randomUUID();
         const draft: Draft = { key, name: file.name || "Pasted image", preview: URL.createObjectURL(file), status: "uploading" };
         count.current++;
+        live.current.add(key);
         setDrafts((d) => [...d, draft]);
         upload(file).then(
           (a) => setDrafts((d) => d.map((x) => (x.key === key ? { ...x, status: "done", id: a.id, width: a.width, height: a.height } : x))),
           (err: Error) => {
+            if (!live.current.delete(key)) return;
             setDrafts((d) => d.filter((x) => x.key !== key));
             URL.revokeObjectURL(draft.preview);
             setError(err.message);
@@ -80,6 +85,7 @@ export function useImageDrafts({ blocked, onBlocked }: { blocked?: string | null
   }, [blocked, onBlocked]);
 
   const remove = useCallback((key: string) => {
+    live.current.delete(key);
     setDrafts((d) => {
       const gone = d.find((x) => x.key === key);
       if (gone) URL.revokeObjectURL(gone.preview);
@@ -88,10 +94,17 @@ export function useImageDrafts({ blocked, onBlocked }: { blocked?: string | null
     setError(null);
   }, []);
 
-  // After publishing. Previews stay alive: the optimistic copy still shows them.
+  // After publishing. Previews stay alive: the optimistic copy still shows them,
+  // and `restore` puts the same drafts back if the publish fails.
   const reset = useCallback(() => {
+    live.current.clear();
     setDrafts([]);
     setError(null);
+  }, []);
+
+  const restore = useCallback((saved: Draft[]) => {
+    for (const d of saved) live.current.add(d.key);
+    setDrafts((d) => [...saved, ...d].slice(0, MAX_IMAGES));
   }, []);
 
   const onPaste = useCallback(
@@ -135,7 +148,7 @@ export function useImageDrafts({ blocked, onBlocked }: { blocked?: string | null
   const ids = drafts.flatMap((d) => (d.status === "done" && d.id ? [d.id] : []));
   // What an optimistic post or comment renders until the real one arrives.
   const views: AttachmentView[] = drafts.map((d) => ({ id: d.id ?? d.key, url: d.preview, contentType: "", width: d.width ?? null, height: d.height ?? null }));
-  return { drafts, ids, views, uploading, error, setError, dragging, add, gate, remove, reset, onPaste, dropProps, full: drafts.length >= MAX_IMAGES };
+  return { drafts, ids, views, uploading, error, setError, dragging, add, gate, remove, reset, restore, onPaste, dropProps, full: drafts.length >= MAX_IMAGES };
 }
 
 export type ImageDrafts = ReturnType<typeof useImageDrafts>;
