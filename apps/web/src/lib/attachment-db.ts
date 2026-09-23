@@ -11,6 +11,7 @@ export type UploadsBucket = {
   put(key: string, value: ArrayBuffer | Uint8Array, opts?: { httpMetadata?: { contentType?: string } }): Promise<unknown>;
   get(key: string): Promise<StoredObject | null>;
   delete(keys: string | string[]): Promise<void>;
+  list(opts?: { cursor?: string; limit?: number }): Promise<{ objects: { key: string; uploaded: Date }[]; truncated: boolean; cursor?: string }>;
 };
 
 // The R2 binding on the Worker, a folder on disk under OPENHEARD_LOCAL.
@@ -90,4 +91,31 @@ export async function removeAttachments(db: Db, where: SQL) {
 // Uploads nobody published: pasted into a composer that was then closed.
 export function sweepUnclaimed(db: Db, olderThan = 24 * 60 * 60 * 1000) {
   return removeAttachments(db, and(isNull(attachment.postId), isNull(attachment.commentId), lt(attachment.createdAt, new Date(Date.now() - olderThan)))!);
+}
+
+// Objects whose row is gone. Posts, boards and workspaces cascade their rows
+// away in the database, which cannot reach into the bucket, so the nightly
+// run deletes what is left behind. Fresh objects are skipped: their row may
+// be a moment behind the write.
+export async function sweepOrphans(db: Db, olderThan = 24 * 60 * 60 * 1000) {
+  const bucket = uploadsBucket();
+  if (!bucket) return 0;
+  const cutoff = Date.now() - olderThan;
+  let cursor: string | undefined;
+  let removed = 0;
+  do {
+    const page = await bucket.list({ cursor, limit: 1000 });
+    cursor = page.truncated ? page.cursor : undefined;
+    const old = page.objects.filter((o) => new Date(o.uploaded).getTime() < cutoff);
+    if (!old.length) continue;
+    const known = new Set<string>();
+    for (let i = 0; i < old.length; i += 90) {
+      const keys = old.slice(i, i + 90).map((o) => o.key);
+      for (const r of await db.select({ key: attachment.key }).from(attachment).where(inArray(attachment.key, keys))) known.add(r.key);
+    }
+    const gone = old.map((o) => o.key).filter((k) => !known.has(k));
+    if (gone.length) await bucket.delete(gone);
+    removed += gone.length;
+  } while (cursor);
+  return removed;
 }

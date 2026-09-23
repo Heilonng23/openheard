@@ -40,6 +40,14 @@ function localBucket() {
         return null;
       }
     },
+    async list(opts?: { cursor?: string }) {
+      const { readdir, stat } = await fs();
+      if (opts?.cursor) return { objects: [], truncated: false };
+      const names = await readdir(uploadsDir, { recursive: true }).catch(() => [] as string[]);
+      const keys = names.map((n) => n.split("\\").join("/")).filter((n) => n.includes("/") && !n.endsWith(".json"));
+      const objects = await Promise.all(keys.map(async (key) => ({ key, uploaded: (await stat(new URL(key, uploadsDir))).mtime })));
+      return { objects, truncated: false };
+    },
     async delete(keys: string | string[]) {
       const { rm } = await fs();
       for (const key of Array.isArray(keys) ? keys : [keys]) {

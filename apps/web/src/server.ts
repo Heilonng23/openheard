@@ -33,7 +33,7 @@ export default {
     return secure(await handle(request, ctx));
   },
   // Nightly: the public demo workspace goes back to its seed, and images that
-  // were uploaded but never published are deleted. Bindings come
+  // were uploaded but never published, or whose post is gone, are deleted. Bindings come
   // from `cloudflare:workers`, which is live in a scheduled invocation too.
   async scheduled(_controller: ScheduledController, _env: unknown, ctx: ExecutionContext) {
     ctx.waitUntil(
@@ -45,9 +45,11 @@ export default {
     );
     ctx.waitUntil(
       (async () => {
-        const [{ createDb }, { sweepUnclaimed }] = await Promise.all([import("@openheard/db"), import("./lib/attachment-db")]);
-        const swept = await sweepUnclaimed(createDb());
-        if (swept) console.log(`uploads: swept ${swept} unpublished images`);
+        const [{ createDb }, { sweepOrphans, sweepUnclaimed }] = await Promise.all([import("@openheard/db"), import("./lib/attachment-db")]);
+        const db = createDb();
+        const unclaimed = await sweepUnclaimed(db);
+        const orphans = await sweepOrphans(db);
+        if (unclaimed || orphans) console.log(`uploads: swept ${unclaimed} unpublished images, ${orphans} orphaned files`);
       })(),
     );
   },
