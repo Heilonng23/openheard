@@ -1,15 +1,19 @@
 import { Dialog, DialogContent, DialogTitle } from "@openheard/ui/components/dialog";
+import { cn } from "@openheard/ui/lib/utils";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@openheard/ui/components/dropdown-menu";
 import { CaretDownIcon, ImageIcon, LightningIcon, PlusIcon, XIcon } from "@phosphor-icons/react";
-import { Link, useNavigate, useRouter } from "@tanstack/react-router";
+import { Link, useLoaderData, useNavigate, useRouter } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { createPost, searchPosts } from "@/functions/posts";
+import { MAX_IMAGES, type AttachmentView } from "@/lib/attachments";
+import { isDemo } from "@/lib/demo";
 import { openSignIn } from "@/lib/pending-action";
 import { findStatus, useStatuses } from "@/lib/status";
 
 import { LoadingButton } from "@openheard/ui/components/interior/loading-button";
+import { AttachButton, DraftError, DraftTray, DropOverlay, useImageDrafts } from "./attachments";
 import { Kbd } from "./bits";
 
 type Board = { id: string; name: string };
@@ -30,6 +34,7 @@ export type OptimisticPost = {
   author: { name: string; image?: string | null } | null;
   createdAt: string;
   tags: [];
+  attachments: AttachmentView[];
   trending: boolean;
   _optimistic: true;
 };
@@ -58,6 +63,11 @@ export function NewPostDialog({
   const bodyRef = useRef<HTMLTextAreaElement>(null);
   const statuses = useStatuses();
   const board = boards.find((b) => b.id === boardId) ?? boards[0];
+  const root = useLoaderData({ from: "__root__" });
+  const images = useImageDrafts({
+    blocked: isDemo(root.workspace) ? "Image uploads are off in the demo." : null,
+    onBlocked: signedIn ? undefined : () => submit(),
+  });
 
   useEffect(() => {
     if (defaultBoard) setBoardId(defaultBoard);
@@ -80,6 +90,10 @@ export function NewPostDialog({
       toast("Give it a title first");
       return;
     }
+    if (images.uploading) {
+      toast("Images are still uploading");
+      return;
+    }
     const postTitle = title.trim();
     const postBody = body;
     const postBoardId = board?.id ?? "";
@@ -100,16 +114,19 @@ export function NewPostDialog({
       author: null,
       createdAt: new Date().toISOString(),
       tags: [],
+      attachments: images.views,
       trending: false,
       _optimistic: true,
     };
+    const attachments = images.ids;
 
     onOptimisticPost?.(tempPost);
     onOpenChange(false);
     setTitle("");
     setBody("");
+    images.reset();
 
-    createPost({ data: { boardId: postBoardId, title: postTitle, body: postBody, tags: [] } })
+    createPost({ data: { boardId: postBoardId, title: postTitle, body: postBody, tags: [], attachments } })
       .then((result) => {
         onOptimisticPost?.(null);
         router.invalidate();
@@ -131,7 +148,8 @@ export function NewPostDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent showClose={false} className="max-w-[calc(100vw-2rem)] gap-0 overflow-hidden rounded-xl border-input bg-card p-0 shadow-[0_24px_64px_rgba(0,0,0,.6)] sm:max-w-[560px]">
+      <DialogContent showClose={false} onPaste={images.onPaste} {...images.dropProps} className="max-w-[calc(100vw-2rem)] gap-0 overflow-hidden rounded-xl border-input bg-card p-0 shadow-[0_24px_64px_rgba(0,0,0,.6)] sm:max-w-[560px]">
+        <DropOverlay drafts={images} />
         <div className="flex items-center justify-between pt-3.5 pr-3.5 pl-4 sm:pl-5">
           <DialogTitle className="text-[13px] font-semibold text-muted-foreground">New post</DialogTitle>
           <button type="button" onClick={() => onOpenChange(false)} className="inline-flex size-10 items-center justify-center rounded-md text-faint hover:bg-accent hover:text-foreground sm:size-[26px]">
@@ -199,14 +217,29 @@ export function NewPostDialog({
           </div>
         ) : null}
 
-        <div className="flex items-center gap-2 px-4 pb-3 sm:px-5">
-          <span className="inline-flex h-11 w-16 items-center justify-center rounded-md border border-input bg-secondary text-faint">
-            <ImageIcon className="size-3.5" />
-          </span>
-          <span className="inline-flex h-11 w-16 items-center justify-center rounded-md border border-dashed border-input text-faint">
-            <PlusIcon className="size-3.5" />
-          </span>
-          <span className="ml-1 text-xs text-faint">Images coming soon. Paste a link for now.</span>
+        <div className="flex flex-col gap-2 px-4 pb-3 sm:px-5">
+          <div className="flex flex-wrap items-center gap-2">
+            <DraftTray drafts={images} className="contents" />
+            {images.full ? null : (
+              <AttachButton
+                drafts={images}
+                className={cn(
+                  "inline-flex h-14 items-center justify-center gap-2 rounded-md border border-dashed border-input text-faint outline-none transition-colors hover:border-ring/60 hover:bg-accent hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring",
+                  images.drafts.length ? "w-[72px]" : "px-3.5 text-xs",
+                )}
+              >
+                {images.drafts.length ? (
+                  <PlusIcon className="size-3.5" />
+                ) : (
+                  <>
+                    <ImageIcon className="size-3.5" /> Add images
+                  </>
+                )}
+              </AttachButton>
+            )}
+            {images.drafts.length ? null : <span className="ml-1 text-xs text-faint">or paste and drop, up to {MAX_IMAGES}</span>}
+          </div>
+          <DraftError drafts={images} />
         </div>
 
         <div className="flex items-center justify-between border-t bg-background px-4 py-3 pr-3 sm:px-5">

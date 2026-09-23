@@ -48,7 +48,7 @@ const getRoutes: RouteHandler = async (request, params) => {
   if (segments[0] === "posts" && segments.length === 2) {
     const id = Number(segments[1]);
     if (!Number.isInteger(id)) throw new ApiError(422, "Invalid post ID");
-    const result = await queryGetPost(ctx.db, ctx.workspaceId, id);
+    const result = await queryGetPost(ctx.db, ctx.workspaceId, id, url.origin);
     return apiJson(result);
   }
 

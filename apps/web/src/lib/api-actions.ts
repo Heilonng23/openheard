@@ -1,5 +1,6 @@
 import {
   activity,
+  attachment,
   board,
   changelogEntry,
   changelogPost,
@@ -11,6 +12,7 @@ import type { Db } from "@openheard/db";
 import { user } from "@openheard/db/schema/auth";
 import { and, desc, eq, inArray, isNotNull, like, or, sql, asc } from "drizzle-orm";
 import { ApiError } from "./api-auth";
+import { toAttachmentView } from "./attachments";
 
 // Re-usable query logic for the HTTP API and MCP server.
 // Does NOT import from functions/* (those depend on TanStack server fns).
@@ -75,7 +77,9 @@ export async function queryListPosts(
   };
 }
 
-export async function queryGetPost(db: Db, workspaceId: string, postId: number) {
+// `origin` makes attachment urls absolute; without it they are paths.
+export async function queryGetPost(db: Db, workspaceId: string, postId: number, origin = "") {
+  const images = { columns: { id: true, contentType: true, width: true, height: true } as const, orderBy: [asc(attachment.createdAt)] };
   const p = await db.query.post.findFirst({
     where: and(eq(post.id, postId), eq(post.workspaceId, workspaceId)),
     with: {
@@ -84,13 +88,14 @@ export async function queryGetPost(db: Db, workspaceId: string, postId: number) 
       tags: { with: { tag: true } },
       comments: {
         where: eq(comment.internal, false),
-        with: { author: { columns: { id: true, name: true } } },
+        with: { author: { columns: { id: true, name: true } }, attachments: images },
         orderBy: [desc(comment.createdAt)],
       },
       activity: {
         with: { actor: { columns: { id: true, name: true } } },
         orderBy: [desc(activity.createdAt)],
       },
+      attachments: images,
     },
   });
   if (!p) throw new ApiError(404, "Post not found");
@@ -108,9 +113,11 @@ export async function queryGetPost(db: Db, workspaceId: string, postId: number) 
     createdAt: p.createdAt,
     author: p.author ? { name: p.author.name } : null,
     tags: p.tags.map((t) => t.tag.name),
+    attachments: p.attachments.map((a) => toAttachmentView(a, origin)),
     comments: p.comments.map((c) => ({
       id: c.id,
       body: c.body,
+      attachments: c.attachments.map((a) => toAttachmentView(a, origin)),
       author: c.author ? { name: c.author.name } : null,
       createdAt: c.createdAt,
     })),

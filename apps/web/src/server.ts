@@ -1,5 +1,5 @@
 import { createStartHandler, defaultStreamHandler } from "@tanstack/react-start/server";
-import { hasSessionCookie, isPrivatePath, isPublicCacheable } from "./lib/cache";
+import { hasSessionCookie, isImmutableAsset, isPrivatePath, isPublicCacheable } from "./lib/cache";
 
 const handler = createStartHandler(defaultStreamHandler);
 
@@ -32,7 +32,8 @@ export default {
   async fetch(request: Request, _env: unknown, ctx: ExecutionContext) {
     return secure(await handle(request, ctx));
   },
-  // Nightly: the public demo workspace goes back to its seed. Bindings come
+  // Nightly: the public demo workspace goes back to its seed, and images that
+  // were uploaded but never published, or whose post is gone, are deleted. Bindings come
   // from `cloudflare:workers`, which is live in a scheduled invocation too.
   async scheduled(_controller: ScheduledController, _env: unknown, ctx: ExecutionContext) {
     ctx.waitUntil(
@@ -40,6 +41,15 @@ export default {
         const [{ createDb }, { resetDemoWorkspace }] = await Promise.all([import("@openheard/db"), import("./lib/demo-db")]);
         const { posts } = await resetDemoWorkspace(createDb());
         console.log(`demo reset: ${posts} posts`);
+      })(),
+    );
+    ctx.waitUntil(
+      (async () => {
+        const [{ createDb }, { sweepOrphans, sweepUnclaimed }] = await Promise.all([import("@openheard/db"), import("./lib/attachment-db")]);
+        const db = createDb();
+        const unclaimed = await sweepUnclaimed(db);
+        const orphans = await sweepOrphans(db);
+        if (unclaimed || orphans) console.log(`uploads: swept ${unclaimed} unpublished images, ${orphans} orphaned files`);
       })(),
     );
   },
@@ -95,6 +105,8 @@ async function handle(request: Request, ctx: ExecutionContext): Promise<Response
   }
 
   const response = await bounded(request, url);
+
+  if (isImmutableAsset(url.pathname)) return response;
 
   if (isPrivatePath(url.pathname) || hasSessionCookie(request)) {
     const out = new Response(response.body, response);

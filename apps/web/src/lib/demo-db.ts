@@ -155,6 +155,8 @@ export async function resetDemoWorkspace(db: Db, workspaceId: string = DEMO_WORK
 
   await db.delete(schema.changelogPost).where(inArray(schema.changelogPost.entryId, entries));
   await db.delete(schema.changelogEntry).where(eq(schema.changelogEntry.workspaceId, ws));
+  // Rows only: uploads are refused in the demo, so no objects sit behind them.
+  await db.delete(schema.attachment).where(eq(schema.attachment.workspaceId, ws));
   await db.delete(schema.commentReaction).where(inArray(schema.commentReaction.commentId, comments));
   await db.delete(schema.comment).where(inArray(schema.comment.postId, posts));
   await db.delete(schema.activity).where(inArray(schema.activity.postId, posts));

@@ -6,12 +6,15 @@ import { openSignIn } from "@/lib/pending-action";
 
 import { Button } from "@openheard/ui/components/button";
 import { CopyButton } from "@openheard/ui/components/interior/copy-button";
+import { AttachButton, AttachmentGallery, DraftError, DraftTray, DropOverlay, useImageDrafts } from "@/components/attachments";
 import { Avatar, StatusChip, TeamBadge } from "@/components/bits";
 import { SkeletonSwap } from "@/components/interior/skeleton-swap";
 import { RailLabel, Shell } from "@/components/shell";
 import { ErrorState, PostSkeleton } from "@/components/states";
 import { VoteButton } from "@/components/vote-button";
 import { addComment, getPost, mergePosts, setEta } from "@/functions/posts";
+import type { AttachmentView } from "@/lib/attachments";
+import { isDemo } from "@/lib/demo";
 import { findStatus, roadmapStatuses, useStatuses } from "@/lib/status";
 import { ago, fullDate, since } from "@/lib/time";
 import { cn } from "@openheard/ui/lib/utils";
@@ -52,6 +55,7 @@ type OptimisticComment = {
   at: string;
   internal?: boolean;
   commentId: number;
+  attachments: AttachmentView[];
   reactions: [];
   type?: undefined;
   to?: undefined;
@@ -67,6 +71,10 @@ function PostPage() {
   const [expanded, setExpanded] = useState(false);
   const [ready, setReady] = useState(false);
   const [pendingComments, setPendingComments] = useState<OptimisticComment[]>([]);
+  const images = useImageDrafts({
+    blocked: isDemo(root.workspace) ? "Image uploads are off in the demo." : null,
+    onBlocked: root.user ? undefined : () => openSignIn({ type: "comment", postId: p.id, body: reply.trim() }),
+  });
   useEffect(() => setReady(true), []);
 
   const prevTimeline = useRef(p.timeline);
@@ -81,8 +89,13 @@ function PostPage() {
       openSignIn({ type: "comment", postId: p.id, body: reply.trim() || "" });
       return;
     }
-    if (!reply.trim()) return;
+    if (images.uploading) {
+      toast("Images are still uploading");
+      return;
+    }
+    if (!reply.trim() && !images.ids.length) return;
     const body = reply.trim();
+    const attachments = images.ids;
     const tempId = -Date.now();
     const optimistic: OptimisticComment = {
       id: tempId,
@@ -91,13 +104,15 @@ function PostPage() {
       author: { name: root.user.name, image: root.user.image, role: root.user.role },
       at: new Date().toISOString(),
       commentId: tempId,
+      attachments: images.views,
       reactions: [],
     };
     setPendingComments((prev) => [...prev, optimistic]);
     setReply("");
     setExpanded(false);
+    images.reset();
 
-    addComment({ data: { postId: p.id, body } })
+    addComment({ data: { postId: p.id, body, attachments } })
       .then(() => router.invalidate())
       .catch((err) => {
         setPendingComments((prev) => prev.filter((c) => c.id !== tempId));
@@ -221,6 +236,7 @@ function PostPage() {
       </div>
 
       {p.body ? <div className="max-w-[640px] whitespace-pre-wrap text-[14px] leading-[1.65] text-muted-foreground">{p.body}</div> : null}
+      <AttachmentGallery items={p.attachments} className="max-w-[640px]" />
 
       {stepIndex >= 0 ? (
         <ol className="flex items-center overflow-x-auto pt-2">
@@ -248,7 +264,8 @@ function PostPage() {
           Comments <span className="font-mono text-xs font-normal text-faint">{comments}</span>
         </h2>
 
-        <form onSubmit={submitReply} className="flex flex-col gap-3 rounded-lg border bg-card px-3.5 py-3 transition-colors focus-within:border-input">
+        <form onSubmit={submitReply} onPaste={images.onPaste} {...images.dropProps} className="relative flex flex-col gap-3 rounded-lg border bg-card px-3.5 py-3 transition-colors focus-within:border-input">
+          <DropOverlay drafts={images} />
           <textarea
             value={reply}
             onChange={(e) => setReply(e.target.value)}
@@ -262,16 +279,18 @@ function PostPage() {
             placeholder={root.user ? "Add a comment" : "Sign in to comment"}
             aria-label="Add a comment"
             rows={1}
-            className={cn("w-full resize-none bg-transparent text-sm leading-relaxed text-foreground outline-none transition-[height] duration-150 ease-out placeholder:text-faint motion-reduce:transition-none", expanded || reply ? "h-[76px]" : "h-[24px]")}
+            className={cn("w-full resize-none bg-transparent text-sm leading-relaxed text-foreground outline-none transition-[height] duration-150 ease-out placeholder:text-faint motion-reduce:transition-none", expanded || reply || images.drafts.length ? "h-[76px]" : "h-[24px]")}
             onKeyDown={(e) => {
               if ((e.metaKey || e.ctrlKey) && e.key === "Enter") submitReply(e);
             }}
           />
+          <DraftTray drafts={images} />
+          <DraftError drafts={images} />
           <div className="flex items-center justify-between">
-            <span className="inline-flex items-center gap-1.5 text-xs text-faint">
+            <AttachButton drafts={images} className="-ml-1.5 inline-flex h-7 items-center gap-1.5 rounded-md px-1.5 text-xs text-faint outline-none transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring">
               <PaperclipIcon className="size-3.5" /> Attach
-            </span>
-            <Button variant="secondary" size="sm" type="submit" disabled={reply.trim().length === 0}>
+            </AttachButton>
+            <Button variant="secondary" size="sm" type="submit" disabled={(reply.trim().length === 0 && images.ids.length === 0) || images.uploading}>
               Comment
             </Button>
           </div>
@@ -292,7 +311,10 @@ function PostPage() {
                     <span className="text-xs text-faint">{ago(item.at)}</span>
                   </div>
                   {item.kind === "comment" ? (
-                    <div className="whitespace-pre-wrap text-sm leading-[1.55] text-muted-foreground">{item.body}</div>
+                    <>
+                      {item.body ? <div className="whitespace-pre-wrap text-sm leading-[1.55] text-muted-foreground">{item.body}</div> : null}
+                      <AttachmentGallery items={item.attachments} size="sm" className="mt-1" />
+                    </>
                   ) : (
                     <div className="text-sm leading-[1.55] text-muted-foreground">
                       {item.type === "status" && item.to ? (

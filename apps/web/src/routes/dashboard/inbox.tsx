@@ -13,6 +13,9 @@ import { FilterColumn } from "@/components/admin/sidebar";
 import { Avatar, StatusChip, TeamBadge } from "@/components/bits";
 import { DashboardErrorState, DashboardPanelSkeleton } from "@/components/states";
 import { listInbox, setBoard } from "@/functions/admin";
+import { AttachButton, AttachmentGallery, DraftError, DraftTray, DropOverlay, useImageDrafts } from "@/components/attachments";
+import type { AttachmentView } from "@/lib/attachments";
+import { isDemo } from "@/lib/demo";
 import { REACTIONS, addComment, getPost, setEta as setEtaFn, setStatus, setTags, togglePin, toggleReaction } from "@/functions/posts";
 import { KIND_ICON, findStatus, useStatuses } from "@/lib/status";
 import { ago, fullDate, since } from "@/lib/time";
@@ -234,6 +237,7 @@ type OptimisticComment = {
   author: { name: string; image?: string | null; role?: string };
   at: string;
   commentId: number;
+  attachments: AttachmentView[];
   reactions: [];
   type?: undefined;
   to?: undefined;
@@ -252,12 +256,14 @@ function Detail({ post: p, onClose, nav }: { post: PostData; onClose: () => void
   const box = useRef<HTMLTextAreaElement>(null);
   const [optimisticStatus, setOptimisticStatus] = useState<string | null>(null);
   const [pendingComments, setPendingComments] = useState<OptimisticComment[]>([]);
+  const images = useImageDrafts({ blocked: isDemo(root.workspace) ? "Image uploads are off in the demo." : null });
 
   const prevId = useRef(p.id);
   if (p.id !== prevId.current) {
     prevId.current = p.id;
     setEta(p.eta ?? "");
     setReply("");
+    images.reset();
     setMerging(false);
     setOptimisticStatus(null);
   }
@@ -286,8 +292,13 @@ function Detail({ post: p, onClose, nav }: { post: PostData; onClose: () => void
   }
 
   function send() {
-    if (!reply.trim()) return;
+    if (images.uploading) {
+      toast("Images are still uploading");
+      return;
+    }
+    if (!reply.trim() && !images.ids.length) return;
     const body = reply.trim();
+    const attachments = images.ids;
     const isInternal = internal;
     const tempId = -Date.now();
     const optimistic: OptimisticComment = {
@@ -298,12 +309,14 @@ function Detail({ post: p, onClose, nav }: { post: PostData; onClose: () => void
       author: { name: root.user!.name, image: root.user!.image, role: root.user!.role },
       at: new Date().toISOString(),
       commentId: tempId,
+      attachments: images.views,
       reactions: [],
     };
     setPendingComments((prev) => [...prev, optimistic]);
     setReply("");
+    images.reset();
 
-    addComment({ data: { postId: p.id, body, internal: isInternal } })
+    addComment({ data: { postId: p.id, body, internal: isInternal, attachments } })
       .then(() => router.invalidate())
       .catch((err) => {
         setPendingComments((prev) => prev.filter((c) => c.id !== tempId));
@@ -360,8 +373,10 @@ function Detail({ post: p, onClose, nav }: { post: PostData; onClose: () => void
         <div className="flex min-w-0 flex-1 flex-col gap-4 overflow-auto px-6 py-5 scrollbar-thin">
           <h1 className="text-[19px] leading-snug font-semibold tracking-[-0.01em]">{p.title}</h1>
           {p.body ? <div className="max-w-[70ch] whitespace-pre-wrap text-[15px] leading-[1.6] text-muted-foreground">{p.body}</div> : null}
+          <AttachmentGallery items={p.attachments} className="max-w-[70ch]" />
 
-          <div className="flex flex-col gap-3 rounded-lg border bg-card px-3.5 pt-3 pb-2.5 focus-within:border-input">
+          <div onPaste={images.onPaste} {...images.dropProps} className="relative flex flex-col gap-3 rounded-lg border bg-card px-3.5 pt-3 pb-2.5 focus-within:border-input">
+            <DropOverlay drafts={images} />
             <textarea
               ref={box}
               value={reply}
@@ -369,9 +384,11 @@ function Detail({ post: p, onClose, nav }: { post: PostData; onClose: () => void
               rows={1}
               placeholder={internal ? "Internal note, only the team sees this" : "Reply as the team"}
               aria-label={internal ? "Internal note" : "Reply to post"}
-              className={cn("w-full resize-none bg-transparent text-[13px] leading-relaxed outline-none transition-[height] duration-150 ease-out placeholder:text-faint motion-reduce:transition-none", reply ? "h-[72px]" : "h-[22px] focus:h-[44px]")}
+              className={cn("w-full resize-none bg-transparent text-[13px] leading-relaxed outline-none transition-[height] duration-150 ease-out placeholder:text-faint motion-reduce:transition-none", reply || images.drafts.length ? "h-[72px]" : "h-[22px] focus:h-[44px]")}
               onKeyDown={(e) => (e.metaKey || e.ctrlKey) && e.key === "Enter" && send()}
             />
+            <DraftTray drafts={images} />
+            <DraftError drafts={images} />
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1">
                 <div className="mr-1 flex gap-0.5 rounded-md bg-secondary p-0.5">
@@ -389,11 +406,11 @@ function Detail({ post: p, onClose, nav }: { post: PostData; onClose: () => void
                   })}
                 </div>
                 <EmojiPicker onPick={insertEmoji} />
-                <IconBtn title="Attach, coming with image support" onClick={() => toast("Attachments land with image support")}>
+                <AttachButton drafts={images} className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground">
                   <PaperclipIcon className="size-[14px]" />
-                </IconBtn>
+                </AttachButton>
               </div>
-              <Button size="sm" arrow onClick={send} disabled={!reply.trim()}>
+              <Button size="sm" arrow onClick={send} disabled={(!reply.trim() && !images.ids.length) || images.uploading}>
                 {internal ? "Add note" : "Reply"}
               </Button>
             </div>
@@ -430,7 +447,8 @@ function Detail({ post: p, onClose, nav }: { post: PostData; onClose: () => void
                     </div>
                     {item.kind === "comment" ? (
                       <>
-                        <div className="whitespace-pre-wrap text-[14px] leading-[1.55] text-muted-foreground">{item.body}</div>
+                        {item.body ? <div className="whitespace-pre-wrap text-[14px] leading-[1.55] text-muted-foreground">{item.body}</div> : null}
+                        <AttachmentGallery items={item.attachments} size="sm" />
                         <Reactions commentId={item.commentId} reactions={item.reactions} onToggle={(emoji) => run(() => toggleReaction({ data: { commentId: item.commentId, emoji } }))} />
                       </>
                     ) : (
