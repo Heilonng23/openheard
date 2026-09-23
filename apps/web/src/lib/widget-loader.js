@@ -24,6 +24,8 @@
   var queuedTab = null;
   // Opening on page load must not pull focus away from the host page.
   var focusOnReady = true;
+  // While a post is sending, Esc and outside clicks leave the panel open.
+  var busy = false;
 
   function seen() {
     try {
@@ -47,33 +49,35 @@
   var css =
     ":host{all:initial}" +
     "*{box-sizing:border-box}" +
-    ".l{position:fixed;bottom:20px;" + side + ":20px;z-index:2147483000;width:52px;height:52px;padding:0;border:0;border-radius:999px;cursor:pointer;" +
+    ".l{position:fixed;bottom:20px;" + side + ":20px;z-index:2147483001;width:52px;height:52px;padding:0;border:0;border-radius:999px;cursor:pointer;" +
     "background:var(--a);color:#0d0d0f;display:grid;place-items:center;box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 6px 20px rgba(0,0,0,.24);" +
     "transition:transform .15s ease-out;-webkit-tap-highlight-color:transparent}" +
     ".l:hover{transform:translateY(-1px)}.l:active{transform:scale(.96)}" +
     ".l:focus-visible{outline:2px solid var(--a);outline-offset:3px}" +
-    ".l svg{grid-area:1/1;width:24px;height:24px;transition:opacity .15s ease-out,transform .2s ease-out}" +
-    ".l .x{opacity:0;transform:rotate(-45deg) scale(.8)}" +
-    ".o .l .c{opacity:0;transform:rotate(45deg) scale(.8)}.o .l .x{opacity:1;transform:none}" +
-    ".b{position:absolute;top:-3px;" + (left ? "left" : "right") + ":-5px;height:18px;padding:0 6px;border-radius:999px;background:#0d0d0f;color:#ededf0;" +
+    ".l svg{grid-area:1/1;width:24px;height:24px;transition:opacity .2s ease-out,transform .4s cubic-bezier(.34,1.25,.64,1)}" +
+    ".l .x{width:20px;height:20px;opacity:0;transform:rotate(45deg)}" +
+    ".o .l{background:#161618;color:#ededf0;box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 0 0 1px rgba(255,255,255,.08),0 6px 20px rgba(0,0,0,.28)}" +
+    ".o .l .c{opacity:0;transform:rotate(-45deg) scale(.8)}.o .l .x{opacity:1;transform:none}" +
+    ".b{position:absolute;top:-3px;" + side + ":-5px;height:18px;padding:0 6px;border-radius:999px;background:#0d0d0f;color:#ededf0;" +
     "font:600 11px/18px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.02em;box-shadow:0 0 0 2px var(--a);display:none}" +
     ".n .b{display:block}.o .b{display:none}" +
-    ".p{position:fixed;bottom:84px;" + side + ":20px;z-index:2147483000;width:400px;height:min(640px,calc(100vh - 108px));border-radius:12px;overflow:hidden;" +
-    "background:var(--bg);box-shadow:0 0 0 1px rgba(127,127,127,.18),0 16px 48px rgba(0,0,0,.32);opacity:0;visibility:hidden;" +
-    "transform:translateY(8px) scale(.98);transform-origin:bottom " + side + ";" +
-    "transition:opacity .18s ease-in,transform .18s ease-in,visibility 0s linear .18s}" +
-    ".o .p{opacity:1;visibility:visible;transform:none;transition:opacity .2s ease-out,transform .2s ease-out,visibility 0s}" +
-    ".nl .p{bottom:20px}" +
-    "iframe{display:block;width:100%;height:100%;border:0;background:transparent;color-scheme:normal}" +
-    "@media (max-width:480px){.p{inset:0;width:auto;height:auto;border-radius:0}.o .l{display:none}}" +
-    "@media (prefers-reduced-motion:reduce){.l,.l svg,.p,.o .p{transition:none}}";
+    // One shell: the panel grows out of the launcher's centre and shrinks back into it.
+    ".p{position:fixed;bottom:84px;" + side + ":20px;z-index:2147483000;width:400px;height:min(628px,calc(100vh - 108px));border-radius:200px;overflow:hidden;" +
+    "background:#0d0d0f;box-shadow:0 0 0 1px rgba(255,255,255,.08),0 16px 48px rgba(0,0,0,.36);opacity:0;visibility:hidden;pointer-events:none;" +
+    "transform:scale(.13);transform-origin:" + (left ? "26px" : "calc(100% - 26px)") + " calc(100% + 38px);" +
+    "transition:transform .28s cubic-bezier(.22,1,.36,1),border-radius .28s cubic-bezier(.22,1,.36,1),opacity .2s ease-in .08s,visibility 0s linear .28s}" +
+    ".o .p{opacity:1;visibility:visible;pointer-events:auto;transform:none;border-radius:14px;" +
+    "transition:transform .4s cubic-bezier(.34,1.25,.64,1),border-radius .4s cubic-bezier(.34,1.25,.64,1),opacity .12s ease-out,visibility 0s}" +
+    ".nl .p{bottom:20px;transform-origin:" + (left ? "0" : "100%") + " 100%}" +
+    "iframe{display:block;width:100%;height:100%;border:0;background:#0d0d0f;color-scheme:dark}" +
+    "@media (max-width:480px){.p,.o .p{inset:0;width:auto;height:auto;border-radius:0}.o .l{display:none}}" +
+    "@media (prefers-reduced-motion:reduce){.l,.l svg{transition:none}.p,.o .p{transform:none;border-radius:14px;transition:opacity .15s linear,visibility 0s linear .15s}.o .p{transition:opacity .15s linear}}";
 
   var host = d.createElement("div");
   host.setAttribute("data-openheard-widget", "");
   var root = host.attachShadow ? host.attachShadow({ mode: "closed" }) : host;
   var wrap = d.createElement("div");
   wrap.style.setProperty("--a", accent || "#6e8bff");
-  wrap.style.setProperty("--bg", "#0d0d0f");
   if (!showLauncher) wrap.className = "nl";
   var style = d.createElement("style");
   style.textContent = css;
@@ -127,7 +131,7 @@
     launcher.setAttribute("aria-expanded", String(isOpen));
     badge();
     if (isOpen) {
-      post({ type: "openheard:open" });
+      post({ type: "openheard:open", fresh: true });
       if (frame && ready) frame.focus({ preventScroll: true });
     } else if (d.activeElement === host) {
       launcher.focus();
@@ -150,11 +154,13 @@
     var m = e.data || {};
     if (m.type === "openheard:ready") {
       ready = true;
-      if (queuedTab) post({ type: "openheard:open", tab: queuedTab });
+      if (isOpen) post({ type: "openheard:open", tab: queuedTab || undefined, fresh: true });
       queuedTab = null;
       if (isOpen && focusOnReady) frame.focus({ preventScroll: true });
     } else if (m.type === "openheard:close") {
       setOpen(false);
+    } else if (m.type === "openheard:busy") {
+      busy = !!m.busy;
     } else if (m.type === "openheard:changelog-seen") {
       var at = Math.max(Number(m.at) || 0, latest);
       try {
@@ -168,7 +174,14 @@
   });
 
   d.addEventListener("keydown", function (e) {
-    if (e.key === "Escape" && isOpen) setOpen(false);
+    if (e.key === "Escape" && isOpen && !busy) setOpen(false);
+  });
+
+  // A click anywhere on the page outside the widget closes it.
+  d.addEventListener("pointerdown", function (e) {
+    var t = e.target;
+    if (!isOpen || busy || t === host || (t && t.closest && t.closest("[data-openheard-open]"))) return;
+    setOpen(false);
   });
 
   // Any element with data-openheard-open="feedback|roadmap|changelog" opens the widget.
@@ -197,7 +210,6 @@
       .then(function (meta) {
         if (!meta) return;
         if (!accent && meta.accent) wrap.style.setProperty("--a", meta.accent);
-        if (meta.theme === "light") wrap.style.setProperty("--bg", "#f7f5f0");
         latest = meta.changelog ? Number(meta.latestChangelogAt) || 0 : 0;
         badge();
       })
