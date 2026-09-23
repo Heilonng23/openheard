@@ -97,20 +97,52 @@ popup on the board's own domain:
 
 1. The user presses **Continue** in the panel.
 2. A popup opens the normal sign-in page (password, magic link or Google).
-3. The popup hands the session to the panel and closes itself.
+3. The popup hands the panel a widget token and closes itself.
 
-If the user is already signed in to the board, the popup closes at once. The
-session is kept in the panel's own storage, which the browser partitions per
-embedding site, so it never reaches your page's scripts.
+If the user is already signed in to the board, the popup closes at once.
+
+The widget token is not the board's login. It is a random value the server
+stores only as a hash, tied to one workspace, valid for 12 hours, and accepted
+only by what the panel does: reading the board, voting, posting and
+commenting. It never works on the dashboard or any admin action, and it acts
+as a regular member even when the account is an admin. Signing in again
+replaces it and revokes the old one; **sign out** in the panel revokes it.
+
+The panel keeps the token in `sessionStorage`, which is per tab and, inside an
+iframe on another site, partitioned per embedding site. It never reaches your
+page's scripts, and closing the tab forgets it.
+
+## Allowed sites
+
+By default any site can embed the widget, so the snippet works the moment you
+paste it. To limit it, list your sites under **Settings → Widget → Allowed
+sites**, one origin per line:
+
+```
+https://app.example.com
+https://*.example.com
+http://localhost:3000
+```
+
+Origins only: scheme, host and optional port, no paths. `*.` covers
+subdomains. Once the list is set, the browser refuses to show the panel
+anywhere else, which stops another site from framing your board and tricking
+visitors into voting or posting. Clear the list to allow any site again.
 
 ## Security
 
-- `/widget` is the only route that may be framed (`Content-Security-Policy:
-  frame-ancestors *`). Every other page, the sign-in popup included, still
-  sends `X-Frame-Options: DENY`.
+- `/widget` is the only route that may be framed. It sends
+  `Content-Security-Policy: frame-ancestors *`, or `frame-ancestors 'self'`
+  plus your allowed sites once you set them. Every other page, the sign-in
+  popup included, still sends `X-Frame-Options: DENY`.
+- The panel only accepts a sign-in from the popup it opened, carrying the
+  one-time value it opened it with. Pressing **Not now** drops the attempt, so
+  a popup finishing later is ignored.
 - The loader renders into a closed shadow root, so your styles do not reach
   it and its styles do not reach your page.
 - The loader only accepts messages from its own iframe on the board's origin.
   Nothing secret crosses between your page and the panel: only "close",
   "open this tab" and "the changelog was seen".
 - `/widget.js` and `/widget.json` are public and readable from any origin.
+  `/widget.json` is cached at the edge per workspace, whatever its query
+  string, and rate limited per IP.
