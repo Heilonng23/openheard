@@ -11,12 +11,13 @@ const links = [
   { to: "/", label: "board" },
   { to: "/roadmap", label: "roadmap" },
   { to: "/changelog", label: "changelog" },
+  { to: "/help", label: "help" },
 ] as const;
 
 export default function Header() {
   const data = useLoaderData({ from: "__root__" });
   const { pathname } = useLocation();
-  const current = pathname.startsWith("/roadmap") ? "/roadmap" : pathname.startsWith("/changelog") ? "/changelog" : "/";
+  const current = pathname.startsWith("/roadmap") ? "/roadmap" : pathname.startsWith("/changelog") ? "/changelog" : pathname.startsWith("/help") ? "/help" : "/";
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileSearch, setMobileSearch] = useState(false);
 
@@ -25,7 +26,10 @@ export default function Header() {
     setMobileSearch(false);
   }, [pathname]);
 
-  const visibleLinks = links.filter(({ to }) => (to === "/roadmap" ? data?.workspace.showRoadmap !== false : to === "/changelog" ? data?.workspace.showChangelog !== false : true));
+  // Help appears once the team has published at least one article.
+  const visibleLinks = links.filter(({ to }) =>
+    to === "/roadmap" ? data?.workspace.showRoadmap !== false : to === "/changelog" ? data?.workspace.showChangelog !== false : to === "/help" ? (data?.helpArticles ?? 0) > 0 : true,
+  );
 
   return (
     <header className="sticky top-0 z-30 border-b bg-background/90 backdrop-blur-[2px]">

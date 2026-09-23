@@ -56,6 +56,8 @@ pay for. Self-hosting is the default, not the afterthought.
 **Publish**
 - Roadmap with drag between columns
 - Changelog with an editor, linked shipped posts and an RSS feed
+- Help center at `/help`: collections, searchable articles, "was this
+  helpful?" feedback, and matching articles suggested before a new post
 - Branding: accent colour pulled from your website, board name
 
 **Extend**

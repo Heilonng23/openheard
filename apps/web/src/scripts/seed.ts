@@ -23,8 +23,8 @@ async function main() {
   await db.insert(schema.membership).values({ workspaceId: "default", userId: admin.id, role: "admin" }).onConflictDoNothing();
   await db.insert(schema.status).values(schema.DEFAULT_STATUSES.map((d, i) => ({ workspaceId: "default", ...d, position: i }))).onConflictDoNothing();
 
-  const { posts, entries } = await seedDemoContent(db, "default", admin.id);
-  console.log(`seeded ${posts} posts, ${entries} changelog entries`);
+  const { posts, entries, articles } = await seedDemoContent(db, "default", admin.id);
+  console.log(`seeded ${posts} posts, ${entries} changelog entries, ${articles} help articles`);
 }
 
 main();

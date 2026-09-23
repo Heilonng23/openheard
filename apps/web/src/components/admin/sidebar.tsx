@@ -8,6 +8,7 @@ import {
   CircleHalfIcon,
   CircleIcon,
   GearSixIcon,
+  LifebuoyIcon,
   MapTrifoldIcon,
   MegaphoneIcon,
   PlusIcon,
@@ -146,6 +147,7 @@ export function AdminSidebar({ onNewPost, onCollapse }: { onNewPost?: () => void
         <Item to="/dashboard/inbox" active={inInbox && !(search as { status?: string }).status} icon={TrayIcon} label="Posts" count={root.total} />
         <Item to="/dashboard/roadmap" icon={MapTrifoldIcon} label="Roadmap" />
         <Item to="/dashboard/changelog" icon={MegaphoneIcon} label="Changelog" />
+        <Item to="/dashboard/help" icon={LifebuoyIcon} label="Help center" />
         <Item icon={PlusIcon} label="New post" onClick={onNewPost} />
       </Group>
 
@@ -313,6 +315,11 @@ export function AdminRail({ onExpand, onNewPost }: { onExpand?: () => void; onNe
       <Tip label="Changelog">
         <Link to="/dashboard/changelog" preload="viewport" className={cls(pathname.startsWith("/dashboard/changelog"))}>
           <MegaphoneIcon className="size-[17px]" />
+        </Link>
+      </Tip>
+      <Tip label="Help center">
+        <Link to="/dashboard/help" preload="viewport" className={cls(pathname.startsWith("/dashboard/help"))}>
+          <LifebuoyIcon className="size-[17px]" />
         </Link>
       </Tip>
       <Tip label="New post">

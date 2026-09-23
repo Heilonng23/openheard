@@ -149,6 +149,25 @@ Create a draft changelog entry. Returns `{ id }` with status `201`.
 
 Publish a draft entry. Linked posts are moved to the "done" status automatically.
 
+### GET /api/v1/help/collections
+
+The published help center, grouped. Returns `{ collections: [{ id, slug, title, description, articles: [{ id, slug, title, excerpt }] }], uncategorised: [...] }`. Collections with nothing published are left out.
+
+### GET /api/v1/help/articles?q=
+
+Search published help articles. Title matches rank above excerpt matches, which rank above body matches.
+
+| Param   | Type   | Description                      |
+|---------|--------|----------------------------------|
+| `q`     | string | Search words (required)          |
+| `limit` | number | 1 to 25, default 8               |
+
+Returns `{ articles: [{ id, slug, title, excerpt, collection: { slug, title } | null }] }`.
+
+### GET /api/v1/help/articles/:slug
+
+One published article with its markdown `body`, `collection`, `related` articles from the same collection, and `helpfulCount` / `unhelpfulCount`. Drafts return `404`.
+
 ---
 
 ## curl cheat sheet

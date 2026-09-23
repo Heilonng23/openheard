@@ -1,6 +1,6 @@
-import { board, createDb, membership, post, status, tag, workspace } from "@openheard/db";
+import { board, createDb, helpArticle, membership, post, status, tag, workspace } from "@openheard/db";
 import { createServerFn } from "@tanstack/react-start";
-import { asc, count, eq } from "drizzle-orm";
+import { and, asc, count, eq } from "drizzle-orm";
 
 import { getCached, setCached } from "@/lib/kv-cache";
 import { rootDomain, sessionMiddleware } from "@/lib/session";
@@ -12,6 +12,8 @@ type WorkspaceCache = {
   statuses: Awaited<ReturnType<typeof listStatuses>>;
   statusCounts: Record<string, number>;
   total: number;
+  // Published help articles; the header links to /help once there is one.
+  helpArticles: number;
 };
 
 async function fetchWorkspaceData(wsId: string): Promise<WorkspaceCache> {
@@ -19,7 +21,7 @@ async function fetchWorkspaceData(wsId: string): Promise<WorkspaceCache> {
   if (cached) return cached;
 
   const db = createDb();
-  const [boards, tags, statuses, statusRows] = await db.batch([
+  const [boards, tags, statuses, statusRows, helpRows] = await db.batch([
     db
       .select({ id: board.id, name: board.name, description: board.description, count: count(post.id) })
       .from(board)
@@ -30,11 +32,12 @@ async function fetchWorkspaceData(wsId: string): Promise<WorkspaceCache> {
     db.select().from(tag).where(eq(tag.workspaceId, wsId)).orderBy(asc(tag.name)),
     db.select().from(status).where(eq(status.workspaceId, wsId)).orderBy(asc(status.position)),
     db.select({ status: post.status, count: count() }).from(post).where(eq(post.workspaceId, wsId)).groupBy(post.status),
+    db.select({ count: count() }).from(helpArticle).where(and(eq(helpArticle.workspaceId, wsId), eq(helpArticle.status, "published"))),
   ] as const);
   const statusCounts = Object.fromEntries(statusRows.map((r) => [r.status, r.count])) as Record<string, number>;
   const total = statusRows.reduce((n, r) => n + r.count, 0);
 
-  const data: WorkspaceCache = { boards, tags, statuses, statusCounts, total };
+  const data: WorkspaceCache = { boards, tags, statuses, statusCounts, total, helpArticles: helpRows[0]?.count ?? 0 };
   void setCached(`workspace:${wsId}`, data);
   return data;
 }
@@ -70,6 +73,7 @@ export const getWorkspace = createServerFn({ method: "GET" })
         statuses: [] as WorkspaceCache["statuses"],
         statusCounts: {} as Record<string, number>,
         total: 0,
+        helpArticles: 0,
         user: context.user,
         ownWorkspaces,
         googleSignIn: await googleSignIn(),

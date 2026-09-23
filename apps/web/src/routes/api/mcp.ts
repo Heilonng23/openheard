@@ -15,6 +15,7 @@ import {
   mutateDraftChangelog,
   mutatePublishChangelog,
 } from "@/lib/api-actions";
+import { helpArticleBySlug, searchHelpArticles } from "@/lib/help-db";
 import { z } from "zod";
 
 function createMcpServer(workspaceId: string, db: Parameters<typeof queryListPosts>[0], origin: string) {
@@ -146,6 +147,31 @@ function createMcpServer(workspaceId: string, db: Parameters<typeof queryListPos
     async ({ id }) => {
       const result = await mutatePublishChangelog(db, workspaceId, id);
       return { content: [{ type: "text" as const, text: JSON.stringify(result) }] };
+    },
+  );
+
+  server.tool(
+    "search_help_articles",
+    "Search published help center articles by keywords. Returns slug, title, excerpt and collection for each match, best match first.",
+    {
+      q: z.string().describe("Search words, e.g. 'export csv'"),
+      limit: z.number().optional().describe("Max results 1-25 (default: 8)"),
+    },
+    async ({ q, limit }) => {
+      const result = await searchHelpArticles(db, workspaceId, q.slice(0, 120), { limit });
+      return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+    },
+  );
+
+  server.tool(
+    "get_help_article",
+    "Get one published help center article by slug, with its full markdown body.",
+    {
+      slug: z.string().describe("Article slug, as returned by search_help_articles"),
+    },
+    async ({ slug }) => {
+      const result = await helpArticleBySlug(db, workspaceId, slug);
+      return { content: [{ type: "text" as const, text: result ? JSON.stringify(result, null, 2) : "Article not found" }], isError: !result };
     },
   );
 

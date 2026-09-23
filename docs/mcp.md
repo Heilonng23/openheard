@@ -79,6 +79,8 @@ claude mcp add openheard-local \
 | list_changelog     | List published changelog entries                         |
 | draft_changelog    | Create a draft changelog entry linked to posts           |
 | publish_changelog  | Publish a draft (linked posts move to done)              |
+| search_help_articles | Search published help center articles                  |
+| get_help_article   | Read one help article, full markdown body                |
 
 ## Example conversation
 
