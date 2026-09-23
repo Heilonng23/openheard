@@ -243,6 +243,9 @@ export const attachment = sqliteTable(
     index("attachment_workspace_idx").on(t.workspaceId),
     index("attachment_post_idx").on(t.postId),
     index("attachment_comment_idx").on(t.commentId),
+    // The orphan sweep looks objects up by key; the daily quota sums by uploader.
+    uniqueIndex("attachment_key_idx").on(t.key),
+    index("attachment_uploader_created_idx").on(t.uploaderId, t.createdAt),
   ],
 );
 

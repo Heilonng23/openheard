@@ -3,7 +3,7 @@
 import { createClient } from "@libsql/client";
 import type { Db } from "@openheard/db";
 import * as schema from "@openheard/db/schema/index";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/libsql";
 import { readFileSync, readdirSync } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -190,5 +190,15 @@ describe("storeUpload", () => {
   it("lets yesterday's uploads fall out of the quota", async () => {
     await addUploads(db, 1, { size: DAILY_UPLOAD_BYTES, createdAt: OLD });
     await expect(storeUpload(db, { ...owner, bytes: PNG })).resolves.toBeTruthy();
+  });
+});
+
+describe("attachment indexes", () => {
+  const plan = async (db: Db, query: ReturnType<typeof sql>) => (await db.all<{ detail: string }>(sql`explain query plan ${query}`)).map((r) => r.detail).join("\n");
+
+  it("looks keys up for the orphan sweep and sums the daily quota without scanning the table", async () => {
+    const db = await freshDb();
+    expect(await plan(db, sql`select key from attachment where key in ('acme/a', 'acme/b')`)).toContain("attachment_key_idx");
+    expect(await plan(db, sql`select coalesce(sum(size), 0) from attachment where uploader_id = 'ann' and created_at > 0`)).toContain("attachment_uploader_created_idx");
   });
 });
