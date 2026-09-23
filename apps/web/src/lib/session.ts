@@ -1,10 +1,11 @@
-import type { workspace } from "@openheard/db";
+import type { Db, workspace } from "@openheard/db";
 import type { Role } from "@openheard/db/schema/feedback";
 import { notFound } from "@tanstack/react-router";
 import { createMiddleware } from "@tanstack/react-start";
 import { and, eq } from "drizzle-orm";
 
 import { DEMO_ADMIN_ID, DEMO_WORKSPACE_ID } from "./demo";
+import { WIDGET_TOKEN_HEADER } from "./widget-auth";
 
 export type SessionUser = { id: string; name: string; email: string; role: Role | "guest"; image?: string | null };
 export type Workspace = typeof workspace.$inferSelect;
@@ -86,7 +87,9 @@ export async function workspaceFromRequest(request: Request): Promise<Workspace 
 
 const ctxCache = new WeakMap<Request, Promise<{ user: SessionUser | null; workspace: Workspace; marketing: boolean }>>();
 
-async function resolveSession(request: Request) {
+// `widget` is set only by widgetSessionMiddleware: the request then speaks for
+// whoever holds its widget token, never for the session cookie.
+async function resolveSession(request: Request, widget?: string) {
   const [{ createDb, membership, workspace }, { createAuth, sessionForRequest }] = await Promise.all([import("@openheard/db"), import("@openheard/auth")]);
   const db = createDb();
   const host = request.headers.get("host") ?? "";
@@ -97,8 +100,10 @@ async function resolveSession(request: Request) {
   const auth = createAuth({ demo: slug === DEMO_WORKSPACE_ID });
   const [wsResult, session] = await Promise.all([
     db.select().from(workspace).where(eq(workspace.id, slug)).limit(1),
-    // Behind Cloudflare Access, the Access login is the session and outranks the cookie.
-    sessionForRequest(auth, request.headers),
+    widget !== undefined
+      ? widgetSession(db, widget, slug)
+      : // Behind Cloudflare Access, the Access login is the session and outranks the cookie.
+        sessionForRequest(auth, request.headers),
   ]);
 
   let [ws] = wsResult;
@@ -123,9 +128,19 @@ async function resolveSession(request: Request) {
       .from(membership)
       .where(and(eq(membership.workspaceId, ws.id), eq(membership.userId, session.user.id)))
       .limit(1);
-    user = { id: session.user.id, name: session.user.name, email: session.user.email, role: m?.role ?? "guest", image: session.user.image };
+    const role = m?.role ?? "guest";
+    // A widget token reads and posts like a visitor, whatever the account is.
+    user = { id: session.user.id, name: session.user.name, email: session.user.email, role: widget !== undefined && role === "admin" ? "member" : role, image: session.user.image };
   }
   return { user, workspace: ws, marketing };
+}
+
+async function widgetSession(db: Db, token: string, workspaceId: string) {
+  const [{ user }, { verifyWidgetToken }] = await Promise.all([import("@openheard/db"), import("./widget-token")]);
+  const userId = await verifyWidgetToken(db, token, workspaceId);
+  if (!userId) return null;
+  const [u] = await db.select().from(user).where(eq(user.id, userId)).limit(1);
+  return u ? { user: u } : null;
 }
 
 // Same resolution as sessionMiddleware, for raw route handlers.
@@ -140,6 +155,27 @@ export function getSessionContext(request: Request) {
 
 export const sessionMiddleware = createMiddleware().server(async ({ next, request }) => {
   return next({ context: await getSessionContext(request) });
+});
+
+const widgetCtxCache = new WeakMap<Request, Promise<Ctx>>();
+
+// Same as getSessionContext, except a widget token in the request stands in
+// for the cookie. Only the server functions the embedded widget calls use
+// this (reads of the public board, voting, posting, commenting); everything
+// else ignores the token, so it can never reach the dashboard.
+export function getWidgetSessionContext(request: Request): Promise<Ctx> {
+  const token = request.headers.get(WIDGET_TOKEN_HEADER);
+  if (!token) return getSessionContext(request);
+  let pending = widgetCtxCache.get(request);
+  if (!pending) {
+    pending = resolveSession(request, token);
+    widgetCtxCache.set(request, pending);
+  }
+  return pending;
+}
+
+export const widgetSessionMiddleware = createMiddleware().server(async ({ next, request }) => {
+  return next({ context: await getWidgetSessionContext(request) });
 });
 
 export type Ctx = { user: SessionUser | null; workspace: Workspace; marketing: boolean };

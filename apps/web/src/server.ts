@@ -1,5 +1,6 @@
 import { createStartHandler, defaultStreamHandler } from "@tanstack/react-start/server";
-import { hasSessionCookie, isImmutableAsset, isPrivatePath, isPublicCacheable } from "./lib/cache";
+import { edgeCacheKey, hasSessionCookie, isImmutableAsset, isPrivatePath, isPublicCacheable } from "./lib/cache";
+import { frameAncestorsFor } from "./lib/widget-frame";
 
 const handler = createStartHandler(defaultStreamHandler);
 
@@ -22,15 +23,27 @@ const SECURITY_HEADERS: Record<string, string> = {
   "permissions-policy": "camera=(), microphone=(), geolocation=()",
 };
 
-function secure(response: Response): Response {
+// The widget panel is the one page meant to live inside other sites' iframes,
+// and only the sites its workspace allows (any, until an admin lists some).
+// Everything else, the sign-in popup included, stays unframeable.
+const FRAMEABLE_PATHS = ["/widget"];
+
+// `ancestors` is the frame-ancestors directive for a frameable page.
+function secure(response: Response, ancestors: string | null): Response {
   const out = new Response(response.body, response);
-  for (const [k, v] of Object.entries(SECURITY_HEADERS)) if (!out.headers.has(k)) out.headers.set(k, v);
+  for (const [k, v] of Object.entries(SECURITY_HEADERS)) {
+    if (ancestors && k === "x-frame-options") continue;
+    if (!out.headers.has(k)) out.headers.set(k, v);
+  }
+  if (ancestors) out.headers.set("content-security-policy", ancestors);
   return out;
 }
 
 export default {
   async fetch(request: Request, _env: unknown, ctx: ExecutionContext) {
-    return secure(await handle(request, ctx));
+    const frameable = FRAMEABLE_PATHS.includes(new URL(request.url).pathname);
+    const [response, ancestors] = await Promise.all([handle(request, ctx), frameable ? frameAncestorsFor(request) : null]);
+    return secure(response, ancestors);
   },
   // Nightly: the public demo workspace goes back to its seed, and images that
   // were uploaded but never published, or whose post is gone, are deleted. Bindings come
@@ -65,7 +78,7 @@ async function handle(request: Request, ctx: ExecutionContext): Promise<Response
     !hasSessionCookie(request) &&
     isPublicCacheable(url.pathname)
   ) {
-    const cacheKey = new Request(url.toString(), { method: "GET" });
+    const cacheKey = new Request(edgeCacheKey(url), { method: "GET" });
     const cached = await cache.match(cacheKey);
     if (cached) {
       const resp = new Response(cached.body, cached);

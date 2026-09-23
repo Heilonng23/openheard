@@ -1,10 +1,19 @@
-const PUBLIC_PATHS = ["/", "/roadmap", "/changelog"];
+const PUBLIC_PATHS = ["/", "/roadmap", "/changelog", "/widget.json"];
 const PUBLIC_PATH_PREFIXES = ["/p/"];
 const PRIVATE_PATHS = ["/dashboard", "/login", "/api", "/new", "/welcome", "/settings", "/demo"];
 
 export function isPublicCacheable(pathname: string): boolean {
   if (PUBLIC_PATHS.includes(pathname)) return true;
   return PUBLIC_PATH_PREFIXES.some((p) => pathname.startsWith(p));
+}
+
+// The widget's metadata is fetched on every host page view, from any origin,
+// with whatever query string the caller likes. Only `ws` (local dev) changes
+// the answer, so everything else is dropped from its cache key.
+export function edgeCacheKey(url: URL): string {
+  if (url.pathname !== "/widget.json") return url.toString();
+  const ws = url.searchParams.get("ws");
+  return url.origin + url.pathname + (ws ? `?ws=${encodeURIComponent(ws)}` : "");
 }
 
 export function isPrivatePath(pathname: string): boolean {

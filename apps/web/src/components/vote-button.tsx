@@ -30,6 +30,8 @@ export function VoteButton({
   anonymousVoting = false,
   size = "md",
   className,
+  headers,
+  onSignIn,
 }: {
   postId: number;
   count: number;
@@ -38,6 +40,9 @@ export function VoteButton({
   anonymousVoting?: boolean;
   size?: "sm" | "md" | "lg";
   className?: string;
+  // The embedded widget authenticates with a header and has its own sign-in.
+  headers?: Record<string, string>;
+  onSignIn?: () => void;
 }) {
   const router = useRouter();
   const reduced = useReducedMotion();
@@ -56,7 +61,7 @@ export function VoteButton({
     initialCount: count,
     onCommit: async () => {
       if (signedIn) {
-        await toggleVote({ data: { postId } });
+        await toggleVote({ data: { postId }, headers });
       } else {
         const token = getAnonToken();
         const result = await toggleAnonVote({ data: { postId, anonToken: token } });
@@ -74,7 +79,8 @@ export function VoteButton({
     e.preventDefault();
     e.stopPropagation();
     if (!signedIn && !anonymousVoting) {
-      openSignIn({ type: "vote", postId });
+      if (onSignIn) onSignIn();
+      else openSignIn({ type: "vote", postId });
       return;
     }
     like.toggle();

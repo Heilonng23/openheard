@@ -11,13 +11,15 @@ import { workspaceUrl } from "@/lib/workspace-url";
 type Search = { redirect?: string };
 
 export const Route = createFileRoute("/login")({
+  // Same-site paths only, query string included (the widget's sign-in popup
+  // carries its nonce through here), so it goes by href rather than route.
   validateSearch: (s: Record<string, unknown>): Search => ({
-    redirect: typeof s.redirect === "string" ? s.redirect : undefined,
+    redirect: typeof s.redirect === "string" && /^\/(?![/\\])/.test(s.redirect) ? s.redirect : undefined,
   }),
   beforeLoad: async ({ search }) => {
     const [user, root] = await Promise.all([getUser(), getWorkspace()]);
     if (!user) return;
-    if ((search as Search).redirect) throw redirect({ to: (search as Search).redirect! });
+    if ((search as Search).redirect) throw redirect({ href: (search as Search).redirect! });
     if (!root.marketing) throw redirect({ to: "/" });
     const own = (await myWorkspaces()).filter((w) => w.id !== "default");
     if (own.length > 0) throw redirect({ href: workspaceUrl(own[own.length - 1]!.id, root.rootDomain, "/dashboard") });
@@ -41,7 +43,7 @@ function LoginPage() {
   async function afterAuth() {
     await router.invalidate();
     if (search.redirect) {
-      router.navigate({ to: search.redirect });
+      router.navigate({ href: search.redirect });
       return;
     }
     if (!root.marketing) {

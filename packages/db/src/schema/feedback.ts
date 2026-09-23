@@ -43,6 +43,8 @@ export const workspace = sqliteTable("workspace", {
   anonymousVoting: integer("anonymous_voting", { mode: "boolean" }).notNull().default(false),
   showRoadmap: integer("show_roadmap", { mode: "boolean" }).notNull().default(true),
   showChangelog: integer("show_changelog", { mode: "boolean" }).notNull().default(true),
+  // Space-separated origins allowed to frame /widget; null means any site.
+  widgetOrigins: text("widget_origins"),
   // App-side default: SQLite cannot ALTER TABLE ADD a column with a function default.
   createdAt: integer("created_at", { mode: "timestamp_ms" })
     .notNull()
@@ -298,6 +300,24 @@ export const membershipRelations = relations(membership, ({ one }) => ({
 
 // API keys for the HTTP API, MCP and CLI. Only the hash is stored; the plain
 // key is shown once at creation.
+// Credentials the embedded widget holds instead of the session cookie. The id
+// is the SHA-256 of the token; the token itself is never stored.
+export const widgetToken = sqliteTable(
+  "widget_token",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspace.id, { onDelete: "cascade" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).default(now).notNull(),
+    expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (t) => [index("widget_token_user_idx").on(t.userId)],
+);
+
 export const apiKey = sqliteTable(
   "api_key",
   {
