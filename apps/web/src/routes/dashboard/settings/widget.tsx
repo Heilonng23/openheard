@@ -1,11 +1,15 @@
 import { Button } from "@openheard/ui/components/button";
+import { Textarea } from "@openheard/ui/components/textarea";
 import { cn } from "@openheard/ui/lib/utils";
 import { CheckIcon, CopyIcon } from "@phosphor-icons/react";
-import { createFileRoute, useLoaderData } from "@tanstack/react-router";
+import { createFileRoute, useLoaderData, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Row, SectionHead } from "@/components/admin/panel";
+import { saveWidgetOrigins } from "@/functions/widget";
+import { isDemo } from "@/lib/demo";
+import { parseEmbedOrigins } from "@/lib/widget-origins";
 import { workspaceUrl } from "@/lib/workspace-url";
 import { PageHead } from "@/routes/dashboard/settings";
 
@@ -92,11 +96,64 @@ function WidgetSettings() {
         </span>
       </Row>
 
+      <AllowedSites current={ws.widgetOrigins} locked={isDemo(ws)} />
+
       <div className="mt-8">
         <SectionHead title="Preview" right={<span className="text-xs text-faint">Live, against this workspace. Votes and posts are real.</span>} />
         <Preview key={snippet} src={src} position={position} launcher={launcher} />
       </div>
     </>
+  );
+}
+
+// Which sites may embed the panel. Empty means any site, which is what makes
+// the snippet work the moment it is pasted.
+function AllowedSites({ current, locked }: { current: string | null; locked: boolean }) {
+  const router = useRouter();
+  const saved = (current ?? "").split(" ").filter(Boolean).join("\n");
+  const [value, setValue] = useState(saved);
+  const [saving, setSaving] = useState(false);
+  const { invalid } = parseEmbedOrigins(value);
+
+  async function save() {
+    setSaving(true);
+    try {
+      const { origins } = await saveWidgetOrigins({ data: { origins: value } });
+      setValue(origins.join("\n"));
+      await router.invalidate();
+      toast.success(origins.length ? "Only those sites can embed the widget now" : "Any site can embed the widget");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not save");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="mt-8">
+      <SectionHead title="Allowed sites" />
+      <div className="flex flex-col gap-2.5 border-t pt-4">
+        <p className="text-[13px] text-muted-foreground">
+          The sites that may show the widget, one origin per line, like <code className="font-mono text-[12px] text-foreground">https://app.example.com</code> or{" "}
+          <code className="font-mono text-[12px] text-foreground">https://*.example.com</code>. Leave it empty to allow any site. Other sites get a blank frame, so nobody can dress up your board inside their page.
+        </p>
+        <Textarea
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          disabled={locked}
+          placeholder="Any site"
+          spellCheck={false}
+          aria-invalid={invalid.length > 0 || undefined}
+          className="font-mono text-[12px]"
+        />
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-xs text-faint">{locked ? "Fixed in the demo." : invalid.length ? `Not an origin: ${invalid[0]}` : ""}</span>
+          <Button size="sm" variant="secondary" onClick={save} disabled={locked || saving || invalid.length > 0 || value === saved}>
+            Save
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }
 
