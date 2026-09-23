@@ -61,10 +61,13 @@ pay for. Self-hosting is the default, not the afterthought.
 - HTTP API with per-workspace keys at `/api/v1` ([docs](docs/api.md))
 - MCP server at `/api/mcp` so Claude, Cursor and other agents can read and
   triage feedback ([docs](docs/mcp.md))
+- Embeddable widget: one script tag puts feedback, the roadmap and the
+  changelog inside your own app, with a "new" badge for fresh releases
+  ([docs](docs/widget.md))
 - Multi-workspace: each workspace lives on its own subdomain
 
-Coming next: image uploads, changelog email subscribers, an embeddable widget,
-a CLI and a docs site.
+Coming next: image uploads, changelog email subscribers, a CLI and a docs
+site.
 
 ## Get started
 
