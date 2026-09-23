@@ -11,6 +11,12 @@ export function isPrivatePath(pathname: string): boolean {
   return PRIVATE_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));
 }
 
+// Uploaded images set their own long-lived cache headers; a session cookie on
+// the request does not make an image private.
+export function isImmutableAsset(pathname: string): boolean {
+  return pathname.startsWith("/uploads/");
+}
+
 export function hasSessionCookie(request: Request): boolean {
   const cookie = request.headers.get("cookie") ?? "";
   // The demo uses its own cookie namespace; both mean "do not cache this".

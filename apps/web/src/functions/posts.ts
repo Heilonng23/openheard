@@ -1,12 +1,14 @@
-import { activity, anonymousVote, board, comment, commentReaction, createDb, post, postTag, status, tag, vote } from "@openheard/db";
+import { activity, anonymousVote, attachment, board, comment, commentReaction, createDb, post, postTag, status, tag, vote } from "@openheard/db";
 
 import { purgeWorkspaceCache } from "@/lib/cache";
 import { assertStatus, listStatuses, statusOfKind } from "@/lib/status-db";
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
-import { and, desc, eq, inArray, like, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, like, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
+import { claimAttachments } from "@/lib/attachment-db";
+import { MAX_IMAGES, toAttachmentView } from "@/lib/attachments";
 import { invalidate } from "@/lib/kv-cache";
 import { requireAdmin, requireUser, sessionMiddleware } from "@/lib/session";
 
@@ -39,6 +41,10 @@ async function ownPost(db: ReturnType<typeof createDb>, postId: number, workspac
   const [row] = await db.select({ id: post.id }).from(post).where(and(eq(post.id, postId), eq(post.workspaceId, workspaceId))).limit(1);
   if (!row) throw new Error("Post not found");
 }
+
+// Ids from /api/uploads. Only the caller's own unclaimed uploads stick.
+const attachmentIds = z.array(z.string().max(40)).max(MAX_IMAGES, `Up to ${MAX_IMAGES} images each`).default([]);
+const attachmentColumns = { id: true, contentType: true, width: true, height: true } as const;
 
 const listInput = z.object({
   board: z.string().optional(),
@@ -127,11 +133,12 @@ export const getPost = createServerFn({ method: "GET" })
         tags: { with: { tag: true } },
         comments: {
           where: context.user?.role === "admin" ? undefined : eq(comment.internal, false),
-          with: { author: { columns: { id: true, name: true, image: true, role: true } }, reactions: { columns: { userId: true, emoji: true } } },
+          with: { author: { columns: { id: true, name: true, image: true, role: true } }, reactions: { columns: { userId: true, emoji: true } }, attachments: { columns: attachmentColumns, orderBy: [asc(attachment.createdAt)] } },
           orderBy: [desc(comment.createdAt)],
         },
         activity: { with: { actor: { columns: { id: true, name: true } } }, orderBy: [desc(activity.createdAt)] },
         votes: { with: { user: { columns: { id: true, name: true, image: true } } }, orderBy: [desc(vote.createdAt)], limit: 8 },
+        attachments: { columns: attachmentColumns, orderBy: [asc(attachment.createdAt)] },
       },
     });
     if (!p) return null;
@@ -164,6 +171,7 @@ export const getPost = createServerFn({ method: "GET" })
     return {
       ...p,
       tags: p.tags.map((t) => t.tag),
+      attachments: p.attachments.map((a) => toAttachmentView(a)),
       voted,
       similar,
       mergedInto,
@@ -177,6 +185,7 @@ export const getPost = createServerFn({ method: "GET" })
           author: c.author,
           body: c.body,
           internal: c.internal,
+          attachments: c.attachments.map((a) => toAttachmentView(a)),
           // Grouped: [{ emoji, count, mine }]
           reactions: Object.values(
             c.reactions.reduce<Record<string, { emoji: string; count: number; mine: boolean }>>((acc, r) => {
@@ -201,6 +210,7 @@ export const createPost = createServerFn({ method: "POST" })
         title: z.string().trim().min(4, "Give it a title").max(140),
         body: z.string().trim().max(5000).default(""),
         tags: z.array(z.string()).max(5).default([]),
+        attachments: attachmentIds,
       })
       .parse(d),
   )
@@ -221,6 +231,7 @@ export const createPost = createServerFn({ method: "POST" })
       .returning({ id: post.id });
     await db.insert(vote).values({ postId: created.id, userId: u.id });
     if (tagIds.length) await db.insert(postTag).values(tagIds.map((tagId) => ({ postId: created.id, tagId })));
+    await claimAttachments(db, data.attachments, { workspaceId: context.workspace.id, uploaderId: u.id }, { postId: created.id });
     void invalidate(`workspace:${context.workspace.id}`);
     purgeWorkspaceCache(originFromRequest());
     return { id: created.id, pending: initialStatus !== "open" };
@@ -271,13 +282,19 @@ export const toggleAnonVote = createServerFn({ method: "POST" })
 
 export const addComment = createServerFn({ method: "POST" })
   .middleware([sessionMiddleware])
-  .validator((d: unknown) => z.object({ postId: z.number().int(), body: z.string().trim().min(1).max(5000), internal: z.boolean().default(false) }).parse(d))
+  .validator((d: unknown) =>
+    z
+      .object({ postId: z.number().int(), body: z.string().trim().max(5000), internal: z.boolean().default(false), attachments: attachmentIds })
+      .refine((c) => c.body.length > 0 || c.attachments.length > 0, "Write something or attach an image")
+      .parse(d),
+  )
   .handler(async ({ data, context }) => {
     const u = requireUser(context.user);
     const internal = data.internal && u.role === "admin";
     const db = createDb();
     await ownPost(db, data.postId, context.workspace.id);
-    await db.insert(comment).values({ postId: data.postId, authorId: u.id, body: data.body, internal });
+    const [created] = await db.insert(comment).values({ postId: data.postId, authorId: u.id, body: data.body, internal }).returning({ id: comment.id });
+    await claimAttachments(db, data.attachments, { workspaceId: context.workspace.id, uploaderId: u.id }, { commentId: created!.id });
     if (!internal) await db.update(post).set({ commentCount: sql`${post.commentCount} + 1` }).where(eq(post.id, data.postId));
     if (!internal) purgeWorkspaceCache(originFromRequest(), [data.postId]);
     return { ok: true };
