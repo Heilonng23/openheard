@@ -1,5 +1,5 @@
 import { createStartHandler, defaultStreamHandler } from "@tanstack/react-start/server";
-import { hasSessionCookie, isPrivatePath, isPublicCacheable } from "./lib/cache";
+import { edgeCacheKey, hasSessionCookie, isPrivatePath, isPublicCacheable } from "./lib/cache";
 
 const handler = createStartHandler(defaultStreamHandler);
 
@@ -64,7 +64,7 @@ async function handle(request: Request, ctx: ExecutionContext): Promise<Response
     !hasSessionCookie(request) &&
     isPublicCacheable(url.pathname)
   ) {
-    const cacheKey = new Request(url.toString(), { method: "GET" });
+    const cacheKey = new Request(edgeCacheKey(url), { method: "GET" });
     const cached = await cache.match(cacheKey);
     if (cached) {
       const resp = new Response(cached.body, cached);
