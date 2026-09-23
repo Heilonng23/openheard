@@ -9,9 +9,9 @@ import { WidgetContext, toParent, useLoad, type FeedbackView, type WidgetCtx, ty
 import { Composer, FeedbackList, PostDetail, Sent } from "@/components/widget/feedback";
 import { ChangelogTab, RoadmapTab } from "@/components/widget/tabs";
 import { listChangelog } from "@/functions/changelog";
-import { getUser } from "@/functions/get-user";
+import { disconnectWidget, widgetUser } from "@/functions/widget";
 import type { SessionUser } from "@/lib/session";
-import { MSG, getWidgetToken, setWidgetToken } from "@/lib/widget-auth";
+import { MSG, getWidgetToken, newNonce, sessionFromMessage, setWidgetToken, widgetTokenHeaders, type SignInFlow } from "@/lib/widget-auth";
 
 type Search = { tab?: WidgetTab; seen?: number; accent?: string };
 
@@ -60,14 +60,31 @@ function Widget() {
     void entrance.start({ opacity: 1, x: 0, scale: 1, filter: "blur(0px)", transition: { duration: 0.22, delay: 0.08, ease: [0.22, 1, 0.36, 1] } });
   }, [opened, reduced, entrance]);
 
-  // Session: a bearer token from the sign-in popup, or a first-party cookie
+  // Session: a widget token from the sign-in popup, or a first-party cookie
   // when the host shares our site. `undefined` means not known yet.
   const [token, setToken] = useState<string | null>(null);
+  const tokenRef = useRef<string | null>(null);
+  tokenRef.current = token;
   const [me, setMe] = useState<SessionUser | null | undefined>(undefined);
   const [auth, setAuth] = useState<"idle" | "ask" | "waiting" | "retry">("idle");
   const after = useRef<(() => void) | undefined>(undefined);
-  const popup = useRef<Window | null>(null);
-  const headers = useMemo(() => (token ? { authorization: `Bearer ${token}` } : undefined), [token]);
+  // The sign-in attempt in flight: the popup it opened and its nonce.
+  const flow = useRef<SignInFlow>({ popup: null, nonce: null });
+  const headers = useMemo(() => widgetTokenHeaders(token), [token]);
+
+  const storeToken = useCallback((next: string | null) => {
+    setWidgetToken(next);
+    setToken(next);
+  }, []);
+
+  // Drops the attempt in flight, so a popup that finishes later is ignored.
+  const cancelSignIn = useCallback(() => {
+    const p = flow.current.popup;
+    flow.current = { popup: null, nonce: null };
+    after.current = undefined;
+    if (p && !p.closed) p.close();
+    setAuth("idle");
+  }, []);
 
   useEffect(() => {
     setEmbedded(window.parent !== window);
@@ -81,14 +98,11 @@ function Widget() {
 
   useEffect(() => {
     let off = false;
-    getUser({ headers }).then(
+    widgetUser({ headers }).then(
       (u) => {
         if (off) return;
-        // A token the server no longer accepts is dead weight.
-        if (!u && token) {
-          setWidgetToken(null);
-          setToken(null);
-        }
+        // An expired or revoked token is dead weight.
+        if (!u && token) storeToken(null);
         setMe(u);
       },
       () => !off && setMe(null),
@@ -96,16 +110,20 @@ function Widget() {
     return () => {
       off = true;
     };
-  }, [token, headers]);
+  }, [token, headers, storeToken]);
 
-  // The popup hands over the session with a same-origin postMessage.
+  // The popup hands over a widget token with a same-origin postMessage. Only
+  // the popup this panel opened, for the attempt still in flight, counts.
   useEffect(() => {
     function onMessage(e: MessageEvent) {
-      if (e.origin === window.location.origin && e.data?.type === MSG.session && typeof e.data.token === "string") {
-        setWidgetToken(e.data.token);
-        setToken(e.data.token);
+      const next = sessionFromMessage(e, flow.current, window.location.origin);
+      if (next) {
+        flow.current = { popup: null, nonce: null };
+        // Each sign-in rotates the token; the one it replaces is revoked.
+        const old = tokenRef.current;
+        if (old && old !== next) void disconnectWidget({ headers: widgetTokenHeaders(old) }).catch(() => {});
+        storeToken(next);
         setAuth("idle");
-        popup.current = null;
         const then = after.current;
         after.current = undefined;
         if (then) setTimeout(then, 0);
@@ -121,14 +139,14 @@ function Widget() {
     }
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [tabs]);
+  }, [tabs, storeToken]);
 
   // Noticing a closed popup is the only way to know sign-in was abandoned.
   useEffect(() => {
     if (auth !== "waiting") return;
     const t = setInterval(() => {
-      if (popup.current?.closed) {
-        popup.current = null;
+      if (flow.current.popup?.closed) {
+        flow.current = { popup: null, nonce: null };
         setAuth("retry");
       }
     }, 500);
@@ -140,8 +158,10 @@ function Widget() {
     const h = 620;
     const left = Math.max(0, window.screenX + (window.outerWidth - w) / 2);
     const top = Math.max(0, window.screenY + (window.outerHeight - h) / 2);
-    popup.current = window.open("/widget/connect", "openheard-sign-in", `popup,width=${w},height=${h},left=${left},top=${top}`);
-    setAuth(popup.current ? "waiting" : "retry");
+    const nonce = newNonce();
+    const p = window.open(`/widget/connect?nonce=${nonce}`, "openheard-sign-in", `popup,width=${w},height=${h},left=${left},top=${top}`);
+    flow.current = { popup: p, nonce: p ? nonce : null };
+    setAuth(p ? "waiting" : "retry");
   }, []);
 
   const changelog = useLoad(() => listChangelog({ headers }).then((all) => all.filter((e) => e.publishedAt)), [me?.id]);
@@ -168,8 +188,8 @@ function Widget() {
       setAuth("ask");
     },
     signOut: () => {
-      setWidgetToken(null);
-      setToken(null);
+      if (token) void disconnectWidget({ headers }).catch(() => {});
+      storeToken(null);
     },
     openPost: (id) => {
       setTab("feedback");
@@ -189,13 +209,13 @@ function Widget() {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key !== "Escape") return;
-      if (auth !== "idle") setAuth("idle");
+      if (auth !== "idle") cancelSignIn();
       else if (tab === "feedback" && view.kind !== "list") setView({ kind: "list" });
       else toParent({ type: MSG.close });
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [auth, tab, view]);
+  }, [auth, tab, view, cancelSignIn]);
 
   const viewKey = tab === "feedback" ? `feedback:${view.kind}:${view.kind === "post" ? view.id : ""}` : tab;
   const fade = reduced ? { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 } } : VIEW;
@@ -288,7 +308,7 @@ function Widget() {
           </footer>
         ) : null}
 
-        <AnimatePresence>{auth !== "idle" ? <SignInSheet key="sign-in" state={auth} wsName={ws.name} onContinue={openPopup} onCancel={() => setAuth("idle")} /> : null}</AnimatePresence>
+        <AnimatePresence>{auth !== "idle" ? <SignInSheet key="sign-in" state={auth} wsName={ws.name} onContinue={openPopup} onCancel={cancelSignIn} /> : null}</AnimatePresence>
       </motion.div>
     </WidgetContext.Provider>
   );

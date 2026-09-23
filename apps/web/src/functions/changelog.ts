@@ -6,10 +6,10 @@ import { and, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { statusOfKind } from "@/lib/status-db";
-import { requireAdmin, sessionMiddleware } from "@/lib/session";
+import { requireAdmin, sessionMiddleware, widgetSessionMiddleware } from "@/lib/session";
 
 export const listChangelog = createServerFn({ method: "GET" })
-  .middleware([sessionMiddleware])
+  .middleware([widgetSessionMiddleware])
   .handler(async ({ context }) => {
     const db = createDb();
     const admin = context.user?.role === "admin";

@@ -4,32 +4,45 @@ import { useEffect, useState } from "react";
 
 import Logo from "@/components/logo";
 import { getUser } from "@/functions/get-user";
-import { widgetSessionToken } from "@/functions/widget";
+import { connectWidget } from "@/functions/widget";
 import { MSG } from "@/lib/widget-auth";
 
+const NONCE = /^[0-9a-f]{32}$/;
+
 // Opened by the widget as a first-party popup. Signs in through the normal
-// login page if needed, then hands the session to the widget iframe that
-// opened it (same origin only) and closes itself.
+// login page if needed, then hands a fresh widget token to the widget iframe
+// that opened it (same origin only), tagged with the nonce it was opened
+// with, and closes itself.
 export const Route = createFileRoute("/widget_/connect")({
-  beforeLoad: async () => {
+  validateSearch: (s: Record<string, unknown>): { nonce?: string } => ({
+    nonce: typeof s.nonce === "string" && NONCE.test(s.nonce) ? s.nonce : undefined,
+  }),
+  beforeLoad: async ({ search }) => {
     const user = await getUser();
-    if (!user) throw redirect({ to: "/login", search: { redirect: "/widget/connect" } });
+    const back = search.nonce ? `/widget/connect?nonce=${search.nonce}` : "/widget/connect";
+    if (!user) throw redirect({ to: "/login", search: { redirect: back } });
   },
   head: () => ({ meta: [{ title: "Signed in" }] }),
   component: Connect,
 });
 
 function Connect() {
+  const { nonce } = Route.useSearch();
   const [state, setState] = useState<"working" | "done" | "orphan">("working");
 
   useEffect(() => {
     let cancelled = false;
-    widgetSessionToken()
+    const opener = window.opener as Window | null;
+    // Opened by hand, or by something other than the widget: nothing to hand over.
+    if (!nonce || !opener) {
+      setState("orphan");
+      return;
+    }
+    connectWidget()
       .then(({ token }) => {
         if (cancelled) return;
-        const opener = window.opener as Window | null;
-        if (!token || !opener) return setState("orphan");
-        opener.postMessage({ type: MSG.session, token }, window.location.origin);
+        if (!token) return setState("orphan");
+        opener.postMessage({ type: MSG.session, token, nonce }, window.location.origin);
         setState("done");
         window.close();
       })
@@ -37,7 +50,7 @@ function Connect() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [nonce]);
 
   return (
     <main className="flex flex-1 items-center justify-center px-6 py-16">

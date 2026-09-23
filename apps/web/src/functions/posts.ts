@@ -8,7 +8,7 @@ import { and, desc, eq, inArray, like, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { invalidate } from "@/lib/kv-cache";
-import { requireAdmin, requireUser, sessionMiddleware } from "@/lib/session";
+import { requireAdmin, requireUser, sessionMiddleware, widgetSessionMiddleware } from "@/lib/session";
 
 function originFromRequest(): string {
   try {
@@ -52,7 +52,7 @@ const listInput = z.object({
 export type ListInput = z.infer<typeof listInput>;
 
 export const listPosts = createServerFn({ method: "GET" })
-  .middleware([sessionMiddleware])
+  .middleware([widgetSessionMiddleware])
   .validator((d: unknown) => listInput.parse(d ?? {}))
   .handler(async ({ data, context }) => {
     const db = createDb();
@@ -115,7 +115,7 @@ export const listPosts = createServerFn({ method: "GET" })
   });
 
 export const getPost = createServerFn({ method: "GET" })
-  .middleware([sessionMiddleware])
+  .middleware([widgetSessionMiddleware])
   .validator((d: unknown) => z.object({ id: z.number().int() }).parse(d))
   .handler(async ({ data, context }) => {
     const db = createDb();
@@ -193,7 +193,7 @@ export const getPost = createServerFn({ method: "GET" })
   });
 
 export const createPost = createServerFn({ method: "POST" })
-  .middleware([sessionMiddleware])
+  .middleware([widgetSessionMiddleware])
   .validator((d: unknown) =>
     z
       .object({
@@ -227,7 +227,7 @@ export const createPost = createServerFn({ method: "POST" })
   });
 
 export const toggleVote = createServerFn({ method: "POST" })
-  .middleware([sessionMiddleware])
+  .middleware([widgetSessionMiddleware])
   .validator((d: unknown) => z.object({ postId: z.number().int() }).parse(d))
   .handler(async ({ data, context }) => {
     const u = requireUser(context.user);
@@ -270,7 +270,7 @@ export const toggleAnonVote = createServerFn({ method: "POST" })
   });
 
 export const addComment = createServerFn({ method: "POST" })
-  .middleware([sessionMiddleware])
+  .middleware([widgetSessionMiddleware])
   .validator((d: unknown) => z.object({ postId: z.number().int(), body: z.string().trim().min(1).max(5000), internal: z.boolean().default(false) }).parse(d))
   .handler(async ({ data, context }) => {
     const u = requireUser(context.user);
@@ -394,7 +394,7 @@ export const setEta = createServerFn({ method: "POST" })
 
 // Roadmap: every non-merged post grouped by status, most voted first.
 export const getRoadmap = createServerFn({ method: "GET" })
-  .middleware([sessionMiddleware])
+  .middleware([widgetSessionMiddleware])
   .validator((d: unknown) => z.object({ board: z.string().optional() }).parse(d ?? {}))
   .handler(async ({ data, context }) => {
     const db = createDb();
@@ -416,7 +416,7 @@ export const getRoadmap = createServerFn({ method: "GET" })
   });
 
 export const searchPosts = createServerFn({ method: "GET" })
-  .middleware([sessionMiddleware])
+  .middleware([widgetSessionMiddleware])
   .validator((d: unknown) => z.object({ q: z.string().trim().min(1).max(80) }).parse(d))
   .handler(async ({ data, context }) => {
     const db = createDb();

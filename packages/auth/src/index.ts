@@ -4,7 +4,7 @@ import { DEFAULT_STATUSES, membership, status, workspace } from "@openheard/db/s
 import { env } from "@openheard/env/server";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { bearer, magicLink } from "better-auth/plugins";
+import { magicLink } from "better-auth/plugins";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { eq } from "drizzle-orm";
 
@@ -148,10 +148,6 @@ export function createAuth(opts?: { demo?: boolean }) {
           );
         },
       }),
-      // The embeddable widget runs in a third-party iframe where the session
-      // cookie is never sent, so it carries the signed token in a header.
-      // Unsigned values (API keys) are ignored.
-      bearer({ requireSignature: true }),
       // Must stay last: it forwards cookies the plugins above set.
       tanstackStartCookies(),
     ],
