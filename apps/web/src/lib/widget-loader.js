@@ -22,6 +22,8 @@
   var frame = null;
   var ready = false;
   var queuedTab = null;
+  // Opening on page load must not pull focus away from the host page.
+  var focusOnReady = true;
 
   function seen() {
     try {
@@ -126,7 +128,7 @@
     badge();
     if (isOpen) {
       post({ type: "openheard:open" });
-      if (frame && ready) frame.focus();
+      if (frame && ready) frame.focus({ preventScroll: true });
     } else if (d.activeElement === host) {
       launcher.focus();
     }
@@ -150,7 +152,7 @@
       ready = true;
       if (queuedTab) post({ type: "openheard:open", tab: queuedTab });
       queuedTab = null;
-      if (isOpen) frame.focus();
+      if (isOpen && focusOnReady) frame.focus({ preventScroll: true });
     } else if (m.type === "openheard:close") {
       setOpen(false);
     } else if (m.type === "openheard:changelog-seen") {
@@ -200,7 +202,10 @@
         badge();
       })
       .catch(function () {});
-    if (ds.openOnLoad != null && ds.openOnLoad !== "false") setOpen(true);
+    if (ds.openOnLoad != null && ds.openOnLoad !== "false") {
+      focusOnReady = false;
+      setOpen(true);
+    }
   }
 
   if (d.body) mount();
