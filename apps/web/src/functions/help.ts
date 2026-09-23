@@ -1,24 +1,34 @@
-import { createDb, helpArticle, helpArticleFeedback, helpCollection } from "@openheard/db";
+import { createDb, helpArticle, helpCollection } from "@openheard/db";
+import { env } from "@openheard/env/server";
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 
-import { HELP_ICONS, HELP_SLUG, uniqueSlug } from "@/lib/help";
-import { helpArticleBySlug, helpCenterIndex, helpCollectionBySlug, searchHelpArticles } from "@/lib/help-db";
+import { HELP_ICONS, HELP_SLUG, networkOf, uniqueSlug } from "@/lib/help";
+import { helpArticleBySlug, helpCenterIndex, helpCollectionBySlug, helpNav, recordHelpVote, searchHelpArticles } from "@/lib/help-db";
 import { invalidate } from "@/lib/kv-cache";
 import { rateLimit } from "@/lib/rate-limit";
-import { requireUser, sessionMiddleware, type SessionUser } from "@/lib/session";
+import { requireAdmin, sessionMiddleware, type SessionUser } from "@/lib/session";
 
-// Admins and members write the help center. Guests (signed-in board users
-// who are not on the team) only read it.
-function requireTeam(user: SessionUser | null): SessionUser {
-  const u = requireUser(user);
-  if (u.role !== "admin" && u.role !== "member") throw new Error("Only the team can edit the help center");
-  return u;
+// Admins write the help center, like the changelog: the editor lives in the
+// dashboard, which only admins can open. Everyone else reads it.
+const canEdit = (user: SessionUser | null) => user?.role === "admin";
+
+function clientIp(): string {
+  const request = getRequest();
+  return request.headers.get("cf-connecting-ip") ?? request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
 }
 
-const isTeam = (user: SessionUser | null) => user?.role === "admin" || user?.role === "member";
+// Anonymous readers answer as their network, keyed with the auth secret so the
+// table never holds an address. A browser token or cookie would be free to
+// throw away and mint again for every request; an address is not.
+async function anonymousVoter(): Promise<string> {
+  const secret = (env as unknown as { BETTER_AUTH_SECRET?: string }).BETTER_AUTH_SECRET ?? "";
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const mac = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(`help-vote:${networkOf(clientIp())}`));
+  return `n:${Array.from(new Uint8Array(mac).slice(0, 16), (b) => b.toString(16).padStart(2, "0")).join("")}`;
+}
 
 // The header shows "help" once something is published, and that count lives
 // in the cached workspace data.
@@ -34,10 +44,6 @@ const slugField = z
 // ---------------------------------------------------------------------------
 // Public reads
 
-// The left-hand nav on article and collection pages: titles only.
-const navOf = (index: Awaited<ReturnType<typeof helpCenterIndex>>) =>
-  index.collections.map((c) => ({ slug: c.slug, title: c.title, icon: c.icon, articles: c.articles.map((a) => ({ slug: a.slug, title: a.title })) }));
-
 export const getHelpCenter = createServerFn({ method: "GET" })
   .middleware([sessionMiddleware])
   .handler(async ({ context }) => helpCenterIndex(createDb(), context.workspace.id));
@@ -47,9 +53,9 @@ export const getHelpCollection = createServerFn({ method: "GET" })
   .validator((d: unknown) => z.object({ slug: z.string().max(80) }).parse(d))
   .handler(async ({ data, context }) => {
     const db = createDb();
-    const [collection, index] = await Promise.all([helpCollectionBySlug(db, context.workspace.id, data.slug), helpCenterIndex(db, context.workspace.id)]);
+    const [collection, nav] = await Promise.all([helpCollectionBySlug(db, context.workspace.id, data.slug), helpNav(db, context.workspace.id)]);
     if (!collection) return null;
-    return { collection, nav: navOf(index) };
+    return { collection, nav };
   });
 
 export const getHelpArticle = createServerFn({ method: "GET" })
@@ -57,35 +63,38 @@ export const getHelpArticle = createServerFn({ method: "GET" })
   .validator((d: unknown) => z.object({ slug: z.string().max(80) }).parse(d))
   .handler(async ({ data, context }) => {
     const db = createDb();
-    const [article, index] = await Promise.all([helpArticleBySlug(db, context.workspace.id, data.slug, { drafts: isTeam(context.user) }), helpCenterIndex(db, context.workspace.id)]);
+    const [article, nav] = await Promise.all([helpArticleBySlug(db, context.workspace.id, data.slug, { drafts: canEdit(context.user) }), helpNav(db, context.workspace.id)]);
     // Null rather than a throw, so the route can answer with a real 404.
     if (!article) return null;
-    return { article, nav: navOf(index) };
+    return { article, nav };
   });
 
 export const searchHelp = createServerFn({ method: "GET" })
   .middleware([sessionMiddleware])
   .validator((d: unknown) => z.object({ q: z.string().trim().min(1).max(120), limit: z.number().int().min(1).max(25).optional(), suggest: z.boolean().optional() }).parse(d))
-  .handler(async ({ data, context }) =>
+  .handler(async ({ data, context }) => {
+    // Every search scans the workspace's article bodies. Typing is debounced
+    // on both callers, so a reader never comes near this.
+    const rl = await rateLimit(`help-search:${clientIp()}`, { window: 60, max: 60 });
+    if (!rl.allowed) throw new Error("Too many searches. Try again in a minute.");
     // Suggestions under the new-post title want a real match, not any article
     // that mentions one of the words somewhere in its body.
-    searchHelpArticles(createDb(), context.workspace.id, data.q, { limit: data.limit ?? (data.suggest ? 3 : 8), minScore: data.suggest ? 2 : 1 }),
-  );
+    return searchHelpArticles(createDb(), context.workspace.id, data.q, { limit: data.limit ?? (data.suggest ? 3 : 8), minScore: data.suggest ? 2 : 1 });
+  });
 
 // "Was this helpful?" One answer per reader per article: signed-in readers by
-// account, everyone else by the browser token they already use for anonymous
-// votes. Answering again changes the answer rather than adding one.
+// account, everyone else by network. Answering again changes the answer
+// rather than adding one.
 export const voteHelpArticle = createServerFn({ method: "POST" })
   .middleware([sessionMiddleware])
-  .validator((d: unknown) => z.object({ articleId: z.number().int(), helpful: z.boolean(), anonToken: z.string().min(16).max(64).optional() }).parse(d))
+  .validator((d: unknown) => z.object({ articleId: z.number().int(), helpful: z.boolean() }).parse(d))
   .handler(async ({ data, context }) => {
-    const request = getRequest();
-    const ip = request.headers.get("cf-connecting-ip") ?? request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
-    const rl = await rateLimit(`help-vote:${ip}`, { window: 60, max: 20 });
+    // Counts are what the team reads to decide what to rewrite, so a limiter
+    // outage refuses answers rather than letting them through unmetered.
+    const rl = await rateLimit(`help-vote:${networkOf(clientIp())}`, { window: 60, max: 20, failClosed: true });
     if (!rl.allowed) throw new Error("Too many answers. Try again in a minute.");
 
-    const voter = context.user ? `u:${context.user.id}` : data.anonToken ? `a:${data.anonToken}` : null;
-    if (!voter) throw new Error("Could not record that");
+    const voter = context.user ? `u:${context.user.id}` : await anonymousVoter();
     const db = createDb();
     const [article] = await db
       .select({ id: helpArticle.id })
@@ -93,23 +102,8 @@ export const voteHelpArticle = createServerFn({ method: "POST" })
       .where(and(eq(helpArticle.id, data.articleId), eq(helpArticle.workspaceId, context.workspace.id), eq(helpArticle.status, "published")))
       .limit(1);
     if (!article) throw new Error("Article not found");
-
-    const [prev] = await db.select({ helpful: helpArticleFeedback.helpful }).from(helpArticleFeedback).where(and(eq(helpArticleFeedback.articleId, article.id), eq(helpArticleFeedback.voter, voter))).limit(1);
-    if (prev?.helpful === data.helpful) return { helpful: data.helpful, changed: false };
-    if (prev) {
-      await db.update(helpArticleFeedback).set({ helpful: data.helpful }).where(and(eq(helpArticleFeedback.articleId, article.id), eq(helpArticleFeedback.voter, voter)));
-    } else {
-      // A double click races here; the primary key keeps the second insert out.
-      const inserted = await db.insert(helpArticleFeedback).values({ articleId: article.id, voter, helpful: data.helpful }).onConflictDoNothing().returning({ voter: helpArticleFeedback.voter });
-      if (!inserted.length) return { helpful: data.helpful, changed: false };
-    }
-    const up = data.helpful ? 1 : prev ? -1 : 0;
-    const down = data.helpful ? (prev ? -1 : 0) : 1;
-    await db
-      .update(helpArticle)
-      .set({ helpfulCount: sql`max(0, ${helpArticle.helpfulCount} + ${up})`, unhelpfulCount: sql`max(0, ${helpArticle.unhelpfulCount} + ${down})` })
-      .where(eq(helpArticle.id, article.id));
-    return { helpful: data.helpful, changed: true };
+    await recordHelpVote(db, article.id, voter, data.helpful);
+    return { helpful: data.helpful };
   });
 
 // ---------------------------------------------------------------------------
@@ -118,7 +112,7 @@ export const voteHelpArticle = createServerFn({ method: "POST" })
 export const listHelpAdmin = createServerFn({ method: "GET" })
   .middleware([sessionMiddleware])
   .handler(async ({ context }) => {
-    requireTeam(context.user);
+    requireAdmin(context.user);
     const db = createDb();
     const ws = context.workspace.id;
     const [collections, articles] = await Promise.all([
@@ -144,7 +138,7 @@ export const saveHelpArticle = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
-    const u = requireTeam(context.user);
+    const u = requireAdmin(context.user);
     const db = createDb();
     const ws = context.workspace.id;
 
@@ -193,7 +187,7 @@ export const deleteHelpArticle = createServerFn({ method: "POST" })
   .middleware([sessionMiddleware])
   .validator((d: unknown) => z.object({ id: z.number().int() }).parse(d))
   .handler(async ({ data, context }) => {
-    requireTeam(context.user);
+    requireAdmin(context.user);
     await createDb().delete(helpArticle).where(and(eq(helpArticle.id, data.id), eq(helpArticle.workspaceId, context.workspace.id)));
     await refreshShell(context.workspace.id);
     return { ok: true };
@@ -213,7 +207,7 @@ export const saveHelpCollection = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
-    requireTeam(context.user);
+    requireAdmin(context.user);
     const db = createDb();
     const ws = context.workspace.id;
     if (data.id) {
@@ -238,7 +232,7 @@ export const deleteHelpCollection = createServerFn({ method: "POST" })
   .middleware([sessionMiddleware])
   .validator((d: unknown) => z.object({ id: z.number().int() }).parse(d))
   .handler(async ({ data, context }) => {
-    requireTeam(context.user);
+    requireAdmin(context.user);
     const db = createDb();
     const ws = context.workspace.id;
     // Foreign keys are not enforced on every SQLite connection, so unfile the
@@ -253,7 +247,7 @@ export const reorderHelpCollections = createServerFn({ method: "POST" })
   .middleware([sessionMiddleware])
   .validator((d: unknown) => z.object({ ids: z.array(z.number().int()).max(200) }).parse(d))
   .handler(async ({ data, context }) => {
-    requireTeam(context.user);
+    requireAdmin(context.user);
     const db = createDb();
     const ws = context.workspace.id;
     const owned = new Set((await db.select({ id: helpCollection.id }).from(helpCollection).where(and(eq(helpCollection.workspaceId, ws), inArray(helpCollection.id, data.ids)))).map((r) => r.id));

@@ -3,7 +3,7 @@
 // from a route component.
 import type { Db } from "@openheard/db";
 import { user } from "@openheard/db/schema/auth";
-import { helpArticle, helpCollection } from "@openheard/db/schema/help";
+import { helpArticle, helpArticleFeedback, helpCollection } from "@openheard/db/schema/help";
 import { and, asc, desc, eq, notInArray, sql, type SQL } from "drizzle-orm";
 
 import { escapeLike, searchTerms, summary } from "./help";
@@ -11,6 +11,10 @@ import { escapeLike, searchTerms, summary } from "./help";
 export type HelpSearchHit = { id: number; slug: string; title: string; excerpt: string; collection: { slug: string; title: string } | null };
 
 const published = (workspaceId: string) => and(eq(helpArticle.workspaceId, workspaceId), eq(helpArticle.status, "published"));
+
+// Lists only need enough of the body to fill in a missing excerpt. Reading the
+// head of each body keeps a page listing many long articles cheap.
+const bodyHead = sql<string>`substr(${helpArticle.body}, 1, 600)`;
 
 // A title hit is worth three body hits, an excerpt hit two. Each query word
 // scores on its own, so an article matching more of the words ranks higher.
@@ -34,7 +38,7 @@ export async function searchHelpArticles(db: Db, workspaceId: string, q: string,
       slug: helpArticle.slug,
       title: helpArticle.title,
       excerpt: helpArticle.excerpt,
-      body: helpArticle.body,
+      body: bodyHead,
       score: score.as("score"),
       collectionSlug: helpCollection.slug,
       collectionTitle: helpCollection.title,
@@ -59,7 +63,7 @@ export async function helpCenterIndex(db: Db, workspaceId: string) {
   const [collections, articles] = await Promise.all([
     db.select({ id: helpCollection.id, slug: helpCollection.slug, title: helpCollection.title, description: helpCollection.description, icon: helpCollection.icon }).from(helpCollection).where(eq(helpCollection.workspaceId, workspaceId)).orderBy(asc(helpCollection.position), asc(helpCollection.id)),
     db
-      .select({ id: helpArticle.id, slug: helpArticle.slug, title: helpArticle.title, excerpt: helpArticle.excerpt, body: helpArticle.body, collectionId: helpArticle.collectionId, helpfulCount: helpArticle.helpfulCount, updatedAt: helpArticle.updatedAt })
+      .select({ id: helpArticle.id, slug: helpArticle.slug, title: helpArticle.title, excerpt: helpArticle.excerpt, body: bodyHead, collectionId: helpArticle.collectionId, helpfulCount: helpArticle.helpfulCount, updatedAt: helpArticle.updatedAt })
       .from(helpArticle)
       .where(published(workspaceId))
       .orderBy(asc(helpArticle.position), asc(helpArticle.id)),
@@ -73,6 +77,30 @@ export async function helpCenterIndex(db: Db, workspaceId: string) {
     .slice(0, 3)
     .map((a) => ({ slug: a.slug, title: a.title, collection: collections.find((c) => c.id === a.collectionId)?.title ?? null }));
   return { collections: grouped, uncategorised: loose, popular, total: slim.length };
+}
+
+// The side nav on article and collection pages: titles only, in the same
+// order and with the same empty collections left out as the index.
+export async function helpNav(db: Db, workspaceId: string) {
+  const [collections, articles] = await Promise.all([
+    db.select({ id: helpCollection.id, slug: helpCollection.slug, title: helpCollection.title, icon: helpCollection.icon }).from(helpCollection).where(eq(helpCollection.workspaceId, workspaceId)).orderBy(asc(helpCollection.position), asc(helpCollection.id)),
+    db.select({ slug: helpArticle.slug, title: helpArticle.title, collectionId: helpArticle.collectionId }).from(helpArticle).where(published(workspaceId)).orderBy(asc(helpArticle.position), asc(helpArticle.id)),
+  ]);
+  return collections
+    .map((c) => ({ slug: c.slug, title: c.title, icon: c.icon, articles: articles.filter((a) => a.collectionId === c.id).map(({ slug, title }) => ({ slug, title })) }))
+    .filter((c) => c.articles.length);
+}
+
+// Records one reader's answer and recounts the article's totals from the
+// answers table in the same transaction. Counting rather than adding means
+// two requests changing the same answer at once cannot move a total twice.
+export async function recordHelpVote(db: Db, articleId: number, voter: string, helpful: boolean) {
+  const answered = (yes: boolean) =>
+    sql<number>`(select count(*) from ${helpArticleFeedback} where ${helpArticleFeedback.articleId} = ${articleId} and ${helpArticleFeedback.helpful} = ${yes ? 1 : 0})`;
+  await db.batch([
+    db.insert(helpArticleFeedback).values({ articleId, voter, helpful }).onConflictDoUpdate({ target: [helpArticleFeedback.articleId, helpArticleFeedback.voter], set: { helpful } }),
+    db.update(helpArticle).set({ helpfulCount: answered(true), unhelpfulCount: answered(false) }).where(eq(helpArticle.id, articleId)),
+  ]);
 }
 
 // One article by slug. Drafts only when the caller is on the team.
@@ -131,7 +159,7 @@ export async function helpCollectionBySlug(db: Db, workspaceId: string, slug: st
   const [c] = await db.select({ id: helpCollection.id, slug: helpCollection.slug, title: helpCollection.title, description: helpCollection.description, icon: helpCollection.icon }).from(helpCollection).where(and(eq(helpCollection.workspaceId, workspaceId), eq(helpCollection.slug, slug))).limit(1);
   if (!c) return null;
   const articles = await db
-    .select({ id: helpArticle.id, slug: helpArticle.slug, title: helpArticle.title, excerpt: helpArticle.excerpt, body: helpArticle.body })
+    .select({ id: helpArticle.id, slug: helpArticle.slug, title: helpArticle.title, excerpt: helpArticle.excerpt, body: bodyHead })
     .from(helpArticle)
     .where(and(published(workspaceId), eq(helpArticle.collectionId, c.id)))
     .orderBy(asc(helpArticle.position), asc(helpArticle.id));

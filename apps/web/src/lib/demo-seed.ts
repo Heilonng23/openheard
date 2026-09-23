@@ -204,7 +204,9 @@ export async function seedHelpCenter(db: Db, ws: string, adminId: string): Promi
       .returning({ id: schema.helpCollection.id });
     for (const [j, a] of c.articles.entries()) {
       const when = at(30 - articles * 4);
-      await db.insert(schema.helpArticle).values({
+      const helpful = 12 - articles * 2;
+      const unhelpful = articles % 2;
+      const [row] = await db.insert(schema.helpArticle).values({
         workspaceId: ws,
         collectionId: col.id,
         slug: a.slug,
@@ -213,13 +215,17 @@ export async function seedHelpCenter(db: Db, ws: string, adminId: string): Promi
         body: a.body,
         status: "published",
         position: j,
-        helpfulCount: 12 - articles * 2,
-        unhelpfulCount: articles % 2,
+        helpfulCount: helpful,
+        unhelpfulCount: unhelpful,
         authorId: adminId,
         publishedAt: when,
         createdAt: when,
         updatedAt: when,
-      });
+      }).returning({ id: schema.helpArticle.id });
+      // Totals are recounted from the answers on every vote, so the seeded
+      // counts need answers behind them or the first vote would wipe them.
+      const answers = Array.from({ length: helpful + unhelpful }, (_, k) => ({ articleId: row!.id, voter: `seed:${k}`, helpful: k < helpful }));
+      if (answers.length) await db.insert(schema.helpArticleFeedback).values(answers);
       articles++;
     }
   }

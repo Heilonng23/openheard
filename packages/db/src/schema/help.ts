@@ -56,7 +56,7 @@ export const helpArticle = sqliteTable(
 );
 
 // One "was this helpful?" answer per reader per article. `voter` is
-// "u:<user id>" when signed in, "a:<browser token>" otherwise.
+// "u:<user id>" when signed in, "n:<keyed hash of the network>" otherwise.
 export const helpArticleFeedback = sqliteTable(
   "help_article_feedback",
   {

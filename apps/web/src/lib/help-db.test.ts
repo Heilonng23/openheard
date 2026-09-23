@@ -7,7 +7,9 @@ import { drizzle } from "drizzle-orm/libsql";
 import { readFileSync, readdirSync } from "node:fs";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { helpArticleBySlug, helpCenterIndex, publishedHelpCount, searchHelpArticles } from "./help-db";
+import { eq } from "drizzle-orm";
+
+import { helpArticleBySlug, helpCenterIndex, helpNav, publishedHelpCount, recordHelpVote, searchHelpArticles } from "./help-db";
 
 const MIGRATIONS = new URL("../../../../packages/db/migrations/", import.meta.url).pathname;
 
@@ -109,5 +111,55 @@ describe("help center reads", () => {
     const a = await helpArticleBySlug(db, "acme", "invoices");
     // The rest of billing first, then the most helpful elsewhere.
     expect(a?.related.map((r) => r.slug)).toEqual(["discounts", "export-csv", "loose"]);
+  });
+
+  it("builds the nav from titles, leaving out empty collections", async () => {
+    expect(await helpNav(db, "acme")).toEqual([
+      { slug: "getting-started", title: "Getting started", icon: null, articles: [{ slug: "export-csv", title: "Export your posts to CSV" }] },
+      { slug: "billing", title: "Billing", icon: null, articles: [{ slug: "invoices", title: "Download invoices" }, { slug: "discounts", title: "100% discount codes" }] },
+    ]);
+  });
+
+  it("fills excerpts from the head of a long body", async () => {
+    await db.update(schema.helpArticle).set({ body: `Short intro here. ${"word ".repeat(10000)}` }).where(eq(schema.helpArticle.slug, "loose"));
+    const index = await helpCenterIndex(db, "acme");
+    const loose = index.uncategorised[0]!;
+    expect(loose.excerpt.startsWith("Short intro here.")).toBe(true);
+    expect(loose.excerpt.length).toBeLessThanOrEqual(141);
+  });
+});
+
+describe("recordHelpVote", () => {
+  let db: Db;
+  let id: number;
+  beforeEach(async () => {
+    db = await freshDb();
+    await seed(db);
+    id = (await helpArticleBySlug(db, "acme", "invoices"))!.id;
+  });
+  const counts = async () => {
+    const a = await helpArticleBySlug(db, "acme", "invoices");
+    return [a!.helpfulCount, a!.unhelpfulCount];
+  };
+
+  it("keeps one answer per voter and moves it when changed", async () => {
+    await recordHelpVote(db, id, "u:1", true);
+    await recordHelpVote(db, id, "u:1", true);
+    await recordHelpVote(db, id, "n:a", true);
+    expect(await counts()).toEqual([2, 0]);
+    await recordHelpVote(db, id, "u:1", false);
+    expect(await counts()).toEqual([1, 1]);
+  });
+
+  it("cannot move the totals twice when the same answer changes at once", async () => {
+    await recordHelpVote(db, id, "u:1", true);
+    await Promise.all([recordHelpVote(db, id, "u:1", false), recordHelpVote(db, id, "u:1", false), recordHelpVote(db, id, "u:1", false)]);
+    expect(await counts()).toEqual([0, 1]);
+  });
+
+  it("repairs totals that drifted", async () => {
+    await db.update(schema.helpArticle).set({ helpfulCount: 40, unhelpfulCount: 7 }).where(eq(schema.helpArticle.id, id));
+    await recordHelpVote(db, id, "u:1", false);
+    expect(await counts()).toEqual([0, 1]);
   });
 });

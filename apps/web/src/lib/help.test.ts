@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { HELP_SLUG, escapeLike, parseInline, parseMarkdown, safeHref, searchTerms, slugify, summary, tableOfContents, uniqueSlug } from "./help";
+import { type Block, HELP_SLUG, escapeLike, networkOf, parseInline, parseMarkdown, safeHref, searchTerms, slugify, summary, tableOfContents, uniqueSlug } from "./help";
 
 describe("slugify", () => {
   it("lowercases and dashes", () => {
@@ -39,6 +39,28 @@ describe("uniqueSlug", () => {
   it("falls back when the title has no usable characters", () => {
     expect(uniqueSlug("???", [])).toBe("article");
     expect(uniqueSlug("???", ["collection"], "collection")).toBe("collection-2");
+  });
+
+  it("stays within 80 characters when a long slug collides", () => {
+    const title = "a".repeat(80);
+    expect(uniqueSlug(title, [title])).toBe(`${"a".repeat(78)}-2`);
+    const taken = [title];
+    for (let i = 0; i < 10; i++) taken.push(uniqueSlug(title, taken));
+    expect(taken.at(-1)).toBe(`${"a".repeat(77)}-11`);
+    expect(taken.every((s) => s.length <= 80 && HELP_SLUG.test(s))).toBe(true);
+  });
+});
+
+describe("networkOf", () => {
+  it("keeps an IPv4 address whole", () => {
+    expect(networkOf(" 203.0.113.7 ")).toBe("203.0.113.7");
+  });
+
+  it("folds every IPv6 address in a /64 together", () => {
+    expect(networkOf("2001:db8:0:1:aaaa::1")).toBe("2001:db8:0:1::/64");
+    expect(networkOf("2001:0DB8:0000:0001:ffff:ffff:ffff:ffff")).toBe("2001:db8:0:1::/64");
+    expect(networkOf("2001:db8::1")).toBe("2001:db8:0:0::/64");
+    expect(networkOf("::1")).toBe("0:0:0:0::/64");
   });
 });
 
@@ -93,6 +115,19 @@ describe("markdown", () => {
       { t: "quote", c: [{ t: "p", c: [{ t: "text", v: "note" }] }] },
       { t: "hr" },
     ]);
+  });
+
+  it("keeps quotes past eight levels as text instead of recursing", () => {
+    // The longest body the editor accepts, all quote markers.
+    const blocks = parseMarkdown("> ".repeat(24999) + "x");
+    let depth = 0;
+    let node: Block = blocks[0]!;
+    while (node.t === "quote") {
+      depth++;
+      node = node.c[0]!;
+    }
+    expect(depth).toBe(8);
+    expect(node.t).toBe("p");
   });
 
   it("parses inline marks", () => {

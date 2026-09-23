@@ -1,5 +1,5 @@
 import { ThumbsDownIcon, ThumbsUpIcon } from "@phosphor-icons/react";
-import { Link, createFileRoute, notFound, useLoaderData } from "@tanstack/react-router";
+import { Link, createFileRoute, notFound } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -8,7 +8,6 @@ import { HelpLabel, Markdown } from "@/components/help/bits";
 import { CollectionNav, HelpLayout, MobileNav, StillStuck, Toc } from "@/components/help/layout";
 import { ErrorState, HelpArticleSkeleton } from "@/components/states";
 import { getHelpArticle, voteHelpArticle } from "@/functions/help";
-import { getAnonToken } from "@/lib/anon-vote";
 import { parseMarkdown, readingMinutes, tableOfContents } from "@/lib/help";
 import { longDate } from "@/lib/time";
 import { cn } from "@openheard/ui/lib/utils";
@@ -140,7 +139,6 @@ function readAnswers(): Record<string, boolean> {
 // One answer per reader. The server dedupes; this remembers the answer so the
 // buttons show it on the next visit.
 function Helpful({ articleId }: { articleId: number }) {
-  const root = useLoaderData({ from: "__root__" });
   const [answer, setAnswer] = useState<boolean | null>(null);
   useEffect(() => {
     setAnswer(readAnswers()[articleId] ?? null);
@@ -151,7 +149,7 @@ function Helpful({ articleId }: { articleId: number }) {
     const before = answer;
     setAnswer(helpful);
     localStorage.setItem(ANSWERS_KEY, JSON.stringify({ ...readAnswers(), [articleId]: helpful }));
-    voteHelpArticle({ data: { articleId, helpful, anonToken: root.user ? undefined : getAnonToken() } }).catch((err) => {
+    voteHelpArticle({ data: { articleId, helpful } }).catch((err) => {
       setAnswer(before);
       const answers = readAnswers();
       if (before === null) delete answers[articleId];

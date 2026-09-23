@@ -99,7 +99,7 @@ function HelpHome() {
       {empty ? (
         <div className="border-t px-6 py-16 text-center">
           <p className="text-[14px] font-semibold">No articles yet</p>
-          <p className="mt-1 text-sm text-muted-foreground">{root.user?.role === "admin" || root.user?.role === "member" ? "Write the first one from the dashboard." : "The team has not published anything here yet. Ask on the board instead."}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{root.user?.role === "admin" ? "Write the first one from the dashboard." : "The team has not published anything here yet. Ask on the board instead."}</p>
         </div>
       ) : (
         <section className={cn("grid grid-cols-1 border-t md:grid-cols-2", searchingFor && "opacity-60 transition-opacity duration-150")} aria-label="Collections">

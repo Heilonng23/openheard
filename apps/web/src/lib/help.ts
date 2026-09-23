@@ -25,13 +25,15 @@ export function slugify(text: string, max = 80): string {
   return (lastDash > max / 2 ? cut.slice(0, lastDash) : cut).replace(/-+$/, "");
 }
 
-// The first free slug: `base`, then `base-2`, `base-3`...
-export function uniqueSlug(base: string, taken: Iterable<string>, fallback = "article"): string {
-  const root = slugify(base) || fallback;
+// The first free slug: `base`, then `base-2`, `base-3`... The root is cut
+// back to make room for the suffix, so the result never passes `max`.
+export function uniqueSlug(base: string, taken: Iterable<string>, fallback = "article", max = 80): string {
+  const root = slugify(base, max) || fallback;
   const used = new Set(taken);
   if (!used.has(root)) return root;
   for (let n = 2; ; n++) {
-    const candidate = `${root}-${n}`;
+    const suffix = `-${n}`;
+    const candidate = `${root.slice(0, max - suffix.length).replace(/-+$/, "")}${suffix}`;
     if (!used.has(candidate)) return candidate;
   }
 }
@@ -50,6 +52,19 @@ export function searchTerms(q: string, max = 6): string[] {
   if (useful.length) return useful.slice(0, max);
   const longest = words.sort((a, b) => b.length - a.length)[0];
   return longest ? [longest] : [];
+}
+
+// The part of an address one person controls: the whole IPv4 address, or
+// the /64 prefix of an IPv6 one, since a single connection is usually handed
+// a whole /64 and can pick any address inside it.
+export function networkOf(ip: string): string {
+  const addr = ip.trim().toLowerCase();
+  if (!addr.includes(":")) return addr;
+  const [head = "", tail] = addr.split("::");
+  const left = head ? head.split(":") : [];
+  const right = tail ? tail.split(":") : [];
+  const groups = tail === undefined ? left : [...left, ...Array(Math.max(0, 8 - left.length - right.length)).fill("0"), ...right];
+  return `${groups.slice(0, 4).map((g) => g.replace(/^0+(?=.)/, "")).join(":")}::/64`;
 }
 
 // LIKE treats % and _ as wildcards. Every query using this must say ESCAPE '\'.
@@ -173,9 +188,13 @@ export function inlineText(nodes: Inline[]): string {
 
 const LIST_ITEM = /^\s{0,3}([-*+]|(\d{1,9})[.)])\s+(.*)$/;
 
+// Quotes nest by recursion. Past this depth the markers stay as literal text,
+// so a body of thousands of ">" cannot run the parser out of stack.
+const MAX_QUOTE_DEPTH = 8;
+
 // Block structure first, inline second. `ids` is shared across nested quotes so
 // heading anchors stay unique in the whole document.
-export function parseMarkdown(src: string, ids: Map<string, number> = new Map()): Block[] {
+export function parseMarkdown(src: string, ids: Map<string, number> = new Map(), depth = 0): Block[] {
   const lines = src.replace(/\r\n?/g, "\n").split("\n");
   const blocks: Block[] = [];
   let para: string[] = [];
@@ -217,12 +236,12 @@ export function parseMarkdown(src: string, ids: Map<string, number> = new Map())
       blocks.push({ t: "hr" });
       continue;
     }
-    if (/^\s{0,3}>/.test(line)) {
+    if (depth < MAX_QUOTE_DEPTH && /^\s{0,3}>/.test(line)) {
       flushPara();
       const quoted: string[] = [];
       while (i < lines.length && /^\s{0,3}>/.test(lines[i]!)) quoted.push(lines[i++]!.replace(/^\s{0,3}>\s?/, ""));
       i--;
-      blocks.push({ t: "quote", c: parseMarkdown(quoted.join("\n"), ids) });
+      blocks.push({ t: "quote", c: parseMarkdown(quoted.join("\n"), ids, depth + 1) });
       continue;
     }
     if ((m = LIST_ITEM.exec(line)) && (!para.length || m[2] === undefined || m[2] === "1")) {
