@@ -18,7 +18,9 @@ const OPENPANEL_URL = (VITE_ENV.VITE_OPENPANEL_URL ?? "https://openpanel.dev").r
 
 export const Route = createRootRouteWithContext<RouterAppContext>()({
   loader: () => getWorkspace(),
-  head: ({ loaderData }) => {
+  head: ({ loaderData, matches }) => {
+    // The widget runs inside other people's apps; it never loads our analytics.
+    const embedded = matches.some((m) => (m.routeId as string) === "/widget");
     const title = loaderData ? `${loaderData.workspace.name} · feedback` : "openheard";
     const description = loaderData?.workspace.tagline ?? "Open source feedback board.";
     return {
@@ -46,7 +48,7 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
       { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
     ],
     // Analytics only when a client id is set at build time, so self-hosters send nothing by default.
-    scripts: OPENPANEL_CLIENT_ID
+    scripts: OPENPANEL_CLIENT_ID && !embedded
       ? [
           { src: `${OPENPANEL_URL}/op1.js`, defer: true, async: true },
           {
@@ -65,7 +67,7 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
   ),
 });
 
-const BARE_PAGES = ["/login", "/reset-password", "/join/", "/new", "/welcome", "/start"];
+const BARE_PAGES = ["/login", "/reset-password", "/join/", "/new", "/welcome", "/start", "/widget"];
 
 function RootDocument() {
   const data = Route.useLoaderData();
