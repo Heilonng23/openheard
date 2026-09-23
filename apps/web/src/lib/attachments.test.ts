@@ -28,6 +28,19 @@ describe("checkImage", () => {
     expect(checkImage({ type: "image/heic", size: 100 })).toMatch(/Use PNG, JPEG, GIF or WebP/);
   });
 
+  it("lets a blank or nonstandard type through when the name or the paste says image", () => {
+    expect(checkImage({ type: "", size: 100, name: "photo.JPG" })).toBeNull();
+    expect(checkImage({ type: "", size: 100 })).toBeNull();
+    expect(checkImage({ type: "image/jpg", size: 100, name: "photo" })).toBeNull();
+    expect(checkImage({ type: "image/pjpeg", size: 100 })).toBeNull();
+    expect(checkImage({ type: "application/octet-stream", size: 100, name: "shot.webp" })).toBeNull();
+  });
+
+  it("still rejects a blank type whose name is not an image", () => {
+    expect(checkImage({ type: "", size: 100, name: "notes.txt" })).toMatch(/not an image we accept/);
+    expect(checkImage({ type: "application/octet-stream", size: 100, name: "blob" })).toMatch(/not an image we accept/);
+  });
+
   it("rejects files over 5 MB and names the size", () => {
     expect(checkImage({ type: "image/png", size: MAX_IMAGE_BYTES })).toBeNull();
     expect(checkImage({ type: "image/png", size: 10 * 1024 * 1024, name: "shot.png" })).toBe("shot.png is 10 MB. Images can be up to 5 MB.");

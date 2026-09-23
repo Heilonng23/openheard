@@ -22,11 +22,21 @@ export function formatBytes(n: number): string {
   return `${n} B`;
 }
 
+// Types some systems label images with instead of the standard ones.
+const TYPE_ALIASES: Record<string, ImageType> = { "image/jpg": "image/jpeg", "image/pjpeg": "image/jpeg", "image/x-png": "image/png" };
+export const IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".gif", ".webp"] as const;
+
 // The sentence shown next to the composer, or null when the file is fine.
+// The file's type is only a hint (blank or nonstandard on some systems), so a
+// known extension or a nameless paste gets through; the server reads the bytes
+// and has the final say.
 export function checkImage(file: { type: string; size: number; name?: string }): string | null {
   const type = file.type.toLowerCase();
-  if (type === "image/svg+xml" || /\.svg$/i.test(file.name ?? "")) return "SVG files are not supported. Use PNG, JPEG, GIF or WebP.";
-  if (!(IMAGE_TYPES as readonly string[]).includes(type)) return `${file.name ? `${file.name} is not` : "That is not"} an image we accept. Use PNG, JPEG, GIF or WebP.`;
+  const name = (file.name ?? "").toLowerCase();
+  if (type === "image/svg+xml" || name.endsWith(".svg")) return "SVG files are not supported. Use PNG, JPEG, GIF or WebP.";
+  const knownType = (IMAGE_TYPES as readonly string[]).includes(TYPE_ALIASES[type] ?? type);
+  const knownName = IMAGE_EXTENSIONS.some((ext) => name.endsWith(ext));
+  if (!knownType && !knownName && (type || name)) return `${file.name ? `${file.name} is not` : "That is not"} an image we accept. Use PNG, JPEG, GIF or WebP.`;
   if (file.size > MAX_IMAGE_BYTES) return `${file.name ?? "That image"} is ${formatBytes(file.size)}. Images can be up to ${formatBytes(MAX_IMAGE_BYTES)}.`;
   if (file.size === 0) return `${file.name ?? "That image"} is empty.`;
   return null;

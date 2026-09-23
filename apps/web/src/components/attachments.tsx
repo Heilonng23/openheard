@@ -3,7 +3,7 @@ import { cn } from "@openheard/ui/lib/utils";
 import { ArrowSquareOutIcon, CaretLeftIcon, CaretRightIcon, ImageIcon, SpinnerGapIcon, WarningCircleIcon, XIcon } from "@phosphor-icons/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { IMAGE_TYPES, MAX_IMAGES, type AttachmentView, checkImage, tooManyImages } from "@/lib/attachments";
+import { IMAGE_EXTENSIONS, IMAGE_TYPES, MAX_IMAGES, type AttachmentView, checkImage, tooManyImages } from "@/lib/attachments";
 
 // An image in a composer: previewed from the local file straight away, then
 // swapped for the stored one once the upload answers.
@@ -96,7 +96,7 @@ export function useImageDrafts({ blocked, onBlocked }: { blocked?: string | null
 
   const onPaste = useCallback(
     (e: React.ClipboardEvent) => {
-      const files = imagesIn(e.clipboardData).filter((f) => f.type.startsWith("image/") || /\.svg$/i.test(f.name));
+      const files = imagesIn(e.clipboardData).filter((f) => !f.type || f.type.startsWith("image/") || /\.svg$/i.test(f.name));
       if (!files.length) return;
       e.preventDefault();
       add(files);
@@ -151,7 +151,7 @@ export function AttachButton({ drafts, className, children, title = "Attach imag
       <input
         ref={input}
         type="file"
-        accept={IMAGE_TYPES.join(",")}
+        accept={[...IMAGE_TYPES, ...IMAGE_EXTENSIONS].join(",")}
         multiple
         hidden
         onChange={(e) => {
