@@ -49,7 +49,8 @@ async function workspaceExists(slug: string): Promise<boolean> {
 }
 
 // An unknown slug (old link, stale cookie) falls back to the default
-// workspace and drops the cookie, instead of breaking every page.
+// workspace and drops the cookie, instead of breaking every page. Only reads
+// fall back: a write meant for the missing workspace must not land in default.
 async function localWorkspaceOverride(request: Request): Promise<string | null> {
   const picked = await pickLocalWorkspace(request);
   if (!picked || picked === "default" || (await workspaceExists(picked))) return picked;
@@ -59,6 +60,7 @@ async function localWorkspaceOverride(request: Request): Promise<string | null> 
   } catch {
     // Outside a request context there is no response to clear it on.
   }
+  if (request.method !== "GET" && request.method !== "HEAD") throw new Error("This workspace no longer exists. Reload the page.");
   return null;
 }
 
