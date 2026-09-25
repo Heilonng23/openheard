@@ -56,6 +56,9 @@ pay for. Self-hosting is the default, not the afterthought.
 **Publish**
 - Roadmap with drag between columns
 - Changelog with an editor, linked shipped posts and an RSS feed
+- Email updates: voters and commenters hear when a post changes status or
+  ships, and visitors can subscribe to the changelog by email, with
+  unsubscribe links in every message
 - Help center at `/help`: collections, searchable articles, "was this
   helpful?" feedback, and matching articles suggested before a new post
 - Branding: accent colour, logo and light or dark background read from your website, board name
@@ -64,12 +67,14 @@ pay for. Self-hosting is the default, not the afterthought.
 - HTTP API with per-workspace keys at `/api/v1` ([docs](docs/api.md))
 - MCP server at `/api/mcp` so Claude, Cursor and other agents can read and
   triage feedback ([docs](docs/mcp.md))
+- Agent skill that teaches Claude Code and other agents the openheard
+  workflows ([skills/openheard](skills/openheard))
 - Embeddable widget: one script tag puts feedback, the roadmap and the
   changelog inside your own app, with a "new" badge for fresh releases
   ([docs](docs/widget.md))
 - Multi-workspace: each workspace lives on its own subdomain
 
-Coming next: changelog email subscribers, a CLI and a docs site.
+Coming next: a CLI and a docs site.
 
 ## Get started
 
