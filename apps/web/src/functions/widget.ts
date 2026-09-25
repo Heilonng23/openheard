@@ -17,8 +17,12 @@ import { mintWidgetToken, revokeWidgetToken } from "@/lib/widget-token";
 export const connectWidget = createServerFn({ method: "POST" })
   .middleware([sessionMiddleware])
   .handler(async ({ context }) => {
-    const site = getRequest().headers.get("sec-fetch-site");
+    const request = getRequest();
+    const site = request.headers.get("sec-fetch-site");
     if (site && site !== "same-origin") throw new Error("Not allowed");
+    // Browsers without Sec-Fetch-Site still send Origin on a POST.
+    const origin = request.headers.get("origin");
+    if (!site && origin && origin !== new URL(request.url).origin) throw new Error("Not allowed");
     if (!context.user) return { token: null };
     return mintWidgetToken(createDb(), { userId: context.user.id, workspaceId: context.workspace.id });
   });
