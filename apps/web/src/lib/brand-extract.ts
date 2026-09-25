@@ -28,10 +28,13 @@ export type BrandSuggestion = {
   logoCandidates: string[];
 };
 
+// An out-of-range entity decodes to nothing instead of throwing.
+const codePoint = (n: number) => (n <= 0x10ffff ? String.fromCodePoint(n) : "");
+
 const decode = (s: string) =>
   s
-    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
-    .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(Number(d)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => codePoint(parseInt(h, 16)))
+    .replace(/&#(\d+);/g, (_, d) => codePoint(Number(d)))
     .replace(/&quot;/g, '"')
     .replace(/&#39;|&apos;/g, "'")
     .replace(/&lt;/g, "<")
@@ -140,7 +143,13 @@ function nameFromTitle(title: string, url: string): string | null {
 
 // "InterVariable.woff2" -> Inter, "Sohne.cb178166.woff2" -> Sohne.
 function fontFromFile(href: string): string {
-  const file = decodeURIComponent(new URL(href).pathname.split("/").pop() ?? "");
+  const raw = new URL(href).pathname.split("/").pop() ?? "";
+  let file = raw;
+  try {
+    file = decodeURIComponent(raw);
+  } catch {
+    // a malformed escape: the raw name is still worth a look
+  }
   const base = file.split(".")[0].replace(/[-_](variable|var|regular|medium|bold|semibold|light|latin|normal|italic|wght|s|p)\b.*$/i, "").replace(/variable$/i, "");
   // Hashed file names carry no name worth showing.
   if (!/^[A-Za-z][A-Za-z -]{1,30}$/.test(base) || /^[a-f0-9]+$/i.test(base)) return "";

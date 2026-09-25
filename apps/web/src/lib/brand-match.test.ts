@@ -104,6 +104,9 @@ describe("SSRF guard", () => {
     "http://[::ffff:127.0.0.1]/",
     "http://[fd00::1]/",
     "http://[fe80::1]/",
+    "http://[::127.0.0.1]/",
+    "http://[::a9fe:a9fe]/",
+    "http://[2002:7f00:1::]/",
     "http://user:pass@example.com/",
     "http://example.com:8080/",
   ])("blocks %s", (url) => {
@@ -115,6 +118,12 @@ describe("SSRF guard", () => {
     expect(checkUrl("http://93.184.216.34/").host).toBeNull();
     expect(isPrivateAddress("2606:4700::6810:84e5")).toBe(false);
     expect(isPrivateAddress("64:ff9b::a00:1")).toBe(true);
+    expect(isPrivateAddress("2002:5db8:d822::1")).toBe(false);
+  });
+
+  it("reads a page with a bad entity or a malformed font file name", () => {
+    const html = `<html><head><title>Acme &#99999999; &#x110000;</title><link rel="preload" as="font" href="/f/Inter%zz.woff2"></head></html>`;
+    expect(() => parsePage(html, "https://acme.test/")).not.toThrow();
   });
 
   const page = (body: string, init: ResponseInit = {}) => new Response(body, { headers: { "content-type": "text/html" }, ...init });
