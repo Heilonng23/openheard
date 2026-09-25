@@ -1,15 +1,12 @@
-import { createDb, workspace } from "@openheard/db";
+import { createDb } from "@openheard/db";
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
-import { eq } from "drizzle-orm";
 import { z } from "zod";
 
-import { purgeWorkspaceCache } from "@/lib/cache";
-import { assertNotDemo } from "@/lib/demo";
-import { invalidate } from "@/lib/kv-cache";
-import { requireAdmin, sessionMiddleware, widgetSessionMiddleware } from "@/lib/session";
+import { adminOps } from "@/lib/ops/session";
+import { saveWidgetOrigins as saveWidgetOriginsOp, saveWidgetSettings as saveWidgetSettingsOp } from "@/lib/ops/workspace";
+import { sessionMiddleware, widgetSessionMiddleware } from "@/lib/session";
 import { WIDGET_TOKEN_HEADER } from "@/lib/widget-auth";
-import { MAX_EMBED_ORIGINS, parseEmbedOrigins } from "@/lib/widget-origins";
 import { widgetSettingsSchema } from "@/lib/widget-settings";
 import { mintWidgetToken, revokeWidgetToken } from "@/lib/widget-token";
 
@@ -46,31 +43,11 @@ export const disconnectWidget = createServerFn({ method: "POST" }).handler(async
 export const saveWidgetOrigins = createServerFn({ method: "POST" })
   .middleware([sessionMiddleware])
   .validator((d: unknown) => z.object({ origins: z.string().max(4000) }).parse(d))
-  .handler(async ({ data, context }) => {
-    requireAdmin(context.user);
-    // The demo's widget has to keep working for everyone who tries it.
-    assertNotDemo(context.workspace);
-    const { origins, invalid } = parseEmbedOrigins(data.origins);
-    if (invalid.length) throw new Error(`Not an origin: ${invalid[0]}`);
-    if (origins.length > MAX_EMBED_ORIGINS) throw new Error(`At most ${MAX_EMBED_ORIGINS} sites`);
-    await createDb()
-      .update(workspace)
-      .set({ widgetOrigins: origins.length ? origins.join(" ") : null })
-      .where(eq(workspace.id, context.workspace.id));
-    void invalidate(`workspace:${context.workspace.id}`);
-    return { origins };
-  });
+  .handler(async ({ data, context }) => saveWidgetOriginsOp(adminOps(context), data.origins));
 
 // Appearance and tabs. The loader picks them up from /widget.json, so the
 // edge copy goes as soon as they change.
 export const saveWidgetSettings = createServerFn({ method: "POST" })
   .middleware([sessionMiddleware])
   .validator((d: unknown) => widgetSettingsSchema.parse(d))
-  .handler(async ({ data, context }) => {
-    requireAdmin(context.user);
-    assertNotDemo(context.workspace);
-    await createDb().update(workspace).set({ widgetSettings: data }).where(eq(workspace.id, context.workspace.id));
-    void invalidate(`workspace:${context.workspace.id}`);
-    await purgeWorkspaceCache(new URL(getRequest().url).origin);
-    return data;
-  });
+  .handler(async ({ data, context }) => saveWidgetSettingsOp(adminOps(context), data));

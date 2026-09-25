@@ -1,7 +1,7 @@
 import { activity, anonymousVote, attachment, board, comment, commentReaction, createDb, post, postTag, status, tag, vote } from "@openheard/db";
 
 import { purgeWorkspaceCache } from "@/lib/cache";
-import { assertStatus, listStatuses, statusOfKind } from "@/lib/status-db";
+import { listStatuses, statusOfKind } from "@/lib/status-db";
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { and, asc, desc, eq, inArray, like, or, sql } from "drizzle-orm";
@@ -11,8 +11,9 @@ import { AttachmentGoneError, claimQuery, reserveAttachments } from "@/lib/attac
 import { MAX_IMAGES, toAttachmentView } from "@/lib/attachments";
 import { notifyIntegrations } from "@/lib/integration-db";
 import { invalidate } from "@/lib/kv-cache";
-import { buildStatusEmails, deliver, inBackground } from "@/lib/notify";
-import { requireAdmin, requireUser, sessionMiddleware, widgetSessionMiddleware } from "@/lib/session";
+import { addComment as addCommentOp, mergePosts as mergePostsOp, setPinned, setPostEta, setPostStatus, setPostTags, setVote, similarPosts } from "@/lib/ops/posts";
+import { adminOps } from "@/lib/ops/session";
+import { requireUser, sessionMiddleware, widgetSessionMiddleware } from "@/lib/session";
 
 function originFromRequest(): string {
   try {
@@ -156,16 +157,8 @@ export const getPost = createServerFn({ method: "GET" })
     const voted = context.user
       ? (await db.select({ userId: vote.userId }).from(vote).where(and(eq(vote.postId, p.id), eq(vote.userId, context.user.id)))).length > 0
       : false;
-    // Merge candidates: same board, shares a word of 5+ letters with the title.
-    const words = p.title.toLowerCase().match(/[a-z]{5,}/g) ?? [];
-    const similar = words.length
-      ? await db
-          .select({ id: post.id, title: post.title, voteCount: post.voteCount })
-          .from(post)
-          .where(and(eq(post.workspaceId, p.workspaceId), sql`${post.id} != ${p.id}`, sql`${post.mergedIntoId} is null`, or(...words.slice(0, 4).map((w) => like(post.title, `%${escapeLike(w)}%`)))))
-          .orderBy(desc(post.voteCount))
-          .limit(3)
-      : [];
+    // Merge candidates: posts whose titles share a word of 5+ letters.
+    const similar = (await similarPosts({ db, workspace: context.workspace, actor: null, origin: "" }, p.title, { excludeId: p.id, limit: 3 })).map(({ id, title, voteCount }) => ({ id, title, voteCount }));
     const mergedInto = p.mergedIntoId
       ? await db.query.post.findFirst({ where: eq(post.id, p.mergedIntoId), columns: { id: true, title: true } })
       : null;
@@ -258,19 +251,8 @@ export const toggleVote = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ postId: z.number().int() }).parse(d))
   .handler(async ({ data, context }) => {
     const u = requireUser(context.user);
-    const db = createDb();
-    await ownPost(db, data.postId, context.workspace.id);
-    const existing = await db.select().from(vote).where(and(eq(vote.postId, data.postId), eq(vote.userId, u.id)));
-    if (existing.length) {
-      await db.delete(vote).where(and(eq(vote.postId, data.postId), eq(vote.userId, u.id)));
-      await db.update(post).set({ voteCount: sql`max(${post.voteCount} - 1, 0)` }).where(eq(post.id, data.postId));
-      purgeWorkspaceCache(originFromRequest(), [data.postId]);
-      return { voted: false };
-    }
-    await db.insert(vote).values({ postId: data.postId, userId: u.id });
-    await db.update(post).set({ voteCount: sql`${post.voteCount} + 1` }).where(eq(post.id, data.postId));
-    purgeWorkspaceCache(originFromRequest(), [data.postId]);
-    return { voted: true };
+    const ctx = { db: createDb(), workspace: context.workspace, actor: u, origin: originFromRequest() };
+    return setVote(ctx, data.postId, u.id);
   });
 
 export const toggleAnonVote = createServerFn({ method: "POST" })
@@ -306,31 +288,8 @@ export const addComment = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const u = requireUser(context.user);
-    const internal = data.internal && u.role === "admin";
-    const db = createDb();
-    await ownPost(db, data.postId, context.workspace.id);
-    const owner = { workspaceId: context.workspace.id, uploaderId: u.id };
-    const images = await reserveAttachments(db, data.attachments, owner);
-    // Same shape as createPost: one batch, the claim finds the comment as this author's newest.
-    const newest = sql<number>`(select max(${comment.id}) from ${comment} where ${comment.authorId} = ${u.id})`;
-    const steps = [
-      db.insert(comment).values({ postId: data.postId, authorId: u.id, body: data.body, internal }).returning({ id: comment.id }),
-      claimQuery(db, images, owner, { commentId: newest }),
-      ...(internal ? [] : [db.update(post).set({ commentCount: sql`${post.commentCount} + 1` }).where(eq(post.id, data.postId))]),
-    ];
-    const [[created], claimed] = (await db.batch(steps as unknown as Parameters<typeof db.batch>[0])) as unknown as [{ id: number }[], { id: string }[]];
-    if (claimed.length !== images.length) {
-      await db.batch([
-        db.update(attachment).set({ commentId: null }).where(eq(attachment.commentId, created!.id)),
-        db.delete(comment).where(eq(comment.id, created!.id)),
-        ...(internal ? [] : [db.update(post).set({ commentCount: sql`max(${post.commentCount} - 1, 0)` }).where(eq(post.id, data.postId))]),
-      ] as unknown as Parameters<typeof db.batch>[0]);
-      throw new AttachmentGoneError();
-    }
-    if (!internal) {
-      purgeWorkspaceCache(originFromRequest(), [data.postId]);
-      notifyIntegrations(db, context.workspace.id, { type: "comment.created", commentId: created!.id }, originFromRequest());
-    }
+    const ctx = { db: createDb(), workspace: context.workspace, actor: u, origin: originFromRequest() };
+    await addCommentOp(ctx, { postId: data.postId, body: data.body, internal: data.internal && u.role === "admin", attachments: data.attachments });
     return { ok: true };
   });
 
@@ -360,77 +319,20 @@ export const setStatus = createServerFn({ method: "POST" })
   .middleware([sessionMiddleware])
   .validator((d: unknown) => z.object({ postId: z.number().int(), status: z.string().max(40), note: z.string().trim().max(2000).optional() }).parse(d))
   .handler(async ({ data, context }) => {
-    const u = requireAdmin(context.user);
-    const db = createDb();
-    await ownPost(db, data.postId, context.workspace.id);
-    await assertStatus(db, context.workspace.id, data.status);
-    const [current] = await db.select({ status: post.status }).from(post).where(eq(post.id, data.postId));
-    if (!current || current.status === data.status) return { ok: true };
-    // Conditional on the status just read, so two requests at once move it (and email) once.
-    const moved = await db.update(post).set({ status: data.status, statusChangedAt: new Date() }).where(and(eq(post.id, data.postId), eq(post.status, current.status))).returning({ id: post.id });
-    if (!moved.length) return { ok: true };
-    await db.insert(activity).values({ postId: data.postId, actorId: u.id, type: "status", fromStatus: current.status, toStatus: data.status, note: data.note || null });
-    void invalidate(`workspace:${context.workspace.id}`);
-    const origin = originFromRequest();
-    purgeWorkspaceCache(origin, [data.postId]);
-    notifyIntegrations(db, context.workspace.id, { type: "post.status_changed", postId: data.postId, fromStatus: current.status }, origin);
-    const ws = context.workspace;
-    await inBackground("status-email", async () => {
-      const statuses = await listStatuses(db, ws.id);
-      const label = (key: string) => {
-        const s = statuses.find((x) => x.key === key);
-        return { label: s?.label ?? key, color: s?.color ?? "#999999" };
-      };
-      const [p] = await db.select({ title: post.title }).from(post).where(eq(post.id, data.postId));
-      const change = { postId: data.postId, postTitle: p?.title ?? "", from: label(current.status), to: label(data.status), note: data.note };
-      await deliver(await buildStatusEmails({ db, workspace: ws, origin, actor: u, change }), undefined, "status-email");
-    });
+    await setPostStatus(adminOps(context), data.postId, data.status, data.note);
     return { ok: true };
   });
 
 export const togglePin = createServerFn({ method: "POST" })
   .middleware([sessionMiddleware])
   .validator((d: unknown) => z.object({ postId: z.number().int() }).parse(d))
-  .handler(async ({ data, context }) => {
-    const u = requireAdmin(context.user);
-    const db = createDb();
-    await ownPost(db, data.postId, context.workspace.id);
-    const [current] = await db.select({ pinned: post.pinned }).from(post).where(eq(post.id, data.postId));
-    if (!current) return { pinned: false };
-    await db.update(post).set({ pinned: !current.pinned }).where(eq(post.id, data.postId));
-    await db.insert(activity).values({ postId: data.postId, actorId: u.id, type: "pin", note: current.pinned ? "unpinned" : "pinned" });
-    purgeWorkspaceCache(originFromRequest(), [data.postId]);
-    return { pinned: !current.pinned };
-  });
+  .handler(async ({ data, context }) => setPinned(adminOps(context), data.postId));
 
-// Merge `from` into `into`: votes are summed (one per user), comments move,
-// the merged post keeps a pointer so its old URL still resolves.
 export const mergePosts = createServerFn({ method: "POST" })
   .middleware([sessionMiddleware])
   .validator((d: unknown) => z.object({ from: z.number().int(), into: z.number().int() }).parse(d))
   .handler(async ({ data, context }) => {
-    const u = requireAdmin(context.user);
-    if (data.from === data.into) throw new Error("Pick a different post");
-    const db = createDb();
-    await ownPost(db, data.from, context.workspace.id);
-    await ownPost(db, data.into, context.workspace.id);
-    const fromVotes = await db.select({ userId: vote.userId }).from(vote).where(eq(vote.postId, data.from));
-    const intoVotes = new Set((await db.select({ userId: vote.userId }).from(vote).where(eq(vote.postId, data.into))).map((v) => v.userId));
-    const moved = fromVotes.filter((v) => !intoVotes.has(v.userId));
-    if (moved.length) await db.insert(vote).values(moved.map((v) => ({ postId: data.into, userId: v.userId })));
-    await db.update(comment).set({ postId: data.into }).where(eq(comment.postId, data.from));
-    const [{ c }] = await db.select({ c: sql<number>`count(*)` }).from(comment).where(eq(comment.postId, data.into));
-    await db.update(post).set({ voteCount: sql`${post.voteCount} + ${moved.length}`, commentCount: c }).where(eq(post.id, data.into));
-    const closed = await statusOfKind(db, context.workspace.id, "closed");
-    await db.update(post).set({ mergedIntoId: data.into, status: closed?.key ?? "closed" }).where(eq(post.id, data.from));
-    const [target] = await db.select({ title: post.title }).from(post).where(eq(post.id, data.into));
-    const [source] = await db.select({ title: post.title }).from(post).where(eq(post.id, data.from));
-    await db.insert(activity).values([
-      { postId: data.into, actorId: u.id, type: "merge", note: `merged "${source?.title}" into this, +${moved.length} votes` },
-      { postId: data.from, actorId: u.id, type: "merge", note: `merged into "${target?.title}"` },
-    ]);
-    void invalidate(`workspace:${context.workspace.id}`);
-    purgeWorkspaceCache(originFromRequest(), [data.from, data.into]);
+    await mergePostsOp(adminOps(context), data.from, data.into);
     return { ok: true, into: data.into };
   });
 
@@ -438,13 +340,7 @@ export const setTags = createServerFn({ method: "POST" })
   .middleware([sessionMiddleware])
   .validator((d: unknown) => z.object({ postId: z.number().int(), tags: z.array(z.string()).max(8) }).parse(d))
   .handler(async ({ data, context }) => {
-    requireAdmin(context.user);
-    const db = createDb();
-    await ownPost(db, data.postId, context.workspace.id);
-    const tagIds = await ownTags(db, data.tags, context.workspace.id);
-    await db.delete(postTag).where(eq(postTag.postId, data.postId));
-    if (tagIds.length) await db.insert(postTag).values(tagIds.map((tagId) => ({ postId: data.postId, tagId })));
-    purgeWorkspaceCache(originFromRequest(), [data.postId]);
+    await setPostTags(adminOps(context), data.postId, data.tags);
     return { ok: true };
   });
 
@@ -452,9 +348,7 @@ export const setEta = createServerFn({ method: "POST" })
   .middleware([sessionMiddleware])
   .validator((d: unknown) => z.object({ postId: z.number().int(), eta: z.string().trim().max(40).nullable() }).parse(d))
   .handler(async ({ data, context }) => {
-    requireAdmin(context.user);
-    await createDb().update(post).set({ eta: data.eta || null }).where(and(eq(post.id, data.postId), eq(post.workspaceId, context.workspace.id)));
-    purgeWorkspaceCache(originFromRequest(), [data.postId]);
+    await setPostEta(adminOps(context), data.postId, data.eta);
     return { ok: true };
   });
 

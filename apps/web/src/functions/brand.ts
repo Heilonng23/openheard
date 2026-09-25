@@ -1,40 +1,19 @@
-import { createDb, workspace } from "@openheard/db";
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
-import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { purgeWorkspaceCache } from "@/lib/cache";
 import { isDemo } from "@/lib/demo";
-import { invalidate } from "@/lib/kv-cache";
+import { adminOps } from "@/lib/ops/session";
+import { applyBrand as applyBrandOp, assertMatchAllowed, matchBrand as matchBrandOp } from "@/lib/ops/workspace";
 import { requireAdmin, sessionMiddleware } from "@/lib/session";
-
-// Each match fetches up to a handful of files from someone else's server, so
-// an account gets a few a minute and a few dozen an hour.
-async function assertMatchAllowed(userId: string) {
-  const { rateLimit } = await import("@/lib/rate-limit");
-  const minute = await rateLimit(`brand-match:m:${userId}`, { window: 60, max: 5, failClosed: true });
-  const hour = minute.allowed ? await rateLimit(`brand-match:h:${userId}`, { window: 3600, max: 30, failClosed: true }) : minute;
-  if (!hour.allowed) throw new Error("Too many website matches. Try again in a minute.");
-}
 
 export const matchBrand = createServerFn({ method: "POST" })
   .middleware([sessionMiddleware])
   .validator((d: unknown) => z.object({ url: z.string().trim().min(3).max(200) }).parse(d))
-  .handler(async ({ data, context }) => {
-    const u = requireAdmin(context.user);
-    await assertMatchAllowed(u.id);
-    const [{ matchWebsite }, { BlockedUrlError }] = await Promise.all([import("@/lib/brand-match"), import("@/lib/safe-fetch")]);
-    try {
-      return await matchWebsite(data.url);
-    } catch (err) {
-      if (err instanceof BlockedUrlError) throw new Error(err.message);
-      throw new Error("Could not read that website. Check the address and try again.");
-    }
-  });
+  .handler(async ({ data, context }) => matchBrandOp(adminOps(context), data.url));
 
-// Applies the parts of a match the admin kept. The logo is fetched again
-// from its source and copied into our storage; nothing is hotlinked.
+// Applies the parts of a match the admin kept.
 export const applyBrand = createServerFn({ method: "POST" })
   .middleware([sessionMiddleware])
   .validator((d: unknown) =>
@@ -49,29 +28,7 @@ export const applyBrand = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
-    const u = requireAdmin(context.user);
-    const ws = context.workspace;
-    const set: Partial<typeof workspace.$inferInsert> = {};
-    if (data.name) set.name = data.name;
-    if (data.accent) set.accent = data.accent.toLowerCase();
-    if (data.theme) set.theme = data.theme;
-    if (data.removeLogo) set.logoUrl = null;
-    let logoSkipped = false;
-    if (data.logoSrc) {
-      if (isDemo(ws)) logoSkipped = true;
-      else {
-        await assertMatchAllowed(u.id);
-        const { storeLogo } = await import("@/lib/brand-match");
-        const path = await storeLogo(ws.id, data.logoSrc);
-        if (path) set.logoUrl = path;
-        else logoSkipped = true;
-      }
-    }
-    if (Object.keys(set).length) {
-      await createDb().update(workspace).set(set).where(eq(workspace.id, ws.id));
-      void invalidate(`workspace:${ws.id}`);
-      purgeWorkspaceCache(new URL(getRequest().url).origin);
-    }
+    const { logoSkipped } = await applyBrandOp(adminOps(context), data);
     return { ok: true, logoSkipped };
   });
 

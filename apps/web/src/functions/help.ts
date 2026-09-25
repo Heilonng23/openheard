@@ -2,13 +2,14 @@ import { createDb, helpArticle, helpCollection } from "@openheard/db";
 import { env } from "@openheard/env/server";
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
-import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 
-import { HELP_ICONS, HELP_SLUG, networkOf, uniqueSlug } from "@/lib/help";
-import { helpArticleBySlug, helpCenterIndex, helpCollectionBySlug, helpNav, recordHelpVote, removeHelpArticle, searchHelpArticles } from "@/lib/help-db";
-import { invalidate } from "@/lib/kv-cache";
+import { HELP_ICONS, HELP_SLUG, networkOf } from "@/lib/help";
+import { helpArticleBySlug, helpCenterIndex, helpCollectionBySlug, helpNav, recordHelpVote, searchHelpArticles } from "@/lib/help-db";
 import { rateLimit } from "@/lib/rate-limit";
+import * as content from "@/lib/ops/content";
+import { adminOps } from "@/lib/ops/session";
 import { requireAdmin, sessionMiddleware, type SessionUser } from "@/lib/session";
 
 // Admins write the help center, like the changelog: the editor lives in the
@@ -30,9 +31,6 @@ async function anonymousVoter(): Promise<string> {
   return `n:${Array.from(new Uint8Array(mac).slice(0, 16), (b) => b.toString(16).padStart(2, "0")).join("")}`;
 }
 
-// The header shows "help" once something is published, and that count lives
-// in the cached workspace data.
-const refreshShell = (workspaceId: string) => invalidate(`workspace:${workspaceId}`);
 
 const slugField = z
   .string()
@@ -111,16 +109,7 @@ export const voteHelpArticle = createServerFn({ method: "POST" })
 
 export const listHelpAdmin = createServerFn({ method: "GET" })
   .middleware([sessionMiddleware])
-  .handler(async ({ context }) => {
-    requireAdmin(context.user);
-    const db = createDb();
-    const ws = context.workspace.id;
-    const [collections, articles] = await Promise.all([
-      db.select().from(helpCollection).where(eq(helpCollection.workspaceId, ws)).orderBy(asc(helpCollection.position), asc(helpCollection.id)),
-      db.select().from(helpArticle).where(eq(helpArticle.workspaceId, ws)).orderBy(asc(helpArticle.position), asc(helpArticle.id)),
-    ]);
-    return { collections, articles };
-  });
+  .handler(async ({ context }) => content.listHelp(adminOps(context)));
 
 export const saveHelpArticle = createServerFn({ method: "POST" })
   .middleware([sessionMiddleware])
@@ -138,58 +127,15 @@ export const saveHelpArticle = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
-    const u = requireAdmin(context.user);
-    const db = createDb();
-    const ws = context.workspace.id;
-
-    // Article and collection ids are global. Prove both belong here first.
-    const [existing] = data.id
-      ? await db.select({ id: helpArticle.id, publishedAt: helpArticle.publishedAt }).from(helpArticle).where(and(eq(helpArticle.id, data.id), eq(helpArticle.workspaceId, ws))).limit(1)
-      : [];
-    if (data.id && !existing) throw new Error("Article not found");
-    if (data.collectionId !== null) {
-      const [owned] = await db.select({ id: helpCollection.id }).from(helpCollection).where(and(eq(helpCollection.id, data.collectionId), eq(helpCollection.workspaceId, ws))).limit(1);
-      if (!owned) throw new Error("Collection not found");
-    }
-
-    const taken = await db
-      .select({ slug: helpArticle.slug })
-      .from(helpArticle)
-      .where(and(eq(helpArticle.workspaceId, ws), data.id ? ne(helpArticle.id, data.id) : undefined));
-    const takenSlugs = taken.map((r) => r.slug);
-    // An explicit slug must be free; a derived one takes the next free number.
-    if (data.slug && takenSlugs.includes(data.slug)) throw new Error(`Another article already uses /help/${data.slug}`);
-    const slug = data.slug || uniqueSlug(data.title, takenSlugs);
-
-    const values = {
-      title: data.title,
-      slug,
-      excerpt: data.excerpt || null,
-      body: data.body,
-      collectionId: data.collectionId,
-      status: data.publish ? ("published" as const) : ("draft" as const),
-      // First publish date sticks, so edits do not look like new articles.
-      publishedAt: data.publish ? (existing?.publishedAt ?? new Date()) : null,
-      updatedAt: new Date(),
-    };
-    let id = data.id;
-    if (id) {
-      await db.update(helpArticle).set(values).where(and(eq(helpArticle.id, id), eq(helpArticle.workspaceId, ws)));
-    } else {
-      const [{ n }] = await db.select({ n: sql<number>`coalesce(max(${helpArticle.position}), -1) + 1` }).from(helpArticle).where(eq(helpArticle.workspaceId, ws));
-      [{ id }] = await db.insert(helpArticle).values({ ...values, workspaceId: ws, authorId: u.id, position: Number(n) }).returning({ id: helpArticle.id });
-    }
-    await refreshShell(ws);
-    return { id: id!, slug };
+    const { id, slug } = await content.saveHelpArticle(adminOps(context), data);
+    return { id, slug };
   });
 
 export const deleteHelpArticle = createServerFn({ method: "POST" })
   .middleware([sessionMiddleware])
   .validator((d: unknown) => z.object({ id: z.number().int() }).parse(d))
   .handler(async ({ data, context }) => {
-    requireAdmin(context.user);
-    await removeHelpArticle(createDb(), context.workspace.id, data.id);
-    await refreshShell(context.workspace.id);
+    await content.deleteHelpArticle(adminOps(context), data.id);
     return { ok: true };
   });
 
@@ -206,39 +152,13 @@ export const saveHelpCollection = createServerFn({ method: "POST" })
       })
       .parse(d),
   )
-  .handler(async ({ data, context }) => {
-    requireAdmin(context.user);
-    const db = createDb();
-    const ws = context.workspace.id;
-    if (data.id) {
-      const [owned] = await db.select({ id: helpCollection.id }).from(helpCollection).where(and(eq(helpCollection.id, data.id), eq(helpCollection.workspaceId, ws))).limit(1);
-      if (!owned) throw new Error("Collection not found");
-    }
-    const taken = (await db.select({ slug: helpCollection.slug }).from(helpCollection).where(and(eq(helpCollection.workspaceId, ws), data.id ? ne(helpCollection.id, data.id) : undefined))).map((r) => r.slug);
-    if (data.slug && taken.includes(data.slug)) throw new Error(`Another collection already uses ${data.slug}`);
-    const slug = data.slug || uniqueSlug(data.title, taken, "collection");
-    const values = { title: data.title, description: data.description || null, icon: data.icon, slug };
-    let id = data.id;
-    if (id) {
-      await db.update(helpCollection).set(values).where(and(eq(helpCollection.id, id), eq(helpCollection.workspaceId, ws)));
-    } else {
-      const [{ n }] = await db.select({ n: sql<number>`coalesce(max(${helpCollection.position}), -1) + 1` }).from(helpCollection).where(eq(helpCollection.workspaceId, ws));
-      [{ id }] = await db.insert(helpCollection).values({ ...values, workspaceId: ws, position: Number(n) }).returning({ id: helpCollection.id });
-    }
-    return { id: id!, slug };
-  });
+  .handler(async ({ data, context }) => content.saveHelpCollection(adminOps(context), data));
 
 export const deleteHelpCollection = createServerFn({ method: "POST" })
   .middleware([sessionMiddleware])
   .validator((d: unknown) => z.object({ id: z.number().int() }).parse(d))
   .handler(async ({ data, context }) => {
-    requireAdmin(context.user);
-    const db = createDb();
-    const ws = context.workspace.id;
-    // Foreign keys are not enforced on every SQLite connection, so unfile the
-    // articles here rather than relying on ON DELETE SET NULL.
-    await db.update(helpArticle).set({ collectionId: null }).where(and(eq(helpArticle.workspaceId, ws), eq(helpArticle.collectionId, data.id)));
-    await db.delete(helpCollection).where(and(eq(helpCollection.id, data.id), eq(helpCollection.workspaceId, ws)));
+    await content.deleteHelpCollection(adminOps(context), data.id);
     return { ok: true };
   });
 

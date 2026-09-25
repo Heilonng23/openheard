@@ -1,16 +1,13 @@
-import { activity, board, comment, createDb, membership, post, postTag, status, vote, workspace } from "@openheard/db";
+import { activity, comment, createDb, membership, post, postTag, status, vote, workspace } from "@openheard/db";
 
-import { purgeWorkspaceCache } from "@/lib/cache";
-import { seedStatuses } from "@/lib/status-db";
-import { user } from "@openheard/db/schema/auth";
 import { createServerFn } from "@tanstack/react-start";
-import { getRequest } from "@tanstack/react-start/server";
-import { and, asc, count, desc, eq, gt, inArray, lte, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 
-import { invalidate } from "@/lib/kv-cache";
-import { PLANS } from "@/lib/plans";
 import { DEMO_ADMIN_ID, assertNotDemo, assertNotDemoIdentity } from "@/lib/demo";
+import { setPostBoard } from "@/lib/ops/posts";
+import { adminOps } from "@/lib/ops/session";
+import { RESERVED_SLUGS, createWorkspace as createWorkspaceOp, listMembers as listMembersOp, slugify } from "@/lib/ops/workspace";
 import { requireAdmin, requireUser, sessionMiddleware } from "@/lib/session";
 
 const DAY = 86_400_000;
@@ -130,18 +127,7 @@ export const listInbox = createServerFn({ method: "GET" })
 
 export const listMembers = createServerFn({ method: "GET" })
   .middleware([sessionMiddleware])
-  .handler(async ({ context }) => {
-    requireAdmin(context.user);
-    // Member emails are not demo content.
-    assertNotDemo(context.workspace);
-    const db = createDb();
-    return db
-      .select({ id: user.id, name: user.name, email: user.email, image: user.image, role: membership.role, createdAt: membership.createdAt })
-      .from(membership)
-      .innerJoin(user, eq(user.id, membership.userId))
-      .where(eq(membership.workspaceId, context.workspace.id))
-      .orderBy(membership.createdAt);
-  });
+  .handler(async ({ context }) => (await listMembersOp(adminOps(context))).members);
 
 export const setRole = createServerFn({ method: "POST" })
   .middleware([sessionMiddleware])
@@ -164,26 +150,11 @@ export const setBoard = createServerFn({ method: "POST" })
   .middleware([sessionMiddleware])
   .validator((d: unknown) => z.object({ postId: z.number().int(), boardId: z.string().min(1) }).parse(d))
   .handler(async ({ data, context }) => {
-    requireAdmin(context.user);
-    const db = createDb();
-    // Board ids are global, so a post could otherwise be parked on another
-    // workspace's board and be deleted along with it.
-    const [target] = await db.select({ id: board.id }).from(board).where(and(eq(board.id, data.boardId), eq(board.workspaceId, context.workspace.id))).limit(1);
-    if (!target) throw new Error("Board not found");
-    await db.update(post).set({ boardId: data.boardId }).where(and(eq(post.id, data.postId), eq(post.workspaceId, context.workspace.id)));
-    void invalidate(`workspace:${context.workspace.id}`);
-    purgeWorkspaceCache(new URL(getRequest().url).origin, [data.postId]);
+    await setPostBoard(adminOps(context), data.postId, data.boardId);
     return { ok: true };
   });
 
 // ---- workspaces ----
-
-const slugify = (s: string) =>
-  s
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 32);
 
 export const myWorkspaces = createServerFn({ method: "GET" })
   .middleware([sessionMiddleware])
@@ -198,7 +169,6 @@ export const myWorkspaces = createServerFn({ method: "GET" })
       .orderBy(membership.createdAt);
   });
 
-const RESERVED_SLUGS = ["default", "www", "app", "api", "admin", "mail", "demo"];
 
 export const checkSlug = createServerFn({ method: "GET" })
   .validator((d: unknown) => z.object({ slug: z.string().trim().min(1).max(32) }).parse(d))
@@ -229,25 +199,7 @@ export const createWorkspace = createServerFn({ method: "POST" })
     // The workspace guard is not enough on its own: the demo cookie also
     // reaches the apex host, where the workspace resolves to default.
     assertNotDemoIdentity(u);
-    const db = createDb();
-    const [{ n: owned }] = await db.select({ n: count() }).from(membership).where(and(eq(membership.userId, u.id), eq(membership.role, "admin"), ne(membership.workspaceId, "default")));
-    const [acct] = await db.select({ plan: user.plan }).from(user).where(eq(user.id, u.id)).limit(1);
-    const limit = PLANS[acct?.plan ?? "free"].workspaces;
-    if (owned >= limit) throw new Error(acct?.plan === "pro" ? `Pro allows ${limit} workspaces` : `Free allows ${limit} workspaces. Upgrade to Pro for ${PLANS.pro.workspaces}.`);
-    const id = slugify(data.slug || data.name);
-    // checkSlug applies the same floor; the mutation cannot rely on it.
-    if (!id || id.length < 5 || RESERVED_SLUGS.includes(id)) throw new Error("Pick a different slug");
-    const [taken] = await db.select({ id: workspace.id }).from(workspace).where(eq(workspace.id, id)).limit(1);
-    if (taken) throw new Error("That slug is taken");
-    await db.insert(workspace).values({ id, name: data.name, website: data.website || null, heardAboutUs: data.heardAboutUs || null, ...(data.whoCanPost ? { whoCanPost: data.whoCanPost } : {}) });
-    await db.insert(membership).values({ workspaceId: id, userId: u.id, role: "admin" });
-    await seedStatuses(db, id);
-    await db.insert(board).values({ id: `${id}-features`, workspaceId: id, name: "Feature requests", description: "Things you wish the product did", position: 0 });
-    if (data.website) {
-      const { prefillBrand } = await import("@/lib/brand-match");
-      await prefillBrand(id, data.website);
-    }
-    return { id };
+    return createWorkspaceOp(createDb(), u, data);
   });
 
 // Roadmap admin: all non-merged posts in roadmap statuses, grouped by status.

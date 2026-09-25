@@ -362,6 +362,9 @@ export const widgetToken = sqliteTable(
   (t) => [index("widget_token_user_idx").on(t.userId)],
 );
 
+export const API_KEY_SCOPES = ["workspace", "account"] as const;
+export type ApiKeyScope = (typeof API_KEY_SCOPES)[number];
+
 export const apiKey = sqliteTable(
   "api_key",
   {
@@ -372,6 +375,9 @@ export const apiKey = sqliteTable(
     name: text("name").notNull(),
     prefix: text("prefix").notNull(),
     hash: text("hash").notNull(),
+    // "workspace" keys reach only workspace_id. "account" keys act for their
+    // creator in any workspace they administer; workspace_id is the default.
+    scope: text("scope", { enum: API_KEY_SCOPES }).notNull().default("workspace"),
     createdBy: text("created_by").references(() => user.id, { onDelete: "set null" }),
     createdAt: integer("created_at", { mode: "timestamp_ms" }).default(now).notNull(),
     lastUsedAt: integer("last_used_at", { mode: "timestamp_ms" }),

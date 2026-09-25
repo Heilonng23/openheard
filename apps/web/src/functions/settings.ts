@@ -1,4 +1,4 @@
-import { apiKey, board, createDb, membership, post, postTag, tag, workspace } from "@openheard/db";
+import { apiKey, board, createDb, membership, post, postTag, tag } from "@openheard/db";
 
 import { purgeWorkspaceCache } from "@/lib/cache";
 import { listStatuses } from "@/lib/status-db";
@@ -9,8 +9,10 @@ import { and, count, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { toAttachmentView } from "@/lib/attachments";
-import { invalidate } from "@/lib/kv-cache";
-import { assertNotDemo, assertNotDemoIdentity, isDemo } from "@/lib/demo";
+import { assertNotDemo, assertNotDemoIdentity } from "@/lib/demo";
+import * as setup from "@/lib/ops/setup";
+import { updateWorkspace } from "@/lib/ops/workspace";
+import { adminOps } from "@/lib/ops/session";
 import { requireAdmin, requireUser, sessionMiddleware } from "@/lib/session";
 
 const slug = (s: string) =>
@@ -50,18 +52,7 @@ export const saveWorkspace = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
-    requireAdmin(context.user);
-    // Branding is fair game in the demo; the settings that decide whether a
-    // visitor can post or vote are what make it a demo at all.
-    if (isDemo(context.workspace)) {
-      for (const key of ["whoCanPost", "anonymousVoting", "requireApproval"] as const) {
-        if (data[key] !== undefined && data[key] !== context.workspace[key]) throw new Error("Demo access settings cannot be changed");
-      }
-    }
-    const db = createDb();
-    await db.update(workspace).set(data).where(eq(workspace.id, context.workspace.id));
-    void invalidate(`workspace:${context.workspace.id}`);
-    purgeWorkspaceCache(new URL(getRequest().url).origin);
+    await updateWorkspace(adminOps(context), data);
     return { ok: true };
   });
 
@@ -69,23 +60,7 @@ export const saveBoard = createServerFn({ method: "POST" })
   .middleware([sessionMiddleware])
   .validator((d: unknown) => z.object({ id: z.string().optional(), name: z.string().trim().min(1).max(60), description: z.string().trim().max(200).optional() }).parse(d))
   .handler(async ({ data, context }) => {
-    requireAdmin(context.user);
-    const db = createDb();
-    const ws = context.workspace.id;
-    if (data.id) {
-      await db.update(board).set({ name: data.name, description: data.description ?? null }).where(and(eq(board.id, data.id), eq(board.workspaceId, ws)));
-      void invalidate(`workspace:${ws}`);
-      purgeWorkspaceCache(new URL(getRequest().url).origin);
-      return { id: data.id };
-    }
-    const [{ n }] = await db.select({ n: count() }).from(board).where(eq(board.workspaceId, ws));
-    // Board ids are global (they sit in URLs), so prefix outside the default workspace.
-    let id = ws === "default" ? slug(data.name) : `${ws}-${slug(data.name)}`;
-    if (await assertIdFree(db, board, id, ws)) id = `${id}-${n + 1}`;
-    await assertIdFree(db, board, id, ws);
-    await db.insert(board).values({ id, workspaceId: ws, name: data.name, description: data.description ?? null, position: n });
-    void invalidate(`workspace:${ws}`);
-    purgeWorkspaceCache(new URL(getRequest().url).origin);
+    const { id } = await setup.saveBoard(adminOps(context), data);
     return { id };
   });
 
@@ -93,13 +68,7 @@ export const deleteBoard = createServerFn({ method: "POST" })
   .middleware([sessionMiddleware])
   .validator((d: unknown) => z.object({ id: z.string() }).parse(d))
   .handler(async ({ data, context }) => {
-    requireAdmin(context.user);
-    const db = createDb();
-    const [{ n }] = await db.select({ n: count() }).from(post).where(and(eq(post.boardId, data.id), eq(post.workspaceId, context.workspace.id)));
-    if (n > 0) throw new Error(`This board has ${n} posts. Move or delete them first.`);
-    await db.delete(board).where(and(eq(board.id, data.id), eq(board.workspaceId, context.workspace.id)));
-    void invalidate(`workspace:${context.workspace.id}`);
-    purgeWorkspaceCache(new URL(getRequest().url).origin);
+    await setup.deleteBoard(adminOps(context), data.id);
     return { ok: true };
   });
 
@@ -107,17 +76,7 @@ export const saveTag = createServerFn({ method: "POST" })
   .middleware([sessionMiddleware])
   .validator((d: unknown) => z.object({ name: z.string().trim().min(1).max(30) }).parse(d))
   .handler(async ({ data, context }) => {
-    requireAdmin(context.user);
-    const ws = context.workspace.id;
-    const id = ws === "default" ? slug(data.name) : `${ws}-${slug(data.name)}`;
-    const db = createDb();
-    await assertIdFree(db, tag, id, ws);
-    await db
-      .insert(tag)
-      .values({ id, workspaceId: ws, name: data.name })
-      .onConflictDoUpdate({ target: tag.id, set: { name: data.name }, setWhere: eq(tag.workspaceId, ws) });
-    void invalidate(`workspace:${ws}`);
-    purgeWorkspaceCache(new URL(getRequest().url).origin);
+    const { id } = await setup.saveTag(adminOps(context), data.name);
     return { id };
   });
 
@@ -125,10 +84,7 @@ export const deleteTag = createServerFn({ method: "POST" })
   .middleware([sessionMiddleware])
   .validator((d: unknown) => z.object({ id: z.string() }).parse(d))
   .handler(async ({ data, context }) => {
-    requireAdmin(context.user);
-    await createDb().delete(tag).where(and(eq(tag.id, data.id), eq(tag.workspaceId, context.workspace.id)));
-    void invalidate(`workspace:${context.workspace.id}`);
-    purgeWorkspaceCache(new URL(getRequest().url).origin);
+    await setup.deleteTag(adminOps(context), data.id);
     return { ok: true };
   });
 

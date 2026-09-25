@@ -6,7 +6,8 @@ import { z } from "zod";
 
 import { assertNotDemo, assertNotDemoIdentity } from "@/lib/demo";
 import { requireAdmin, sessionMiddleware } from "@/lib/session";
-import { sendInviteEmail } from "@/lib/email";
+import { adminOps } from "@/lib/ops/session";
+import { createInvite as createInviteOp } from "@/lib/ops/workspace";
 
 export const getWorkspaceMemberCount = createServerFn({ method: "GET" })
   .middleware([sessionMiddleware])
@@ -25,22 +26,7 @@ export const createInvite = createServerFn({ method: "POST" })
     z.object({ email: z.string().email(), role: z.enum(["admin", "member"]).default("member") }).parse(d),
   )
   .handler(async ({ data, context }) => {
-    const me = requireAdmin(context.user);
-    assertNotDemo(context.workspace);
-    const db = createDb();
-    const token = crypto.randomUUID();
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-    await db.insert(invite).values({
-      workspaceId: context.workspace.id,
-      email: data.email,
-      role: data.role,
-      token,
-      expiresAt,
-    });
-
-    const baseUrl = (await import("@openheard/env/server")).env.BETTER_AUTH_URL || "http://localhost:3001";
-    const joinUrl = `${baseUrl}/join/${token}`;
-    await sendInviteEmail(data.email, me.name, context.workspace.name, joinUrl);
+    await createInviteOp(adminOps(context), data);
     return { ok: true };
   });
 
