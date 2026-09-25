@@ -23,7 +23,11 @@ function Notifications() {
 
   async function save() {
     const [, res] = await Promise.all([saveNotificationPrefs({ data: form }), saveEmailPrefs({ data: email })]);
-    if (res.confirmSent) toast.success("Check your inbox to confirm changelog emails");
+    if (res.confirmSent) {
+      toast.success("Check your inbox to confirm changelog emails");
+      // Off until the link is clicked, which is what the saved prefs say too.
+      setEmail((e) => ({ ...e, changelog: false }));
+    }
     await router.invalidate();
   }
 
