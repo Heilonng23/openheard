@@ -71,10 +71,10 @@ type ButtonProps = ButtonPrimitive.Props & VariantProps<typeof buttonVariants> &
 function Button({ className, variant = "primary", size = "default", arrow = false, full, children, ...props }: ButtonProps) {
   const withArrow = !!arrow && size !== "icon" && size !== "icon-sm" && variant !== "link";
   return (
-    <ButtonPrimitive data-slot="button" className={cn(buttonVariants({ variant, size, arrow: withArrow }), full && "w-full", withArrow && "justify-start", className)} {...props}>
+    <ButtonPrimitive data-slot="button" className={cn(buttonVariants({ variant, size, arrow: withArrow }), full && "w-full", className)} {...props}>
       {withArrow ? (
         <>
-          <span className={cn(full && "flex-1 text-left")}>{children}</span>
+          <span className={cn(full && "flex-1 text-center")}>{children}</span>
           <i aria-hidden className={arrowBox({ variant, size })}>
             <ArrowRightIcon weight="bold" className="size-[13px]" />
           </i>
