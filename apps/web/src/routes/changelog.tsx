@@ -33,7 +33,7 @@ export const Route = createFileRoute("/changelog")({
 type Entry = Awaited<ReturnType<typeof listChangelog>>[number];
 
 function shortDate(d: Date | string | number) {
-  return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric" }).toUpperCase();
+  return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 function ChangelogPage() {
@@ -75,7 +75,7 @@ function ChangelogPage() {
     <Shell rail={rail}>
       <div className="flex items-end justify-between">
         <h1 className="text-xl font-semibold tracking-[-0.02em]">What shipped</h1>
-        <span className="font-mono text-xs text-faint">
+        <span className="text-xs text-faint tabular-nums">
           {published} {published === 1 ? "release" : "releases"}
         </span>
       </div>
@@ -90,9 +90,9 @@ function ChangelogPage() {
           {entries.map((e) => (
             <article key={e.id} className="flex flex-col gap-4 border-b py-7 first:pt-2 md:flex-row md:gap-8">
               <div className="flex shrink-0 items-center gap-2.5 md:w-24 md:flex-col md:items-start md:pt-1">
-                <span className="font-mono text-[12px] tracking-[0.04em] text-faint">{shortDate(e.publishedAt ?? e.createdAt)}</span>
-                {e.version ? <span className="inline-flex h-5 items-center rounded-md border border-input bg-secondary px-1.5 font-mono text-[12px] text-foreground">{e.version}</span> : null}
-                {!e.publishedAt ? <span className="inline-flex h-5 items-center rounded-md border border-dashed border-input px-1.5 font-mono text-[11px] text-faint">draft</span> : null}
+                <span className="text-[12px] text-faint tabular-nums">{shortDate(e.publishedAt ?? e.createdAt)}</span>
+                {e.version ? <span className="inline-flex h-5 items-center rounded-md border border-input bg-secondary px-1.5 text-[12px] text-foreground tabular-nums">{e.version}</span> : null}
+                {!e.publishedAt ? <span className="inline-flex h-5 items-center rounded-md border border-dashed border-input px-1.5 text-[11px] text-faint">Draft</span> : null}
               </div>
               <div className="flex min-w-0 flex-1 flex-col gap-3">
                 <div className="flex items-start justify-between gap-3">
@@ -116,7 +116,7 @@ function ChangelogPage() {
                 {e.body ? <div className="whitespace-pre-wrap text-[14px] leading-[1.6] text-muted-foreground">{e.body}</div> : null}
                 {e.posts.length ? (
                   <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                    <span className="mr-1 font-mono text-[11px] tracking-[0.06em] text-faint uppercase">Shipped from</span>
+                    <span className="mr-1 text-xs text-faint">Shipped from</span>
                     {e.posts.map((p) => (
                       <Link
                         key={p.id}
@@ -235,7 +235,7 @@ function EntryDialog({ entry, onClose }: { entry: Entry | null | "new"; onClose:
         </DialogHeader>
         <div className="grid grid-cols-[minmax(0,1fr)_120px] gap-2">
           <Input placeholder="What shipped" value={title} onChange={(ev) => setTitle(ev.target.value)} aria-label="Entry title" className="h-10 text-[14px] font-semibold" />
-          <Input placeholder="v0.4.0" value={version} onChange={(ev) => setVersion(ev.target.value)} aria-label="Version" className="h-10 font-mono" />
+          <Input placeholder="v0.4.0" value={version} onChange={(ev) => setVersion(ev.target.value)} aria-label="Version" className="h-10 tabular-nums" />
         </div>
         <Textarea placeholder="Why it matters, in a few sentences." value={body} onChange={(ev) => setBody(ev.target.value)} aria-label="Entry body" className="min-h-36" />
         <div className="flex flex-col gap-2">
