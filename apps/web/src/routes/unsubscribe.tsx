@@ -42,13 +42,13 @@ function UnsubscribePage() {
   if (!result.ok) return <EmailLinkPage title="This link does not work" body="It may have been copied incompletely. Use the link from the latest email." />;
   const what = WHAT[result.kind];
   return undone ? (
-    <EmailLinkPage title="You are back on the list" body={`You will get ${what} from ${result.workspaceName} again.`}>
+    <EmailLinkPage title="You are back on the list" body={`${result.workspaceName} will email you ${what} again.`}>
       <Button variant="secondary" disabled={busy} onClick={() => toggle(false)}>
         Unsubscribe again
       </Button>
     </EmailLinkPage>
   ) : (
-    <EmailLinkPage title="You are unsubscribed" body={`No more ${what} from ${result.workspaceName}.`}>
+    <EmailLinkPage title="You are unsubscribed" body={`${result.workspaceName} will stop emailing you ${what}.`}>
       <Button variant="secondary" disabled={busy} onClick={() => toggle(true)}>
         Undo
       </Button>
