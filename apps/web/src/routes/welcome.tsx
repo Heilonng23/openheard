@@ -2,6 +2,7 @@ import { createFileRoute, redirect, useLoaderData, useRouter } from "@tanstack/r
 import { toast } from "sonner";
 
 import { WorkspaceForm } from "@/components/workspace-form";
+import { prefillWorkspaceBrand } from "@/functions/brand";
 import { saveWorkspace } from "@/functions/settings";
 import { getWorkspace } from "@/functions/workspace";
 import { isAdmin } from "@/lib/session";
@@ -43,6 +44,8 @@ function Welcome() {
                 heardAboutUs: v.heardAboutUs || null,
               },
             });
+            // Picks up the site's colours and logo; the board is usable before it lands.
+            if (v.website) void prefillWorkspaceBrand({ data: { website: v.website } }).then(() => router.invalidate()).catch(() => {});
             await router.invalidate();
             await router.navigate({ to: "/" });
           } catch (err) {

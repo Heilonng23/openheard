@@ -58,7 +58,7 @@ pay for. Self-hosting is the default, not the afterthought.
 - Changelog with an editor, linked shipped posts and an RSS feed
 - Help center at `/help`: collections, searchable articles, "was this
   helpful?" feedback, and matching articles suggested before a new post
-- Branding: accent colour pulled from your website, board name
+- Branding: accent colour, logo and light or dark background read from your website, board name
 
 **Extend**
 - HTTP API with per-workspace keys at `/api/v1` ([docs](docs/api.md))

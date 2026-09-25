@@ -22,7 +22,17 @@ type OnboardingData = {
   name: string;
   slug: string;
   whoCanPost: "anyone" | "members";
+  // Optional. The new board starts in this site's colours and logo.
+  website?: string;
 };
+
+// "acme.com" -> "https://acme.com"; anything that is not a plausible address is dropped.
+function normalizeWebsite(input: string): string {
+  const s = input.trim();
+  if (!s) return "";
+  const url = /^https?:\/\//i.test(s) ? s : `https://${s}`;
+  return /^https?:\/\/[^\s/.]+\.[^\s]+$/i.test(url) ? url : "";
+}
 
 function saveOnboarding(data: Partial<OnboardingData>) {
   const prev = loadOnboarding();
@@ -49,7 +59,7 @@ export const Route = createFileRoute("/start")({
       if (typeof sessionStorage !== "undefined") {
         const pending = consumePendingAction();
         if (pending?.type === "create-workspace") {
-          sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ name: pending.name, slug: pending.slug, whoCanPost: pending.whoCanPost }));
+          saveOnboarding({ name: pending.name, slug: pending.slug, whoCanPost: pending.whoCanPost });
         }
       }
     }
@@ -65,6 +75,7 @@ async function finishOnboarding(data: OnboardingData, rootDomain: string | null)
       name: data.name,
       slug: data.slug,
       whoCanPost: data.whoCanPost,
+      website: data.website || undefined,
     },
   });
   clearOnboarding();
@@ -82,6 +93,7 @@ function StartPage() {
 
   const [step, setStep] = useState(1);
   const [name, setName] = useState("");
+  const [website, setWebsite] = useState("");
   const [slugInput, setSlugInput] = useState("");
   const [slugTouched, setSlugTouched] = useState(false);
   const [whoCanPost, setWhoCanPost] = useState<"anyone" | "members">("anyone");
@@ -130,19 +142,20 @@ function StartPage() {
   // If signed in and no onboarding data, let them fill in steps 1 & 2.
   const maxStep = user ? 2 : STEPS;
 
+  const websiteUrl = normalizeWebsite(website);
   const slugReady = slug.length >= 5 && slugStatus?.available === true && !slugChecking;
 
   function next() {
     if (step === 1) {
       if (!slugReady) return;
-      saveOnboarding({ name: name.trim(), slug });
+      saveOnboarding({ name: name.trim(), slug, website: websiteUrl });
       setStep(2);
     } else if (step === 2) {
       saveOnboarding({ whoCanPost });
       if (user) {
         // Already signed in — create workspace now.
         setBusy(true);
-        finishOnboarding({ name: name.trim(), slug, whoCanPost }, rootDomain).catch((err) => {
+        finishOnboarding({ name: name.trim(), slug, whoCanPost, website: websiteUrl }, rootDomain).catch((err) => {
           setBusy(false);
           toast.error(err instanceof Error ? err.message : "Could not create workspace");
         });
@@ -164,6 +177,7 @@ function StartPage() {
       name: stored.name || name.trim(),
       slug: stored.slug || slug,
       whoCanPost: stored.whoCanPost || whoCanPost,
+      website: stored.website ?? websiteUrl,
     };
     saveOnboarding(data);
     try {
@@ -176,7 +190,7 @@ function StartPage() {
 
   function onGoogleClick() {
     // Save onboarding data before the redirect.
-    saveOnboarding({ name: name.trim(), slug, whoCanPost });
+    saveOnboarding({ name: name.trim(), slug, whoCanPost, website: websiteUrl });
   }
 
   if (busy) {
@@ -228,10 +242,10 @@ function StartPage() {
                     }}
                     placeholder="acme"
                     maxLength={32}
-                    className="min-w-0 flex-1 bg-transparent font-mono text-[13px] text-foreground outline-none placeholder:text-faint"
+                    className="min-w-0 flex-1 bg-transparent text-[13px] text-foreground outline-none placeholder:text-faint"
                     onKeyDown={(e) => { if (e.key === "Enter") next(); }}
                   />
-                  <span className="font-mono text-[13px] text-faint">.{rootDomain ?? "openheard.com"}</span>
+                  <span className="text-[13px] text-faint">.{rootDomain ?? "openheard.com"}</span>
                 </label>
                 {slugChecking ? (
                   <span className="size-5 shrink-0 animate-spin rounded-full border-2 border-faint border-t-transparent" />
@@ -255,7 +269,7 @@ function StartPage() {
                       {" — try "}
                       <button
                         type="button"
-                        className="font-mono underline hover:text-foreground"
+                        className="underline hover:text-foreground"
                         onClick={() => {
                           setSlugTouched(true);
                           setSlugInput(slugStatus.suggestion!);
@@ -269,6 +283,23 @@ function StartPage() {
                 </p>
               )}
             </div>
+            <label className="flex w-full flex-col gap-1.5">
+              <span className="text-[13px] text-muted-foreground">
+                Website <span className="text-faint">(optional, we match your colours and logo)</span>
+              </span>
+              <span className="flex h-10 items-center gap-2.5 rounded-lg border border-input bg-card px-3 text-faint transition-colors focus-within:border-ring/60 focus-within:ring-1 focus-within:ring-ring/40">
+                <GlobeSimpleIcon className="size-[15px]" />
+                <input
+                  value={website}
+                  onChange={(e) => setWebsite(e.target.value)}
+                  inputMode="url"
+                  placeholder="acme.com"
+                  maxLength={200}
+                  className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-faint"
+                  onKeyDown={(e) => { if (e.key === "Enter") next(); }}
+                />
+              </span>
+            </label>
             <Button full arrow size="lg" disabled={!slugReady} onClick={next}>
               Continue
             </Button>

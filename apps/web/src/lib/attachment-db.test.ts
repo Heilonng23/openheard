@@ -30,7 +30,7 @@ const bucket = vi.hoisted(() => ({
 }));
 vi.mock("@openheard/env/server", () => ({ env: { UPLOADS: bucket } }));
 
-import { AttachmentGoneError, DAILY_UPLOAD_BYTES, UploadError, claimQuery, reserveAttachments, storeUpload, sweepUnclaimed } from "./attachment-db";
+import { AttachmentGoneError, DAILY_UPLOAD_BYTES, UploadError, claimQuery, reserveAttachments, storeUpload, sweepOrphans, sweepUnclaimed } from "./attachment-db";
 
 const MIGRATIONS = new URL("../../../../packages/db/migrations/", import.meta.url).pathname;
 const OLD = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
@@ -190,6 +190,24 @@ describe("storeUpload", () => {
   it("lets yesterday's uploads fall out of the quota", async () => {
     await addUploads(db, 1, { size: DAILY_UPLOAD_BYTES, createdAt: OLD });
     await expect(storeUpload(db, { ...owner, bytes: PNG })).resolves.toBeTruthy();
+  });
+});
+
+describe("sweepOrphans", () => {
+  it("deletes objects with no row but keeps the logo each workspace uses", async () => {
+    const db = await freshDb();
+    const [kept] = await addUploads(db, 1);
+    await db.update(schema.workspace).set({ logoUrl: "/logo/currentLogo0123456789" }).where(eq(schema.workspace.id, "acme"));
+    const keys = [kept.key, "acme/currentLogo0123456789", "acme/oldLogo0123456789ab", "acme/strayUpload012345678"];
+    const list = bucket.list;
+    bucket.list = async () => ({ objects: keys.map((key) => ({ key, uploaded: OLD })), truncated: false }) as never;
+    bucket.deleted = [];
+    try {
+      expect(await sweepOrphans(db)).toBe(2);
+    } finally {
+      bucket.list = list;
+    }
+    expect(bucket.deleted.flat().sort()).toEqual(["acme/oldLogo0123456789ab", "acme/strayUpload012345678"]);
   });
 });
 

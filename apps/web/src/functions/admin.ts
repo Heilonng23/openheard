@@ -243,6 +243,10 @@ export const createWorkspace = createServerFn({ method: "POST" })
     await db.insert(membership).values({ workspaceId: id, userId: u.id, role: "admin" });
     await seedStatuses(db, id);
     await db.insert(board).values({ id: `${id}-features`, workspaceId: id, name: "Feature requests", description: "Things you wish the product did", position: 0 });
+    if (data.website) {
+      const { prefillBrand } = await import("@/lib/brand-match");
+      await prefillBrand(id, data.website);
+    }
     return { id };
   });
 

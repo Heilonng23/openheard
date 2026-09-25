@@ -1,0 +1,7 @@
+/* design tokens */
+:root{--hds-color-core-brand-25:#f5f5ff;--hds-color-core-brand-100:#d6d9fc;--hds-color-core-brand-500:#665efd;--hds-color-core-brand-600:#533afd;--hds-color-core-brand-700:#4032c8;--hds-color-core-neutral-0:#ffffff;--hds-color-core-neutral-900:#0a2540;--hds-color-action-bg-solid:var(--hds-color-core-brand-600);--hds-color-button-primary-bg:var(--hds-color-action-bg-solid);--hds-color-accent-charm-gradientStart:#ff6118;--hds-color-text-soft:#425466;--hds-color-critical-bg:#df1b41;--font-sans:sohne-var,"Helvetica Neue",Arial,sans-serif}
+html{-webkit-text-size-adjust:100%}
+body{background-color:var(--hds-color-core-neutral-0);color:var(--hds-color-text-soft);font-family:var(--font-sans)}
+.Button--primary{background-color:var(--hds-color-button-primary-bg);color:#fff}
+.Button--primary:hover{background-color:#ff00aa}
+@media (min-width:600px){.Link{color:var(--hds-color-core-brand-600)}}
