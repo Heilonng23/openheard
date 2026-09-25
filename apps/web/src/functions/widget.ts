@@ -4,11 +4,13 @@ import { getRequest } from "@tanstack/react-start/server";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
+import { purgeWorkspaceCache } from "@/lib/cache";
 import { assertNotDemo } from "@/lib/demo";
 import { invalidate } from "@/lib/kv-cache";
 import { requireAdmin, sessionMiddleware, widgetSessionMiddleware } from "@/lib/session";
 import { WIDGET_TOKEN_HEADER } from "@/lib/widget-auth";
 import { MAX_EMBED_ORIGINS, parseEmbedOrigins } from "@/lib/widget-origins";
+import { widgetSettingsSchema } from "@/lib/widget-settings";
 import { mintWidgetToken, revokeWidgetToken } from "@/lib/widget-token";
 
 // Mints a widget token for the sign-in popup, which passes it to the widget
@@ -53,4 +55,17 @@ export const saveWidgetOrigins = createServerFn({ method: "POST" })
       .where(eq(workspace.id, context.workspace.id));
     void invalidate(`workspace:${context.workspace.id}`);
     return { origins };
+  });
+
+// Appearance and tabs. The loader picks them up from /widget.json, so the
+// edge copy goes as soon as they change.
+export const saveWidgetSettings = createServerFn({ method: "POST" })
+  .middleware([sessionMiddleware])
+  .validator((d: unknown) => widgetSettingsSchema.parse(d))
+  .handler(async ({ data, context }) => {
+    requireAdmin(context.user);
+    await createDb().update(workspace).set({ widgetSettings: data }).where(eq(workspace.id, context.workspace.id));
+    void invalidate(`workspace:${context.workspace.id}`);
+    await purgeWorkspaceCache(new URL(getRequest().url).origin);
+    return data;
   });

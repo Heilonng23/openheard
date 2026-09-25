@@ -7,16 +7,16 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { WidgetContext, toParent, useLoad, type FeedbackView, type WidgetCtx, type WidgetTab } from "@/components/widget/context";
 import { Composer, FeedbackList, PostDetail, Sent } from "@/components/widget/feedback";
+import { parseLook, useWidgetLook, type WidgetLook } from "@/components/widget/look";
 import { ChangelogTab, RoadmapTab } from "@/components/widget/tabs";
 import { listChangelog } from "@/functions/changelog";
 import { disconnectWidget, widgetUser } from "@/functions/widget";
 import type { SessionUser } from "@/lib/session";
 import { MSG, getWidgetToken, newNonce, sessionFromMessage, setWidgetToken, widgetTokenHeaders, type SignInFlow } from "@/lib/widget-auth";
 
-type Search = { tab?: WidgetTab; seen?: number; accent?: string };
+type Search = WidgetLook & { tab?: WidgetTab; seen?: number };
 
 const TABS: WidgetTab[] = ["feedback", "roadmap", "changelog"];
-const HEX = /^#[0-9a-f]{3,8}$/i;
 
 // The panel the embed script opens in an iframe on the host site. It is the
 // only route that may be framed (see server.ts).
@@ -24,7 +24,7 @@ export const Route = createFileRoute("/widget")({
   validateSearch: (s: Record<string, unknown>): Search => ({
     tab: TABS.includes(s.tab as WidgetTab) ? (s.tab as WidgetTab) : undefined,
     seen: Number(s.seen) > 0 ? Number(s.seen) : undefined,
-    accent: typeof s.accent === "string" && HEX.test(s.accent) ? s.accent : undefined,
+    ...parseLook(s),
   }),
   head: ({ matches }) => {
     const root = matches[0]?.loaderData as { workspace?: { name: string } } | undefined;
@@ -44,9 +44,12 @@ function Widget() {
   const root = useLoaderData({ from: "__root__" });
   const search = Route.useSearch();
   const ws = root.workspace;
-  const tabs = useMemo(() => TABS.filter((t) => (t === "roadmap" ? ws.showRoadmap : t === "changelog" ? ws.showChangelog : true)), [ws.showRoadmap, ws.showChangelog]);
-  const [tab, setTab] = useState<WidgetTab>(search.tab && tabs.includes(search.tab) ? search.tab : "feedback");
+  const tabs = useWidgetLook(ws, search);
+  const [tab, setTab] = useState<WidgetTab>(search.tab && tabs.includes(search.tab) ? search.tab : tabs[0]);
   const [view, setView] = useState<FeedbackView>({ kind: "list" });
+  // A tab switched off while showing falls back to the first one left. A post
+  // opened from another tab still shows when the feedback tab is off.
+  if (!tabs.includes(tab) && !(tab === "feedback" && view.kind !== "list")) setTab(tabs[0]);
   const [embedded, setEmbedded] = useState(false);
   const scroller = useRef<HTMLDivElement>(null);
   const reduced = useReducedMotion();
@@ -90,11 +93,7 @@ function Widget() {
     setEmbedded(window.parent !== window);
     setToken(getWidgetToken());
     toParent({ type: MSG.ready });
-    if (search.accent) {
-      document.documentElement.style.setProperty("--link", search.accent);
-      document.documentElement.style.setProperty("--ring", search.accent);
-    }
-  }, [search.accent]);
+  }, []);
 
   useEffect(() => {
     let off = false;

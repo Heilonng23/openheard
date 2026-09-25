@@ -45,6 +45,9 @@ export const workspace = sqliteTable("workspace", {
   showChangelog: integer("show_changelog", { mode: "boolean" }).notNull().default(true),
   // Space-separated origins allowed to frame /widget; null means any site.
   widgetOrigins: text("widget_origins"),
+  // Widget look and tabs as JSON (see apps/web/src/lib/widget-settings.ts);
+  // null means the defaults.
+  widgetSettings: text("widget_settings", { mode: "json" }).$type<Record<string, string | string[] | null>>(),
   // App-side default: SQLite cannot ALTER TABLE ADD a column with a function default.
   createdAt: integer("created_at", { mode: "timestamp_ms" })
     .notNull()

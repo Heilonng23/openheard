@@ -52,7 +52,8 @@ function SettingsLayout() {
         ))}
       </nav>
       <div className="min-w-0 flex-1 overflow-auto px-4 pt-5 pb-6 md:px-8 md:pt-7 md:pb-8">
-        <div className="max-w-[920px]">
+        {/* The widget page keeps its live preview beside the form. */}
+        <div className={pathname === "/dashboard/settings/widget" ? "max-w-[1400px]" : "max-w-[920px]"}>
           {onLocked ? (
             <p className="text-[13px] text-muted-foreground">Not available in the demo workspace.</p>
           ) : (
