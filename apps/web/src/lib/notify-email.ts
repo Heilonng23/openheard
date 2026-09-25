@@ -3,7 +3,7 @@
 // building; lib/notify.ts decides who gets them.
 import { emailButton, emailLayout } from "./email";
 
-const TEXT = 'font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;';
+const TEXT = "font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;";
 
 export type Rendered = { subject: string; html: string; text: string };
 export type Unsub = { url: string; label: string };

@@ -1,5 +1,5 @@
 const FROM = { email: "hello@openheard.com", name: "openheard" };
-const TEXT_STYLE = 'font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;';
+const TEXT_STYLE = "font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;";
 
 export function emailLayout(content: string, footer = "") {
   return `<!DOCTYPE html>
