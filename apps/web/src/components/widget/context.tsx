@@ -50,3 +50,14 @@ export function useLoad<T>(fn: () => Promise<T>, deps: unknown[]) {
   }, [...deps, tick]);
   return { ...state, reload: () => setTick((t) => t + 1) };
 }
+
+// Keys for a clickable post row. Enter or Space on the row opens it; the same
+// keys pressed on the vote button inside bubble up here and must only vote.
+export function rowKeyDown(open: () => void) {
+  return (e: Pick<KeyboardEvent, "key" | "target" | "currentTarget" | "preventDefault">) => {
+    if (e.target !== e.currentTarget) return;
+    if (e.key !== "Enter" && e.key !== " ") return;
+    e.preventDefault();
+    open();
+  };
+}

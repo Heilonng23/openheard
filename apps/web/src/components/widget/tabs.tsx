@@ -8,7 +8,7 @@ import { getRoadmap } from "@/functions/posts";
 import type { listChangelog } from "@/functions/changelog";
 import { roadmapStatuses } from "@/lib/status";
 
-import { useLoad, useWidget } from "./context";
+import { rowKeyDown, useLoad, useWidget } from "./context";
 import { Failed } from "./feedback";
 
 export function RoadmapTab() {
@@ -40,7 +40,7 @@ export function RoadmapTab() {
                     role="button"
                     tabIndex={0}
                     onClick={() => openPost(p.id)}
-                    onKeyDown={(e) => e.key === "Enter" && openPost(p.id)}
+                    onKeyDown={rowKeyDown(() => openPost(p.id))}
                     className="flex cursor-pointer items-center gap-3 rounded-xl px-2.5 py-3 outline-none hover:bg-card focus-visible:bg-card"
                   >
                     <div className="flex min-w-0 flex-1 flex-col gap-1">

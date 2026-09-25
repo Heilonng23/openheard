@@ -13,7 +13,7 @@ import { findStatus } from "@/lib/status";
 import { MSG } from "@/lib/widget-auth";
 import { ago } from "@/lib/time";
 
-import { toParent, useLoad, useWidget, type SentPost } from "./context";
+import { rowKeyDown, toParent, useLoad, useWidget, type SentPost } from "./context";
 
 // Status as the widget shows it: dot plus lowercase mono label in the status colour.
 export function MonoStatus({ status }: { status: string }) {
@@ -73,7 +73,7 @@ export function FeedbackList() {
                 role="button"
                 tabIndex={0}
                 onClick={() => openPost(p.id)}
-                onKeyDown={(e) => e.key === "Enter" && openPost(p.id)}
+                onKeyDown={rowKeyDown(() => openPost(p.id))}
                 className="group/row flex cursor-pointer items-center gap-3 rounded-xl px-2.5 py-3.5 outline-none hover:bg-card focus-visible:bg-card"
               >
                 <div className="flex min-w-0 flex-1 flex-col gap-1">
