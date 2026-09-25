@@ -8,7 +8,7 @@ export const Route = createFileRoute("/api/unsubscribe")({
     handlers: {
       POST: async ({ request }) => {
         const t = new URL(request.url).searchParams.get("t") ?? "";
-        const { applyUnsubscribe } = await import("@/functions/notifications");
+        const { applyUnsubscribe } = await import("@/lib/email-prefs");
         const res = t ? await applyUnsubscribe(t) : null;
         return new Response(res ? "Unsubscribed" : "Invalid link", { status: res ? 200 : 400, headers: { "content-type": "text/plain" } });
       },
