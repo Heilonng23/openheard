@@ -6,6 +6,7 @@ import { Fragment, type ReactNode } from "react";
 import { Button } from "@openheard/ui/components/button";
 import { cn } from "@openheard/ui/lib/utils";
 import { type Block, type HelpIcon as HelpIconName, type Inline } from "@/lib/help";
+import { requestComposer } from "@/lib/pending-action";
 
 const ICONS: Record<HelpIconName, Icon> = {
   book: BookOpenIcon,
@@ -45,7 +46,7 @@ export function AskOnBoard({ full }: { full?: boolean }) {
     <Button
       arrow
       full={full}
-      onClick={() => navigate({ to: "/" }).then(() => requestAnimationFrame(() => window.dispatchEvent(new Event("openheard:open-composer"))))}
+      onClick={() => navigate({ to: "/" }).then(requestComposer)}
     >
       Ask on the board
     </Button>

@@ -9,7 +9,7 @@ import { RailItem, RailLabel, Shell } from "@/components/shell";
 import { FeedSkeleton } from "@/components/states";
 import { VoteButton } from "@/components/vote-button";
 import { listPosts } from "@/functions/posts";
-import { openSignIn } from "@/lib/pending-action";
+import { openSignIn, takeComposerRequest } from "@/lib/pending-action";
 import { roadmapStatuses } from "@/lib/status";
 import { ago } from "@/lib/time";
 import { useKeyNav } from "@/lib/use-key-nav";
@@ -72,8 +72,13 @@ function BoardPage() {
   const [optimisticPost, setOptimisticPost] = useState<OptimisticPost | null>(null);
 
   useEffect(() => {
-    const handler = () => setComposing(true);
+    const handler = () => {
+      takeComposerRequest();
+      setComposing(true);
+    };
     window.addEventListener("openheard:open-composer", handler);
+    // Asked for before this page was listening.
+    if (takeComposerRequest()) setComposing(true);
     return () => window.removeEventListener("openheard:open-composer", handler);
   }, []);
 

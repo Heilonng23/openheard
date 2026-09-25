@@ -60,3 +60,18 @@ export function useSignInDialog() {
   const action = useSyncExternalStore(subscribe, getAction, () => null);
   return { open, action };
 }
+
+// Asks the board to open its composer. The caller is often still navigating to
+// the board, so the request waits until the board has mounted to take it.
+let composerWanted = false;
+
+export function requestComposer() {
+  composerWanted = true;
+  window.dispatchEvent(new Event("openheard:open-composer"));
+}
+
+export function takeComposerRequest(): boolean {
+  const wanted = composerWanted;
+  composerWanted = false;
+  return wanted;
+}
