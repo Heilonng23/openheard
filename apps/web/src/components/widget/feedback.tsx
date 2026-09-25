@@ -351,7 +351,7 @@ export function Sent({ post }: { post: SentPost }) {
   const { me, headers, back, openPost, requireSignIn } = useWidget();
   const reduced = useReducedMotion();
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-5 px-6 py-10 text-center">
+    <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 py-6 text-center">
       <div className="relative grid size-12 place-items-center">
         {!reduced
           ? SPRINKLES.map((s, i) => (

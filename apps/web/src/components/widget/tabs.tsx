@@ -21,6 +21,8 @@ export function RoadmapTab() {
   if (error) return <Failed message={error} retry={reload} />;
   if (loading && !posts) return <ListSkeleton />;
 
+  if (posts && posts.length === 0) return <p className="px-5 py-8 text-center text-xs text-faint">Nothing planned yet. Post an idea and vote on the ones you want.</p>;
+
   return (
     <div className="flex flex-col gap-1 pt-1 pb-3">
       {columns.map((meta) => {

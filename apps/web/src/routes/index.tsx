@@ -63,13 +63,24 @@ function IndexPage() {
 }
 
 function BoardPage() {
-  const { posts, total } = Route.useLoaderData();
+  const { posts: firstPage, total } = Route.useLoaderData();
   const root = useLoaderData({ from: "__root__" });
   const search = Route.useSearch();
   const navigate = useNavigate({ from: "/" });
   const router = useRouter();
   const [composing, setComposing] = useState(false);
   const [optimisticPost, setOptimisticPost] = useState<OptimisticPost | null>(null);
+  const [more, setMore] = useState<typeof firstPage>([]);
+  const [loadingMore, setLoadingMore] = useState(false);
+  useEffect(() => setMore([]), [firstPage]);
+  const posts = more.length ? [...firstPage, ...more.filter((p) => !firstPage.some((f) => f.id === p.id))] : firstPage;
+
+  function loadMore() {
+    setLoadingMore(true);
+    listPosts({ data: { ...search, sort: search.sort ?? "trending", limit: 30, offset: posts.length } })
+      .then((d) => setMore((prev) => [...prev, ...d.posts]))
+      .finally(() => setLoadingMore(false));
+  }
 
   useEffect(() => {
     const handler = () => {
@@ -159,6 +170,10 @@ function BoardPage() {
           <span>
             {total} {total === 1 ? "post" : "posts"}
           </span>
+          {/* Below lg the rail drops under the feed, so posting needs its own button up here. */}
+          <Button size="sm" arrow onClick={tryCompose} className="font-sans lg:hidden">
+            Post idea
+          </Button>
         </div>
       </div>
 
@@ -207,6 +222,13 @@ function BoardPage() {
           })}
         </ol>
       )}
+      {posts.length > 0 && posts.length < total ? (
+        <div className="flex justify-center pt-2">
+          <Button variant="secondary" onClick={loadMore} disabled={loadingMore}>
+            {loadingMore ? "Loading" : `Show more (${total - posts.length})`}
+          </Button>
+        </div>
+      ) : null}
 
       <NewPostDialog
         open={composing}

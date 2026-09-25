@@ -5,6 +5,8 @@ import { findStatus, tint, useStatuses } from "@/lib/status";
 // Dot + label on a 15% tint of the status colour. Used on the post page and in timelines.
 export function StatusChip({ status, className }: { status: string; className?: string }) {
   const m = findStatus(useStatuses(), status);
+  // A new post has no status to announce yet; board rows show nothing either.
+  if (m.kind === "open") return null;
   return (
     <span className={cn("inline-flex h-[22px] items-center gap-1.5 rounded-full px-2.5 pl-2 text-xs font-semibold", className)} style={{ background: tint(m.color), color: m.color }}>
       <span className="size-[7px] rounded-full" style={{ background: m.color }} />

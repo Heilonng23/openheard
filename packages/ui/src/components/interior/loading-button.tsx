@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
+import { ArrowRightIcon } from "@phosphor-icons/react";
 
 const CELL = { type: "spring", stiffness: 520, damping: 34, mass: 0.45 } as const;
 const CROSSFADE = { type: "spring", stiffness: 260, damping: 34, mass: 0.8 } as const;
@@ -212,25 +213,25 @@ export function LoadingButton({
     {
       key: "idle",
       text: children,
-      tone: "text-foreground",
+      tone: "text-[#0d0d0f]",
       icon: null,
     },
     {
       key: "pending",
       text: pendingLabel,
-      tone: "text-muted-foreground",
+      tone: "text-[#0d0d0f]/60",
       icon: <Spinner still={reduced === true || status !== "pending"} />,
     },
     {
       key: "success",
       text: successLabel,
-      tone: "text-emerald-600 dark:text-emerald-400",
+      tone: "text-emerald-700",
       icon: <CheckMark />,
     },
     {
       key: "error",
       text: errorLabel,
-      tone: "text-red-600 dark:text-red-400",
+      tone: "text-red-600",
       icon: <AlertMark />,
     },
   ];
@@ -252,9 +253,12 @@ export function LoadingButton({
           }
           run();
         }}
-        className={`relative inline-flex h-9 select-none items-center justify-center rounded-lg border border-input bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground shadow-[inset_0_-1px_0_rgba(0,0,0,.14),0_1px_2px_rgba(0,0,0,.4)] outline-none transition-[border-color,box-shadow,background-color] duration-150 hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-ring/60 disabled:pointer-events-none disabled:opacity-50 ${className}`}
-        style={{ borderRadius: 9, touchAction: "manipulation" }}
+        className={`group/button relative inline-flex h-[34px] select-none items-center justify-start rounded-lg bg-white pl-3.5 pr-[38px] text-[13px] font-semibold text-[#0d0d0f] shadow-[inset_0_-1px_0_rgba(0,0,0,.14),0_1px_2px_rgba(0,0,0,.4)] outline-none transition-[box-shadow,background-color] duration-150 hover:bg-[#f4f4f6] active:bg-[#e8e8ec] focus-visible:ring-2 focus-visible:ring-ring/60 disabled:pointer-events-none disabled:opacity-50 ${className}`}
+        style={{ touchAction: "manipulation" }}
       >
+        <i aria-hidden className="pointer-events-none absolute top-1 right-1 bottom-1 grid w-[26px] place-items-center rounded-md bg-black/[.08] shadow-[inset_0_1px_1px_rgba(0,0,0,.12)] transition-colors duration-150 group-hover/button:bg-black/[.11]">
+          <ArrowRightIcon weight="bold" className="size-[13px]" />
+        </i>
         <span aria-hidden className="relative grid place-items-center">
           {faces.map((face) => (
             <motion.span

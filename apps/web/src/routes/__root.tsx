@@ -63,6 +63,9 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
     <main className="mx-auto max-w-3xl px-8 py-24 text-center">
       <h1 className="text-xl font-semibold">Nothing here</h1>
       <p className="mt-2 text-muted-foreground">That page or workspace does not exist.</p>
+      <a href="/" className="mt-6 inline-block text-sm text-link hover:underline">
+        Back to the board
+      </a>
     </main>
   ),
 });
