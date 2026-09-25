@@ -328,7 +328,7 @@ function PostPage() {
                     <div className="text-sm leading-[1.55] text-muted-foreground">
                       {item.type === "status" && item.to ? (
                         <span className="inline-flex items-center gap-2">
-                          moved to <StatusChip status={item.to} />
+                          moved to <StatusChip status={item.to} showOpen />
                         </span>
                       ) : null}
                       {item.note ? <div className={cn(item.type === "status" && item.to && "mt-1")}>{item.note}</div> : null}
