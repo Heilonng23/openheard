@@ -22,6 +22,7 @@ function ApiKeys() {
   const [name, setName] = useState("");
   const [scope, setScope] = useState<"workspace" | "account">("workspace");
   const [fresh, setFresh] = useState<string | null>(null);
+  const [freshScope, setFreshScope] = useState<"workspace" | "account">("workspace");
   const [busy, setBusy] = useState(false);
   const live = keys.filter((k) => !k.revokedAt);
 
@@ -31,6 +32,7 @@ function ApiKeys() {
     try {
       const { key } = await createApiKey({ data: { name, scope } });
       setFresh(key);
+      setFreshScope(scope);
       setName("");
       await router.invalidate();
     } catch (err) {
@@ -44,26 +46,7 @@ function ApiKeys() {
     <>
       <PageHead title="API keys" sub="Keys for the HTTP API, the MCP server and the CLI. A workspace key acts as an admin of this workspace only. An account key acts as you in every workspace you administer, and can create new ones." />
 
-      {fresh ? (
-        <div className="mb-6 flex flex-col gap-2 rounded-lg border border-status-shipped/30 bg-status-shipped/10 px-4 py-3">
-          <div className="text-[13px] font-semibold">Copy this key now. It is shown once.</div>
-          <div className="flex items-center gap-2">
-            <span className="flex-1 truncate rounded-md bg-background px-2.5 py-1.5 text-[12px] select-all">{fresh}</span>
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() =>
-                navigator.clipboard.writeText(fresh).then(() => {
-                  toast.success("Copied");
-                  setFresh(null);
-                })
-              }
-            >
-              <CopyIcon className="size-3" /> Copy
-            </Button>
-          </div>
-        </div>
-      ) : null}
+      {fresh ? <FreshKey fresh={fresh} scope={freshScope} onDone={() => setFresh(null)} /> : null}
 
       <form onSubmit={create} className="flex flex-wrap items-center gap-2 pb-6">
         <div className="inline-flex h-8 items-center gap-0.5 rounded-lg border bg-card p-0.5" role="radiogroup" aria-label="Key type">
@@ -110,5 +93,58 @@ function ApiKeys() {
       ))}
       <p className="pt-6 text-xs text-faint">Send a key as a Bearer token to call the HTTP API or connect the MCP server at /api/mcp.</p>
     </>
+  );
+}
+
+function copy(text: string) {
+  navigator.clipboard.writeText(text).then(
+    () => toast.success("Copied"),
+    () => toast.error("Could not copy. Select the text and copy it by hand."),
+  );
+}
+
+function CopyBlock({ label, help, text }: { label: string; help: string; text: string }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-end justify-between gap-3">
+        <div className="flex flex-col gap-0.5">
+          <span className="text-[13px] font-semibold">{label}</span>
+          <span className="text-xs text-muted-foreground">{help}</span>
+        </div>
+        <Button size="sm" variant="secondary" onClick={() => copy(text)}>
+          <CopyIcon className="size-3" /> Copy
+        </Button>
+      </div>
+      <div className="max-h-40 overflow-y-auto rounded-md bg-background px-2.5 py-2 text-[12px]/5 break-all whitespace-pre-wrap select-all">{text}</div>
+    </div>
+  );
+}
+
+// Shown once, right after a key is made: the key, the one command that
+// connects Claude Code, and a prompt to hand any agent that sets it all up.
+function FreshKey({ fresh, scope, onDone }: { fresh: string; scope: "workspace" | "account"; onDone: () => void }) {
+  const url = `${typeof window === "undefined" ? "" : window.location.origin}/api/mcp`;
+  const command = `claude mcp add --transport http openheard ${url} --header "Authorization: Bearer ${fresh}"`;
+  const prompt = `Connect openheard, our feedback board, and set it up for this project.
+
+1. Add the openheard MCP server.
+   Claude Code: run  ${command}
+   Cursor or another agent: add an HTTP MCP server with URL ${url} and the header Authorization: Bearer ${fresh}
+   If the openheard tools do not show up yet, tell me to restart you, then continue from step 2.
+2. Call get_workspace to check the connection${scope === "account" ? " (this is an account key: list_workspaces shows every board I run, and create_workspace can make a new one)" : ""}.
+3. Set it up: ask me for our website, then match_website and apply_branding. Suggest boards and statuses and create the ones I agree to. configure_widget to match our brand. get_widget_snippet for this codebase's framework and add it once to the root layout; show me the diff.
+4. Ask me before anything public or emailed, and never write this key into a committed file.`;
+  return (
+    <div className="mb-6 flex flex-col gap-4 rounded-lg border border-status-shipped/30 bg-status-shipped/10 px-4 py-3.5">
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-[13px] font-semibold">Your key is ready. Copy what you need now; it is shown once.</span>
+        <Button size="sm" variant="ghost" onClick={onDone}>
+          Done
+        </Button>
+      </div>
+      <CopyBlock label="Send this to your agent" help="Paste it into Claude Code, Cursor or any agent. It connects itself and sets openheard up." text={prompt} />
+      <CopyBlock label="Or connect Claude Code yourself" help="Run it in a terminal, then restart Claude Code." text={command} />
+      <CopyBlock label="API key" help="For the HTTP API or other tools." text={fresh} />
+    </div>
   );
 }
