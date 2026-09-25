@@ -109,11 +109,7 @@ export async function checkWebhookHost(url: string, resolve: Resolve): Promise<s
   return null;
 }
 
-async function attempt(kind: IntegrationKind, url: string, signingSecret: string | null, event: AlertEvent, fetchImpl: typeof fetch, resolve: Resolve): Promise<Delivery> {
-  if (kind === "webhook") {
-    const blocked = await checkWebhookHost(url, resolve);
-    if (blocked) return { ok: false, error: blocked };
-  }
+async function attempt(kind: IntegrationKind, url: string, signingSecret: string | null, event: AlertEvent, fetchImpl: typeof fetch): Promise<Delivery> {
   const body = JSON.stringify(payloadFor(kind, event));
   const headers: Record<string, string> = { "content-type": "application/json", "user-agent": "openheard-webhooks/1" };
   if (kind === "webhook") {
@@ -132,7 +128,8 @@ async function attempt(kind: IntegrationKind, url: string, signingSecret: string
   }
 }
 
-// One retry after a short pause, then give up and record why.
+// One retry after a short pause, then give up and record why. A blocked host
+// stays blocked, so that is not retried.
 export async function deliver(
   kind: IntegrationKind,
   url: string,
@@ -142,10 +139,14 @@ export async function deliver(
   pauseMs = 800,
   resolve: Resolve = resolveOverHttps,
 ): Promise<Delivery> {
-  const first = await attempt(kind, url, signingSecret, event, fetchImpl, resolve);
+  if (kind === "webhook") {
+    const blocked = await checkWebhookHost(url, resolve);
+    if (blocked) return { ok: false, error: blocked };
+  }
+  const first = await attempt(kind, url, signingSecret, event, fetchImpl);
   if (first.ok) return first;
   await new Promise((r) => setTimeout(r, pauseMs));
-  return attempt(kind, url, signingSecret, event, fetchImpl, resolve);
+  return attempt(kind, url, signingSecret, event, fetchImpl);
 }
 
 export async function recordDelivery(db: Db, id: string, result: Delivery) {

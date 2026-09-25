@@ -131,9 +131,12 @@ describe("checkWebhookHost", () => {
 
   it("stops delivery before any request goes out", async () => {
     const fetchImpl = vi.fn(async () => new Response("ok")) as unknown as typeof fetch;
-    const result = await deliver("webhook", "https://rebind.example.com/h", null, event, fetchImpl, 0, async () => ["192.168.0.10"]);
+    const lookup = vi.fn(async () => ["192.168.0.10"]);
+    const result = await deliver("webhook", "https://rebind.example.com/h", null, event, fetchImpl, 0, lookup);
     expect(result).toEqual({ ok: false, error: "That host is not reachable from openheard" });
     expect(fetchImpl).not.toHaveBeenCalled();
+    // A blocked host is not worth a second lookup.
+    expect(lookup).toHaveBeenCalledTimes(1);
   });
 
   it("does not follow redirects", async () => {
