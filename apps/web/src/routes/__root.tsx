@@ -1,5 +1,6 @@
 import { Toaster } from "@openheard/ui/components/sonner";
 import { HeadContent, Outlet, Scripts, ScrollRestoration, createRootRouteWithContext, useRouterState } from "@tanstack/react-router";
+import { useEffect } from "react";
 
 import Footer from "../components/footer";
 import Header from "../components/header";
@@ -7,6 +8,7 @@ import Logo from "../components/logo";
 import { SignInDialog } from "../components/sign-in-dialog";
 
 import { getWorkspace } from "../functions/workspace";
+import { officialWidgetSrc } from "../lib/official-widget";
 import type { MissingWorkspace } from "../lib/session";
 import appCss from "../index.css?url";
 import geistLatinFont from "@fontsource-variable/geist/files/geist-latin-wght-normal.woff2?url";
@@ -111,6 +113,16 @@ function RootDocument() {
   // /landing previews the marketing page anywhere; on the cloud root domain
   // the marketing page is the home page.
   const marketing = pathname === "/landing" || (!!data?.marketing && pathname === "/");
+  // Our own feedback widget, added after hydration so it never blocks the page.
+  const feedbackWidget = data ? officialWidgetSrc({ marketing: !!data.marketing, rootDomain: data.rootDomain, pathname }) : null;
+  useEffect(() => {
+    if (!feedbackWidget || document.getElementById("openheard-official-widget")) return;
+    const script = document.createElement("script");
+    script.id = "openheard-official-widget";
+    script.src = feedbackWidget;
+    script.async = true;
+    document.body.appendChild(script);
+  }, [feedbackWidget]);
   const bare = BARE_PAGES.some((p) => pathname === p || pathname.startsWith(p));
   // The embedded widget takes its theme from the loader, which settles "auto"
   // against the visitor's system; dark when it does not say.
