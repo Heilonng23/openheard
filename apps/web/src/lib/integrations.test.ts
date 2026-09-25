@@ -14,8 +14,23 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@openheard/env/server", () => ({ env: { BETTER_AUTH_SECRET: "test-secret-not-a-real-one-32chars" } }));
 vi.mock("@openheard/db", async () => ({ ...(await import("@openheard/db/schema/index")) }));
 
-import { deliver, dispatchEvent, seal, unseal } from "./integration-db";
-import { type AlertEvent, checkIntegrationUrl, discordPayload, metaLine, signBody, slackPayload, urlHint, wantsEvent, webhookPayload } from "./integrations";
+import { checkWebhookHost, deliver, dispatchEvent, seal, unseal } from "./integration-db";
+import {
+  type AlertEvent,
+  checkIntegrationUrl,
+  discordPayload,
+  isPrivateIPv4,
+  isPrivateIPv6,
+  metaLine,
+  ownedBoards,
+  signBody,
+  slackPayload,
+  urlHint,
+  wantsEvent,
+  webhookPayload,
+} from "./integrations";
+
+const publicDns = async () => ["93.184.215.14"];
 
 const MIGRATIONS = new URL("../../../../packages/db/migrations/", import.meta.url).pathname;
 
@@ -63,8 +78,9 @@ describe("checkIntegrationUrl", () => {
 
   it("lets a plain webhook go to any public https host", () => {
     expect(checkIntegrationUrl("webhook", "https://example.com/hook?x=1").ok).toBe(true);
-    for (const url of ["http://example.com/hook", "https://localhost/hook", "https://127.0.0.1/x", "https://10.0.0.4/x", "https://192.168.1.1/x", "https://169.254.169.254/latest", "https://[::1]/x", "https://2130706433/x", "https://intranet/x", "https://db.internal/x", "https://example.com:8080/x"])
+    for (const url of ["http://example.com/hook", "https://localhost/hook", "https://127.0.0.1/x", "https://10.0.0.4/x", "https://192.168.1.1/x", "https://169.254.169.254/latest", "https://[::1]/x", "https://2130706433/x", "https://intranet/x", "https://db.internal/x", "https://example.com:8080/x", "https://100.64.0.1/x", "https://0.0.0.0/x", "https://0x7f000001/x", "https://printer.local/x"])
       expect(checkIntegrationUrl("webhook", url).ok, url).toBe(false);
+    expect(checkIntegrationUrl("webhook", "https://93.184.215.14/x").ok).toBe(true);
   });
 
   it("allows localhost only when local dev asks for it", () => {
@@ -78,6 +94,73 @@ describe("checkIntegrationUrl", () => {
   });
 });
 
+describe("private addresses", () => {
+  it("covers loopback, private, link-local, shared and reserved IPv4", () => {
+    for (const ip of ["127.0.0.1", "10.1.2.3", "172.16.0.1", "172.31.255.255", "192.168.0.1", "169.254.169.254", "100.64.0.1", "100.127.255.255", "0.0.0.0", "198.18.0.1", "224.0.0.1", "255.255.255.255", "nonsense"])
+      expect(isPrivateIPv4(ip), ip).toBe(true);
+    for (const ip of ["93.184.215.14", "8.8.8.8", "172.32.0.1", "100.128.0.1", "1.1.1.1"]) expect(isPrivateIPv4(ip), ip).toBe(false);
+  });
+
+  it("covers IPv6 loopback, unique-local, link-local and IPv4 embedded in IPv6", () => {
+    for (const ip of ["::", "::1", "fc00::1", "fd12:3456::1", "fe80::1", "ff02::1", "::ffff:127.0.0.1", "::ffff:7f00:1", "::ffff:10.0.0.1", "64:ff9b::a9fe:a9fe", "2002:c0a8:0101::1", "2001:db8::1", "::127.0.0.1", "zz::1"])
+      expect(isPrivateIPv6(ip), ip).toBe(true);
+    for (const ip of ["2606:4700:4700::1111", "2a00:1450:4001:80b::200e", "::ffff:8.8.8.8"]) expect(isPrivateIPv6(ip), ip).toBe(false);
+  });
+});
+
+describe("checkWebhookHost", () => {
+  it("passes a name whose every answer is public", async () => {
+    expect(await checkWebhookHost("https://hooks.example.com/x", async () => ["93.184.215.14", "2606:4700::1"])).toBeNull();
+  });
+
+  it("refuses a public name that resolves to a private address", async () => {
+    for (const answers of [["127.0.0.1"], ["93.184.215.14", "10.0.0.5"], ["169.254.169.254"], ["::1"], ["fd00::7"], ["::ffff:192.168.1.1"]])
+      expect(await checkWebhookHost("https://rebind.example.com/x", async () => answers), answers.join()).toBe("That host is not reachable from openheard");
+  });
+
+  it("refuses names that do not resolve or cannot be looked up", async () => {
+    expect(await checkWebhookHost("https://gone.example.com/x", async () => [])).toBe("gone.example.com does not resolve");
+    expect(await checkWebhookHost("https://x.example.com/x", async () => Promise.reject(new Error("down")))).toBe("Could not look up x.example.com");
+  });
+
+  it("re-applies the URL rules, so a stored private or http URL is never sent", async () => {
+    expect(await checkWebhookHost("https://10.0.0.1/x", publicDns)).not.toBeNull();
+    expect(await checkWebhookHost("http://example.com/x", publicDns)).toBe("Webhook URLs must use https");
+    expect(await checkWebhookHost("https://metadata.google.internal/x", publicDns)).not.toBeNull();
+  });
+
+  it("stops delivery before any request goes out", async () => {
+    const fetchImpl = vi.fn(async () => new Response("ok")) as unknown as typeof fetch;
+    const result = await deliver("webhook", "https://rebind.example.com/h", null, event, fetchImpl, 0, async () => ["192.168.0.10"]);
+    expect(result).toEqual({ ok: false, error: "That host is not reachable from openheard" });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("does not follow redirects", async () => {
+    const inits: RequestInit[] = [];
+    const fetchImpl = (async (_url: string, init: RequestInit) => {
+      inits.push(init);
+      return new Response(null, { status: 302, headers: { location: "https://10.0.0.1/" } });
+    }) as unknown as typeof fetch;
+    const result = await deliver("webhook", "https://example.com/h", null, event, fetchImpl, 0, publicDns);
+    expect(result.ok).toBe(false);
+    expect(inits.every((i) => i.redirect === "manual")).toBe(true);
+  });
+});
+
+describe("ownedBoards", () => {
+  it("keeps picked boards that still exist and treats no pick as every board", () => {
+    expect(ownedBoards(["a", "gone", "a"], ["a", "b"])).toEqual(["a"]);
+    expect(ownedBoards(null, ["a"])).toBeNull();
+    expect(ownedBoards([], ["a"])).toBeNull();
+  });
+
+  it("refuses a pick where no board is left instead of widening it to every board", () => {
+    expect(() => ownedBoards(["gone"], ["a", "b"])).toThrow(/no longer exist/);
+    expect(() => ownedBoards(["other-workspace-board"], [])).toThrow(/no longer exist/);
+  });
+});
+
 describe("wantsEvent", () => {
   const rule = { enabled: true, events: ["post.created" as const, "changelog.published" as const], boardIds: ["features"] };
   it("filters by event and board", () => {
@@ -88,6 +171,10 @@ describe("wantsEvent", () => {
   it("sends changelog releases whatever boards are picked", () => {
     expect(wantsEvent(rule, "changelog.published", null)).toBe(true);
   });
+  it("matches nothing when every picked board was deleted", () => {
+    expect(wantsEvent({ ...rule, boardIds: ["deleted"] }, "post.created", "features")).toBe(false);
+  });
+
   it("treats no board list as every board, and paused as nothing", () => {
     expect(wantsEvent({ ...rule, boardIds: null }, "post.created", "bugs")).toBe(true);
     expect(wantsEvent({ ...rule, enabled: false }, "post.created", "features")).toBe(false);
@@ -132,7 +219,7 @@ describe("signature", () => {
       calls.push({ url, init });
       return new Response("ok");
     }) as unknown as typeof fetch;
-    await deliver("webhook", "https://example.com/h", "whsec_x", event, fetchImpl);
+    await deliver("webhook", "https://example.com/h", "whsec_x", event, fetchImpl, 0, publicDns);
     await deliver("slack", "https://hooks.slack.com/services/a/b/c", "whsec_x", event, fetchImpl);
     const [hook, slack] = calls.map((c) => c.init.headers as Record<string, string>);
     const expected = await signBody("whsec_x", calls[0]!.init.body as string, Math.floor(Date.parse(event.at) / 1000));

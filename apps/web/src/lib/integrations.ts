@@ -21,18 +21,65 @@ export const EVENT_KEYS = EVENTS.map((e) => e.key);
 const SLACK_HOSTS = ["hooks.slack.com"];
 const DISCORD_HOSTS = ["discord.com", "discordapp.com", "ptb.discord.com", "canary.discord.com"];
 
-// Private, loopback and link-local literals, plus names that only resolve
-// inside a network. A hostname that later resolves somewhere private is out
-// of reach from a Worker anyway; this stops the obvious cases on self-hosts.
+// Private, loopback, link-local, shared (CGNAT) and reserved addresses. Used
+// on IP literals in a URL and on every DNS answer before a plain webhook is
+// sent, so a public-looking name cannot point openheard at an internal host.
+export function isPrivateIPv4(ip: string): boolean {
+  const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(ip);
+  if (!m) return true;
+  const [a, b, c] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  return (
+    a === 0 ||
+    a === 10 ||
+    a === 127 ||
+    (a === 100 && b >= 64 && b <= 127) ||
+    (a === 169 && b === 254) ||
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 0 && (c === 0 || c === 2)) ||
+    (a === 192 && b === 168) ||
+    (a === 198 && (b === 18 || b === 19)) ||
+    (a === 198 && b === 51 && c === 100) ||
+    (a === 203 && b === 0 && c === 113) ||
+    a >= 224
+  );
+}
+
+function ipv6Groups(ip: string): number[] | null {
+  let s = ip.toLowerCase().split("%")[0]!;
+  const tail = /(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(s);
+  if (tail) {
+    const [a, b, c, d] = tail.slice(1).map(Number) as [number, number, number, number];
+    s = s.slice(0, tail.index) + ((a << 8) | b).toString(16) + ":" + ((c << 8) | d).toString(16);
+  }
+  const halves = s.split("::");
+  if (halves.length > 2) return null;
+  const head = halves[0] ? halves[0].split(":") : [];
+  const rest = halves.length === 2 && halves[1] ? halves[1].split(":") : [];
+  const fill = halves.length === 2 ? 8 - head.length - rest.length : 0;
+  const parts = [...head, ...Array(Math.max(fill, 0)).fill("0"), ...rest];
+  if (parts.length !== 8 || parts.some((p) => !/^[0-9a-f]{1,4}$/.test(p))) return null;
+  return parts.map((p) => parseInt(p, 16));
+}
+
+export function isPrivateIPv6(ip: string): boolean {
+  const g = ipv6Groups(ip);
+  if (!g) return true;
+  const v4 = (hi: number, lo: number) => `${hi >> 8}.${hi & 255}.${lo >> 8}.${lo & 255}`;
+  if (g.slice(0, 6).every((x) => x === 0)) return true; // ::, ::1 and IPv4-compatible
+  if (g.slice(0, 5).every((x) => x === 0) && g[5] === 0xffff) return isPrivateIPv4(v4(g[6]!, g[7]!)); // IPv4-mapped
+  if (g[0] === 0x64 && g[1] === 0xff9b) return isPrivateIPv4(v4(g[6]!, g[7]!)); // NAT64
+  if (g[0] === 0x2002) return isPrivateIPv4(v4(g[1]!, g[2]!)); // 6to4
+  if (g[0] === 0x2001 && g[1] === 0xdb8) return true; // documentation
+  return (g[0]! & 0xfe00) === 0xfc00 || (g[0]! & 0xffc0) === 0xfe80 || (g[0]! & 0xff00) === 0xff00;
+}
+
+// IP literals in a private range, plus names that only resolve inside a
+// network. Public names are resolved and checked again at send time.
 function isPrivateHost(host: string): boolean {
   const h = host.replace(/^\[|\]$/g, "").toLowerCase();
   if (h === "localhost" || h.endsWith(".localhost") || h.endsWith(".local") || h.endsWith(".internal") || h.endsWith(".home.arpa")) return true;
   if (/^\d+$/.test(h) || /^0x/i.test(h)) return true; // decimal or hex IPv4
-  const v4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(h);
-  if (v4) {
-    const [a, b] = [Number(v4[1]), Number(v4[2])];
-    return a === 0 || a === 10 || a === 127 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127) || a >= 224;
-  }
+  if (/^[\d.]+$/.test(h)) return isPrivateIPv4(h);
   if (h.includes(":")) return true; // any IPv6 literal; real endpoints have names
   return false;
 }
@@ -66,6 +113,15 @@ export function checkIntegrationUrl(kind: IntegrationKind, raw: string, opts: { 
   if (isPrivateHost(host) || !host.includes(".")) return { ok: false, error: "That host is not reachable from openheard" };
   if (u.port && u.port !== "443") return { ok: false, error: "Webhooks go to port 443" };
   return { ok: true, url: u.toString() };
+}
+
+// Keeps the picked boards that still exist. A pick where none are left is
+// refused rather than stored as null, which would mean every board.
+export function ownedBoards(picked: string[] | null, owned: string[]): string[] | null {
+  if (!picked?.length) return null;
+  const keep = [...new Set(picked)].filter((id) => owned.includes(id));
+  if (!keep.length) throw new Error("The boards you picked no longer exist. Reload the page and pick again");
+  return keep;
 }
 
 export const urlHint = (url: string) => url.replace(/\/+$/, "").slice(-4);

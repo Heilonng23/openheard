@@ -7,7 +7,19 @@ import { user } from "@openheard/db/schema/auth";
 import { and, eq } from "drizzle-orm";
 
 import { DEMO_WORKSPACE_ID } from "./demo";
-import { type AlertEvent, type IntegrationEvent, type IntegrationKind, SIGNATURE_HEADER, parseList, payloadFor, signBody, wantsEvent } from "./integrations";
+import {
+  type AlertEvent,
+  type IntegrationEvent,
+  type IntegrationKind,
+  SIGNATURE_HEADER,
+  checkIntegrationUrl,
+  isPrivateIPv4,
+  isPrivateIPv6,
+  parseList,
+  payloadFor,
+  signBody,
+  wantsEvent,
+} from "./integrations";
 import { workspaceUrl } from "./workspace-url";
 
 // ---- sealing ----
@@ -53,7 +65,55 @@ const TIMEOUT_MS = 5000;
 
 export type Delivery = { ok: true } | { ok: false; error: string };
 
-async function attempt(kind: IntegrationKind, url: string, signingSecret: string | null, event: AlertEvent, fetchImpl: typeof fetch): Promise<Delivery> {
+export async function allowLocal(): Promise<boolean> {
+  const { env } = await import("@openheard/env/server");
+  return (env as unknown as { OPENHEARD_LOCAL?: string }).OPENHEARD_LOCAL === "1";
+}
+
+// Returns every A and AAAA answer for a name. A name with no answers, or a
+// lookup that fails, is treated as unsafe by the caller.
+export type Resolve = (host: string) => Promise<string[]>;
+
+export const resolveOverHttps: Resolve = async (host) => {
+  const lookup = async (type: "A" | "AAAA") => {
+    const res = await fetch(`https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(host)}&type=${type}`, {
+      headers: { accept: "application/dns-json" },
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+    if (!res.ok) throw new Error(`DNS lookup failed (HTTP ${res.status})`);
+    const json = (await res.json()) as { Status: number; Answer?: { type: number; data: string }[] };
+    if (json.Status !== 0 && json.Status !== 3) throw new Error("DNS lookup failed");
+    return (json.Answer ?? []).filter((a) => a.type === 1 || a.type === 28).map((a) => a.data);
+  };
+  const [v4, v6] = await Promise.all([lookup("A"), lookup("AAAA")]);
+  return [...v4, ...v6];
+};
+
+// A plain webhook can point anywhere, so its host is checked again before
+// every send: the URL rules, then every address its name resolves to. Slack
+// and Discord only ever go to their own hosts.
+export async function checkWebhookHost(url: string, resolve: Resolve): Promise<string | null> {
+  const host = new URL(url).hostname.toLowerCase();
+  if (["localhost", "127.0.0.1"].includes(host) && (await allowLocal())) return null;
+  const rules = checkIntegrationUrl("webhook", url);
+  if (!rules.ok) return rules.error;
+  if (/^[\d.]+$/.test(host)) return null; // a public IP literal, already checked
+  let addresses: string[];
+  try {
+    addresses = await resolve(host);
+  } catch {
+    return `Could not look up ${host}`;
+  }
+  if (!addresses.length) return `${host} does not resolve`;
+  if (addresses.some((a) => (a.includes(":") ? isPrivateIPv6(a) : isPrivateIPv4(a)))) return "That host is not reachable from openheard";
+  return null;
+}
+
+async function attempt(kind: IntegrationKind, url: string, signingSecret: string | null, event: AlertEvent, fetchImpl: typeof fetch, resolve: Resolve): Promise<Delivery> {
+  if (kind === "webhook") {
+    const blocked = await checkWebhookHost(url, resolve);
+    if (blocked) return { ok: false, error: blocked };
+  }
   const body = JSON.stringify(payloadFor(kind, event));
   const headers: Record<string, string> = { "content-type": "application/json", "user-agent": "openheard-webhooks/1" };
   if (kind === "webhook") {
@@ -73,11 +133,19 @@ async function attempt(kind: IntegrationKind, url: string, signingSecret: string
 }
 
 // One retry after a short pause, then give up and record why.
-export async function deliver(kind: IntegrationKind, url: string, signingSecret: string | null, event: AlertEvent, fetchImpl: typeof fetch = fetch, pauseMs = 800): Promise<Delivery> {
-  const first = await attempt(kind, url, signingSecret, event, fetchImpl);
+export async function deliver(
+  kind: IntegrationKind,
+  url: string,
+  signingSecret: string | null,
+  event: AlertEvent,
+  fetchImpl: typeof fetch = fetch,
+  pauseMs = 800,
+  resolve: Resolve = resolveOverHttps,
+): Promise<Delivery> {
+  const first = await attempt(kind, url, signingSecret, event, fetchImpl, resolve);
   if (first.ok) return first;
   await new Promise((r) => setTimeout(r, pauseMs));
-  return attempt(kind, url, signingSecret, event, fetchImpl);
+  return attempt(kind, url, signingSecret, event, fetchImpl, resolve);
 }
 
 export async function recordDelivery(db: Db, id: string, result: Delivery) {

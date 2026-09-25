@@ -6,14 +6,9 @@ import { and, asc, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { assertNotDemo } from "@/lib/demo";
-import { deliver, recordDelivery, seal, unseal } from "@/lib/integration-db";
-import { type AlertEvent, checkIntegrationUrl, newSigningSecret, parseList, urlHint } from "@/lib/integrations";
+import { allowLocal, deliver, recordDelivery, seal, unseal } from "@/lib/integration-db";
+import { type AlertEvent, checkIntegrationUrl, newSigningSecret, ownedBoards, parseList, urlHint } from "@/lib/integrations";
 import { requireAdmin, sessionMiddleware } from "@/lib/session";
-
-async function allowLocal(): Promise<boolean> {
-  const { env } = await import("@openheard/env/server");
-  return (env as unknown as { OPENHEARD_LOCAL?: string }).OPENHEARD_LOCAL === "1";
-}
 
 function validUrl(kind: (typeof INTEGRATION_KINDS)[number], raw: string, local: boolean): string {
   const check = checkIntegrationUrl(kind, raw, { allowLocal: local });
@@ -66,13 +61,12 @@ export const saveIntegration = createServerFn({ method: "POST" })
     const ws = context.workspace.id;
     const [existing] = await db.select().from(integration).where(and(eq(integration.workspaceId, ws), eq(integration.kind, data.kind))).limit(1);
     if (!existing && !data.url) throw new Error("Paste a webhook URL first");
-    let boardIds: string[] | null = null;
-    if (data.boardIds?.length) {
-      const owned = await db.select({ id: board.id }).from(board).where(eq(board.workspaceId, ws));
-      const ids = new Set(owned.map((b) => b.id));
-      boardIds = [...new Set(data.boardIds)].filter((id) => ids.has(id));
-      if (!boardIds.length) boardIds = null;
-    }
+    const boardIds = data.boardIds?.length
+      ? ownedBoards(
+          data.boardIds,
+          (await db.select({ id: board.id }).from(board).where(eq(board.workspaceId, ws))).map((b) => b.id),
+        )
+      : null;
     const url = data.url ? validUrl(data.kind, data.url, await allowLocal()) : null;
     // A plain webhook gets a signing secret the first time; it is shown once.
     const freshSecret = data.kind === "webhook" && !existing?.secretEnc ? newSigningSecret() : null;
