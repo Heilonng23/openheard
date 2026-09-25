@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { authenticateApiKey, apiJson, apiErrorResponse, ApiError } from "@/lib/api-auth";
+import { authenticateApiKey, apiJson, apiErrorResponse, apiOps, ApiError, resolveApiWorkspace } from "@/lib/api-auth";
 import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import {
   queryListPosts,
@@ -30,9 +30,11 @@ async function parseJsonBody(request: Request): Promise<Record<string, unknown>>
 }
 
 const getRoutes: RouteHandler = async (request, params) => {
-  const ctx = await authenticateApiKey(request);
+  const api = await authenticateApiKey(request);
   const segments = parsePath(params._splat ?? "");
   const url = new URL(request.url);
+  const { workspace } = await resolveApiWorkspace(api, url.searchParams.get("workspace"));
+  const ctx = { db: api.db, workspaceId: workspace.id };
 
   if (segments[0] === "posts" && segments.length === 1) {
     const result = await queryListPosts(ctx.db, ctx.workspaceId, {
@@ -94,33 +96,35 @@ const postRoutes: RouteHandler = async (request, params) => {
   const ctx = await authenticateApiKey(request);
   const segments = parsePath(params._splat ?? "");
   const body = await parseJsonBody(request);
+  const url = new URL(request.url);
+  const ops = await apiOps(ctx, url.origin, url.searchParams.get("workspace"));
 
   if (segments[0] === "posts" && segments.length === 1) {
-    const result = await mutateCreatePost(ctx.db, ctx.workspaceId, {
+    const result = await mutateCreatePost(ops.db, ops.workspace.id, {
       title: body.title as string,
       body: body.body as string | undefined,
       boardId: body.board as string,
       authorEmail: body.author_email as string | undefined,
-    });
+    }, ops.origin);
     return apiJson(result, 201);
   }
 
   if (segments[0] === "posts" && segments[2] === "status" && segments.length === 3) {
     const id = Number(segments[1]);
     if (!Number.isInteger(id)) throw new ApiError(422, "Invalid post ID");
-    const result = await mutateSetStatus(ctx.db, ctx.workspaceId, id, body.status as string);
+    const result = await mutateSetStatus(ops, id, body.status as string, body.note as string | undefined);
     return apiJson(result);
   }
 
   if (segments[0] === "posts" && segments[2] === "comments" && segments.length === 3) {
     const id = Number(segments[1]);
     if (!Number.isInteger(id)) throw new ApiError(422, "Invalid post ID");
-    const result = await mutateAddComment(ctx.db, ctx.workspaceId, id, body.body as string);
+    const result = await mutateAddComment(ops, id, body.body as string);
     return apiJson(result, 201);
   }
 
   if (segments[0] === "changelog" && segments.length === 1) {
-    const result = await mutateDraftChangelog(ctx.db, ctx.workspaceId, {
+    const result = await mutateDraftChangelog(ops, {
       title: body.title as string,
       body: body.body as string | undefined,
       version: body.version as string | undefined,
@@ -132,7 +136,7 @@ const postRoutes: RouteHandler = async (request, params) => {
   if (segments[0] === "changelog" && segments[2] === "publish" && segments.length === 3) {
     const id = Number(segments[1]);
     if (!Number.isInteger(id)) throw new ApiError(422, "Invalid changelog ID");
-    const result = await mutatePublishChangelog(ctx.db, ctx.workspaceId, id);
+    const result = await mutatePublishChangelog(ops, id);
     return apiJson(result);
   }
 

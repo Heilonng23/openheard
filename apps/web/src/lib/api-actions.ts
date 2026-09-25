@@ -3,17 +3,19 @@ import {
   attachment,
   board,
   changelogEntry,
-  changelogPost,
   comment,
   post,
   status,
 } from "@openheard/db";
 import type { Db } from "@openheard/db";
 import { user } from "@openheard/db/schema/auth";
-import { and, desc, eq, inArray, isNotNull, like, or, sql, asc } from "drizzle-orm";
+import { and, desc, eq, isNotNull, like, or, sql, asc } from "drizzle-orm";
 import { ApiError } from "./api-auth";
 import { toAttachmentView } from "./attachments";
 import { notifyIntegrations } from "./integration-db";
+import { changelogById, saveChangelog } from "./ops/content";
+import type { OpCtx } from "./ops/context";
+import { addComment, setPostStatus } from "./ops/posts";
 
 // Re-usable query logic for the HTTP API and MCP server.
 // Does NOT import from functions/* (those depend on TanStack server fns).
@@ -137,6 +139,7 @@ export async function mutateCreatePost(
   db: Db,
   workspaceId: string,
   data: { title: string; body?: string; boardId: string; authorEmail?: string },
+  origin?: string,
 ) {
   if (!data.title || data.title.trim().length < 4) throw new ApiError(422, "Title must be at least 4 characters");
   if (data.title.length > 140) throw new ApiError(422, "Title must be at most 140 characters");
@@ -166,70 +169,19 @@ export async function mutateCreatePost(
     })
     .returning({ id: post.id });
 
-  notifyIntegrations(db, workspaceId, { type: "post.created", postId: created.id });
+  notifyIntegrations(db, workspaceId, { type: "post.created", postId: created.id }, origin);
   return { id: created.id };
 }
 
-export async function mutateSetStatus(
-  db: Db,
-  workspaceId: string,
-  postId: number,
-  statusKey: string,
-) {
-  const [p] = await db
-    .select({ id: post.id, status: post.status })
-    .from(post)
-    .where(and(eq(post.id, postId), eq(post.workspaceId, workspaceId)))
-    .limit(1);
-  if (!p) throw new ApiError(404, "Post not found");
-
-  const [s] = await db
-    .select({ key: status.key })
-    .from(status)
-    .where(and(eq(status.workspaceId, workspaceId), eq(status.key, statusKey)))
-    .limit(1);
-
-  if (!s) {
-    const [byLabel] = await db
-      .select({ key: status.key })
-      .from(status)
-      .where(and(eq(status.workspaceId, workspaceId), sql`lower(${status.label}) = lower(${statusKey})`))
-      .limit(1);
-    if (!byLabel) throw new ApiError(422, "Unknown status");
-    statusKey = byLabel.key;
-  }
-
-  if (p.status === statusKey) return { ok: true, status: statusKey };
-
-  await db.update(post).set({ status: statusKey, statusChangedAt: new Date() }).where(eq(post.id, postId));
-  await db.insert(activity).values({ postId, actorId: null, type: "status", fromStatus: p.status, toStatus: statusKey });
-  notifyIntegrations(db, workspaceId, { type: "post.status_changed", postId, fromStatus: p.status });
-  return { ok: true, status: statusKey };
+// Status changes and comments run the dashboard's own code, emails included.
+export async function mutateSetStatus(ctx: OpCtx, postId: number, statusKey: string, note?: string) {
+  const r = await setPostStatus(ctx, postId, statusKey, note);
+  return { ok: true, status: r.status };
 }
 
-export async function mutateAddComment(
-  db: Db,
-  workspaceId: string,
-  postId: number,
-  body: string,
-) {
+export async function mutateAddComment(ctx: OpCtx, postId: number, body: string) {
   if (!body || body.trim().length < 1) throw new ApiError(422, "Comment body is required");
-  if (body.length > 5000) throw new ApiError(422, "Comment too long (max 5000 characters)");
-
-  const [p] = await db
-    .select({ id: post.id })
-    .from(post)
-    .where(and(eq(post.id, postId), eq(post.workspaceId, workspaceId)))
-    .limit(1);
-  if (!p) throw new ApiError(404, "Post not found");
-
-  const [c] = await db
-    .insert(comment)
-    .values({ postId, authorId: null, body: body.trim(), internal: false })
-    .returning({ id: comment.id });
-  await db.update(post).set({ commentCount: sql`${post.commentCount} + 1` }).where(eq(post.id, postId));
-  notifyIntegrations(db, workspaceId, { type: "comment.created", commentId: c.id });
-  return { id: c.id };
+  return addComment(ctx, { postId, body, internal: false });
 }
 
 export async function queryStatuses(db: Db, workspaceId: string) {
@@ -275,92 +227,15 @@ export async function queryChangelog(db: Db, workspaceId: string) {
   }));
 }
 
-export async function mutateDraftChangelog(
-  db: Db,
-  workspaceId: string,
-  data: { title: string; body?: string; version?: string; postIds?: number[] },
-) {
-  if (!data.title || data.title.trim().length < 3) throw new ApiError(422, "Title must be at least 3 characters");
-  if (data.title.length > 140) throw new ApiError(422, "Title must be at most 140 characters");
-
-  const [entry] = await db
-    .insert(changelogEntry)
-    .values({
-      workspaceId,
-      title: data.title.trim(),
-      body: (data.body ?? "").slice(0, 20000),
-      version: data.version || null,
-      authorId: null,
-      publishedAt: null,
-    })
-    .returning({ id: changelogEntry.id });
-
-  if (data.postIds?.length) {
-    const valid = await db
-      .select({ id: post.id })
-      .from(post)
-      .where(and(eq(post.workspaceId, workspaceId), inArray(post.id, data.postIds)));
-    const validIds = valid.map((v) => v.id);
-    if (validIds.length) {
-      await db.insert(changelogPost).values(validIds.map((postId) => ({ entryId: entry.id, postId })));
-    }
-  }
-
-  return { id: entry.id };
+export async function mutateDraftChangelog(ctx: OpCtx, data: { title: string; body?: string; version?: string; postIds?: number[] }) {
+  const { id } = await saveChangelog(ctx, { ...data, publish: false });
+  return { id };
 }
 
-export async function mutatePublishChangelog(db: Db, workspaceId: string, entryId: number) {
-  const [entry] = await db
-    .select({ id: changelogEntry.id, publishedAt: changelogEntry.publishedAt })
-    .from(changelogEntry)
-    .where(and(eq(changelogEntry.id, entryId), eq(changelogEntry.workspaceId, workspaceId)))
-    .limit(1);
-  if (!entry) throw new ApiError(404, "Changelog entry not found");
-  if (entry.publishedAt) throw new ApiError(422, "Already published");
-
-  await db
-    .update(changelogEntry)
-    .set({ publishedAt: new Date() })
-    .where(eq(changelogEntry.id, entryId));
-
-  const linked = await db
-    .select({ postId: changelogPost.postId })
-    .from(changelogPost)
-    .where(eq(changelogPost.entryId, entryId));
-
-  if (linked.length) {
-    const postIds = linked.map((l) => l.postId);
-    const [doneStatus] = await db
-      .select({ key: status.key })
-      .from(status)
-      .where(and(eq(status.workspaceId, workspaceId), eq(status.kind, "done")))
-      .orderBy(asc(status.position))
-      .limit(1);
-    if (doneStatus) {
-      const posts = await db
-        .select({ id: post.id, status: post.status })
-        .from(post)
-        .where(and(eq(post.workspaceId, workspaceId), inArray(post.id, postIds)));
-      const toShip = posts.filter((p) => p.status !== doneStatus.key);
-      if (toShip.length) {
-        await db
-          .update(post)
-          .set({ status: doneStatus.key, statusChangedAt: new Date() })
-          .where(inArray(post.id, toShip.map((p) => p.id)));
-        await db.insert(activity).values(
-          toShip.map((p) => ({
-            postId: p.id,
-            actorId: null,
-            type: "status" as const,
-            fromStatus: p.status,
-            toStatus: doneStatus.key,
-            note: "shipped via changelog",
-          })),
-        );
-      }
-    }
-  }
-
-  notifyIntegrations(db, workspaceId, { type: "changelog.published", entryId });
-  return { ok: true };
+// Publishing an entry that is already out changes nothing.
+export async function mutatePublishChangelog(ctx: OpCtx, entryId: number) {
+  const entry = await changelogById(ctx, entryId);
+  if (entry.publishedAt) return { ok: true, alreadyPublished: true, shipped: [] as number[] };
+  const r = await saveChangelog(ctx, { id: entry.id, title: entry.title, body: entry.body, version: entry.version, postIds: entry.postIds, publish: true });
+  return { ok: true, alreadyPublished: false, shipped: r.shipped };
 }

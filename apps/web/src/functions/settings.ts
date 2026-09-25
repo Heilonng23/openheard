@@ -1,4 +1,4 @@
-import { apiKey, board, createDb, membership, post, postTag, tag } from "@openheard/db";
+import { API_KEY_SCOPES, apiKey, board, createDb, membership, post, postTag, tag } from "@openheard/db";
 
 import { purgeWorkspaceCache } from "@/lib/cache";
 import { listStatuses } from "@/lib/status-db";
@@ -133,16 +133,17 @@ export const listApiKeys = createServerFn({ method: "GET" })
     requireAdmin(context.user);
     assertNotDemo(context.workspace);
     return createDb()
-      .select({ id: apiKey.id, name: apiKey.name, prefix: apiKey.prefix, createdAt: apiKey.createdAt, lastUsedAt: apiKey.lastUsedAt, revokedAt: apiKey.revokedAt })
+      .select({ id: apiKey.id, name: apiKey.name, prefix: apiKey.prefix, scope: apiKey.scope, createdAt: apiKey.createdAt, lastUsedAt: apiKey.lastUsedAt, revokedAt: apiKey.revokedAt })
       .from(apiKey)
       .where(eq(apiKey.workspaceId, context.workspace.id))
       .orderBy(apiKey.createdAt);
   });
 
-// Returns the plain key exactly once. Only the hash is kept.
+// Returns the plain key exactly once. Only the hash is kept. An account key
+// acts for its creator in every workspace they administer, this one first.
 export const createApiKey = createServerFn({ method: "POST" })
   .middleware([sessionMiddleware])
-  .validator((d: unknown) => z.object({ name: z.string().trim().min(1).max(40) }).parse(d))
+  .validator((d: unknown) => z.object({ name: z.string().trim().min(1).max(40), scope: z.enum(API_KEY_SCOPES).default("workspace") }).parse(d))
   .handler(async ({ data, context }) => {
     const u = requireAdmin(context.user);
     assertNotDemo(context.workspace);
@@ -150,7 +151,7 @@ export const createApiKey = createServerFn({ method: "POST" })
     const secret = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
     const key = `oh_${secret}`;
     const prefix = key.slice(0, 11);
-    await createDb().insert(apiKey).values({ id: crypto.randomUUID(), workspaceId: context.workspace.id, name: data.name, prefix, hash: await sha256(key), createdBy: u.id });
+    await createDb().insert(apiKey).values({ id: crypto.randomUUID(), workspaceId: context.workspace.id, name: data.name, prefix, hash: await sha256(key), scope: data.scope, createdBy: u.id });
     return { key };
   });
 
