@@ -58,7 +58,7 @@ function ArticlePage() {
   return (
     <HelpLayout
       nav={<CollectionNav nav={nav} collection={collection?.slug ?? null} article={article.slug} />}
-      mobileNav={nav.length ? <MobileNav nav={nav} value={`a:${article.slug}`} /> : null}
+      mobileNav={nav.length ? <MobileNav nav={nav} value={`a:${article.slug}`} current={article.title} /> : null}
       rail={
         <>
           <Toc items={toc} />

@@ -78,9 +78,12 @@ export function CollectionNav({ nav, collection, article }: { nav: NavCollection
   );
 }
 
-// Below lg: one select that jumps to any article or collection.
-export function MobileNav({ nav, value }: { nav: NavCollection[]; value: string }) {
+// Below lg: one select that jumps to any article or collection. A page the nav
+// does not list (an uncategorised article, a draft) still gets its own option,
+// so the select shows where the reader is.
+export function MobileNav({ nav, value, current }: { nav: NavCollection[]; value: string; current?: string }) {
   const navigate = useNavigate();
+  const listed = value === "home" || nav.some((c) => `c:${c.slug}` === value || c.articles.some((a) => `a:${a.slug}` === value));
   return (
     <label className="relative block">
       <span className="sr-only">Jump to an article</span>
@@ -95,6 +98,7 @@ export function MobileNav({ nav, value }: { nav: NavCollection[]; value: string 
         className="h-10 w-full appearance-none rounded-lg border border-input bg-card pr-9 pl-3 text-[14px] text-foreground outline-none focus:border-ring/60"
       >
         <option value="home">All collections</option>
+        {!listed && current ? <option value={value}>{current}</option> : null}
         {nav.map((c) => (
           <optgroup key={c.slug} label={c.title}>
             <option value={`c:${c.slug}`}>{c.title}: overview</option>
