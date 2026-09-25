@@ -20,10 +20,10 @@ export function isPrivatePath(pathname: string): boolean {
   return PRIVATE_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));
 }
 
-// Uploaded images set their own long-lived cache headers; a session cookie on
-// the request does not make an image private.
+// Uploaded images and logos set their own long-lived cache headers; a session
+// cookie on the request does not make an image private.
 export function isImmutableAsset(pathname: string): boolean {
-  return pathname.startsWith("/uploads/");
+  return pathname.startsWith("/uploads/") || pathname.startsWith("/logo/");
 }
 
 export function hasSessionCookie(request: Request): boolean {
