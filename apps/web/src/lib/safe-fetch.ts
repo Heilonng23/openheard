@@ -2,6 +2,13 @@
 // anything private: http(s) on the default port only, no internal names,
 // every address the name resolves to must be public, and each redirect hop
 // is checked the same way. Time and size are capped.
+//
+// The check resolves the name over DoH and the fetch resolves it again, so a
+// name whose answer changes between the two (DNS rebinding) is not caught
+// here. On Cloudflare Workers that is harmless: outbound fetch only reaches
+// the public internet, never the Worker's own network or private ranges. The
+// local SQLite mode runs on the contributor's machine, where a rebinding name
+// could reach localhost services; do not expose a local install publicly.
 
 export class BlockedUrlError extends Error {}
 
@@ -14,6 +21,8 @@ export type SafeFetchOptions = {
   // Over the cap: keep the first maxBytes (a page's head is what we read) or fail.
   truncate?: boolean;
   accept?: string;
+  // Cancels the fetch early, on top of timeoutMs.
+  signal?: AbortSignal;
   fetchImpl?: typeof fetch;
   resolve?: Resolver;
 };
@@ -149,10 +158,12 @@ async function readCapped(body: ReadableStream<Uint8Array> | null, max: number, 
 export async function safeFetch(raw: string, opts: SafeFetchOptions): Promise<SafeResponse> {
   const fetchImpl = opts.fetchImpl ?? fetch;
   const resolve = opts.resolve ?? dohResolve;
-  const signal = AbortSignal.timeout(opts.timeoutMs);
+  const timeout = AbortSignal.timeout(opts.timeoutMs);
+  const signal = opts.signal ? AbortSignal.any([opts.signal, timeout]) : timeout;
   let current = raw;
   for (let hop = 0; hop <= (opts.maxRedirects ?? 3); hop++) {
     const url = await assertPublic(current, resolve);
+    signal.throwIfAborted();
     const res = await fetchImpl(url.href, { redirect: "manual", signal, headers: { "user-agent": USER_AGENT, accept: opts.accept ?? "*/*" } });
     if (res.status >= 300 && res.status < 400) {
       const location = res.headers.get("location");

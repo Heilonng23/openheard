@@ -1,6 +1,8 @@
 // Fetches a website and reads its brand, and copies a chosen logo into the
 // uploads bucket so a board never hotlinks someone else's server. Server
 // only: routes reach it through a dynamic import.
+import type { Db } from "@openheard/db";
+
 import { imageSize, sniffImageType } from "./attachments";
 import { type BrandSuggestion, parsePage, suggestBrand } from "./brand-extract";
 import { BlockedUrlError, type SafeFetchOptions, safeFetch } from "./safe-fetch";
@@ -13,7 +15,7 @@ const LOGO_BYTES = 1024 * 1024;
 const MAX_STYLESHEETS = 5;
 const MAX_LOGO_TRIES = 3;
 
-type Deps = Pick<SafeFetchOptions, "fetchImpl" | "resolve">;
+type Deps = Pick<SafeFetchOptions, "fetchImpl" | "resolve" | "signal">;
 
 export function normalizeWebsite(input: string): string {
   const s = input.trim();
@@ -94,20 +96,26 @@ const PREFILL_MS = 9000;
 
 // New workspaces with a website start in its colours and logo. Best effort
 // and bounded in time: anything that fails leaves the openheard defaults.
-export async function prefillBrand(workspaceId: string, website: string): Promise<void> {
-  const work = async () => {
-    const [{ createDb, workspace }, { eq }] = await Promise.all([import("@openheard/db"), import("drizzle-orm")]);
-    const match = await matchWebsite(website);
+// Past the deadline every fetch is cancelled and nothing is written, and the
+// write only lands while the branding is still at its defaults, so a choice
+// the admin made meanwhile is never overwritten.
+export async function prefillBrand(workspaceId: string, website: string, opts: Omit<Deps, "signal"> & { db?: Db; timeoutMs?: number } = {}): Promise<void> {
+  const signal = AbortSignal.timeout(opts.timeoutMs ?? PREFILL_MS);
+  try {
+    const [{ createDb, workspace }, { and, eq, isNull }] = await Promise.all([import("@openheard/db"), import("drizzle-orm")]);
+    const match = await matchWebsite(website, { fetchImpl: opts.fetchImpl, resolve: opts.resolve, signal });
+    signal.throwIfAborted();
     const preview = match.logo?.preview.match(/^data:([^;]+);base64,(.*)$/);
     const logoUrl = preview ? await storeLogoBytes(workspaceId, { type: preview[1], bytes: Uint8Array.from(atob(preview[2]), (c) => c.charCodeAt(0)) }) : null;
     const set = { ...(match.accent ? { accent: match.accent } : {}), ...(match.theme ? { theme: match.theme } : {}), ...(logoUrl ? { logoUrl } : {}) };
     if (!Object.keys(set).length) return;
-    await createDb().update(workspace).set(set).where(eq(workspace.id, workspaceId));
+    signal.throwIfAborted();
+    await (opts.db ?? createDb())
+      .update(workspace)
+      .set(set)
+      .where(and(eq(workspace.id, workspaceId), isNull(workspace.accent), isNull(workspace.logoUrl), eq(workspace.theme, "dark")));
     const { invalidate } = await import("./kv-cache");
     await invalidate(`workspace:${workspaceId}`);
-  };
-  try {
-    await Promise.race([work(), new Promise((resolve) => setTimeout(resolve, PREFILL_MS))]);
   } catch {
     // Defaults stay; Settings > Branding can match again.
   }
