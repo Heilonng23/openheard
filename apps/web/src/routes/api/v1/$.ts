@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { authenticateApiKey, apiJson, apiErrorResponse, apiOps, ApiError, resolveApiWorkspace } from "@/lib/api-auth";
+import { authenticateApiKey, apiJson, apiErrorResponse, apiOps, ApiError } from "@/lib/api-auth";
 import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import {
   queryListPosts,
@@ -33,8 +33,10 @@ const getRoutes: RouteHandler = async (request, params) => {
   const api = await authenticateApiKey(request);
   const segments = parsePath(params._splat ?? "");
   const url = new URL(request.url);
-  const { workspace } = await resolveApiWorkspace(api, url.searchParams.get("workspace"));
-  const ctx = { db: api.db, workspaceId: workspace.id };
+  // The workspace's own address, so attachment links in a post resolve on
+  // the host that serves that workspace's uploads.
+  const ops = await apiOps(api, url.origin, url.searchParams.get("workspace"));
+  const ctx = { db: ops.db, workspaceId: ops.workspace.id };
 
   if (segments[0] === "posts" && segments.length === 1) {
     const result = await queryListPosts(ctx.db, ctx.workspaceId, {
@@ -51,7 +53,7 @@ const getRoutes: RouteHandler = async (request, params) => {
   if (segments[0] === "posts" && segments.length === 2) {
     const id = Number(segments[1]);
     if (!Number.isInteger(id)) throw new ApiError(422, "Invalid post ID");
-    const result = await queryGetPost(ctx.db, ctx.workspaceId, id, url.origin);
+    const result = await queryGetPost(ctx.db, ctx.workspaceId, id, ops.origin);
     return apiJson(result);
   }
 

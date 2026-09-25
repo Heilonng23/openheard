@@ -1,5 +1,5 @@
 import { activity, attachment, board, changelogPost, comment, post, postTag, tag, vote } from "@openheard/db";
-import { and, desc, eq, inArray, like, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, like, notInArray, or, sql } from "drizzle-orm";
 
 import { claimQuery, reserveAttachments } from "@/lib/attachment-db";
 import { AttachmentGoneError } from "@/lib/attachment-db";
@@ -113,7 +113,15 @@ export async function mergePosts(ctx: OpCtx, from: number, into: number) {
   const fromVotes = await db.select({ userId: vote.userId }).from(vote).where(eq(vote.postId, from));
   const intoVotes = new Set((await db.select({ userId: vote.userId }).from(vote).where(eq(vote.postId, into))).map((v) => v.userId));
   const moved = fromVotes.filter((v) => !intoVotes.has(v.userId));
-  if (moved.length) await db.insert(vote).values(moved.map((v) => ({ postId: into, userId: v.userId })));
+  // One statement copies the votes, so a popular post does not run into the
+  // limit on bound values a multi-row insert would hit.
+  if (moved.length) {
+    const alreadyVoted = db.select({ userId: vote.userId }).from(vote).where(eq(vote.postId, into));
+    await db
+      .insert(vote)
+      .select(db.select({ postId: sql`${into}`.as("post_id"), userId: vote.userId, createdAt: vote.createdAt }).from(vote).where(and(eq(vote.postId, from), notInArray(vote.userId, alreadyVoted))))
+      .onConflictDoNothing();
+  }
   await db.update(comment).set({ postId: into }).where(eq(comment.postId, from));
   const [{ c }] = await db.select({ c: sql<number>`count(*)` }).from(comment).where(and(eq(comment.postId, into), eq(comment.internal, false)));
   await db.update(post).set({ voteCount: sql`${post.voteCount} + ${moved.length}`, commentCount: c }).where(eq(post.id, into));

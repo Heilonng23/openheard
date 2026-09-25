@@ -167,39 +167,69 @@ export async function saveChangelog(ctx: OpCtx, data: { id?: number; title: stri
     const missing = postIds.filter((p) => !owned.has(p));
     if (missing.length) throw new OpError(`Post ${missing.join(", ")} not found in this workspace`, 404);
   }
-  let announce = false;
-  if (id) {
-    await db.update(changelogEntry).set(values).where(and(eq(changelogEntry.id, id), eq(changelogEntry.workspaceId, ws)));
-    await db.delete(changelogPost).where(eq(changelogPost.entryId, id));
-    if (data.publish) {
-      // Claiming emailedAt with a conditional update means two saves at once cannot both announce.
-      const claimed = await db.update(changelogEntry).set({ emailedAt: new Date() }).where(and(eq(changelogEntry.id, id), isNull(changelogEntry.emailedAt))).returning({ id: changelogEntry.id });
-      announce = claimed.length > 0;
-    }
-  } else {
-    [{ id }] = await db.insert(changelogEntry).values({ ...values, emailedAt: data.publish ? new Date() : null }).returning({ id: changelogEntry.id });
-    announce = data.publish;
+  // Reads happen above; every write goes in one batch below, so a publish
+  // lands whole or not at all. A new entry is created first as a bare draft
+  // so the batch has its id, and removed again if the batch fails.
+  let created = false;
+  if (!id) {
+    [{ id }] = await db.insert(changelogEntry).values({ ...values, publishedAt: null }).returning({ id: changelogEntry.id });
+    created = true;
   }
-  let shipped: { id: number; status: string }[] = [];
-  let done = "done";
-  if (postIds.length) {
-    await db.insert(changelogPost).values(postIds.map((postId) => ({ entryId: id!, postId })));
-    if (data.publish) {
-      // Shipping closes the loop: linked posts move to done.
-      const linked = await db.select({ id: post.id, status: post.status }).from(post).where(and(eq(post.workspaceId, ws), inArray(post.id, postIds)));
-      done = (await statusOfKind(db, ws, "done"))?.key ?? "done";
-      const toShip = linked.filter((p) => p.status !== done);
-      if (toShip.length) {
-        // Only posts this save actually moved, so a racing save does not email twice.
-        const moved = await db.update(post).set({ status: done, statusChangedAt: new Date() }).where(and(inArray(post.id, toShip.map((p) => p.id)), ne(post.status, done))).returning({ id: post.id });
-        const movedIds = new Set(moved.map((m) => m.id));
-        shipped = toShip.filter((p) => movedIds.has(p.id));
-      }
-      if (shipped.length) {
-        await db.insert(activity).values(shipped.map((p) => ({ postId: p.id, actorId: ctx.actor?.id ?? null, type: "status" as const, fromStatus: p.status, toStatus: done, note: `shipped in ${version || title}` })));
-      }
+  const entryId = id!;
+  const done = data.publish && postIds.length ? ((await statusOfKind(db, ws, "done"))?.key ?? "done") : "done";
+  const note = `shipped in ${version || title}`;
+  const actorId = ctx.actor?.id ?? null;
+  // D1 allows 100 bound values per statement; 40 ids plus a few extras stays under.
+  const chunks: number[][] = [];
+  for (let i = 0; i < postIds.length; i += 40) chunks.push(postIds.slice(i, i + 40));
+  const writes: unknown[] = [
+    db.update(changelogEntry).set(values).where(and(eq(changelogEntry.id, entryId), eq(changelogEntry.workspaceId, ws))),
+    db.delete(changelogPost).where(eq(changelogPost.entryId, entryId)),
+    ...chunks.map((ids) => db.insert(changelogPost).values(ids.map((postId) => ({ entryId, postId })))),
+  ];
+  const claimAt = writes.length;
+  const shipAt: number[] = [];
+  if (data.publish) {
+    // Claiming emailedAt with a conditional update means two saves at once cannot both announce.
+    writes.push(db.update(changelogEntry).set({ emailedAt: new Date() }).where(and(eq(changelogEntry.id, entryId), isNull(changelogEntry.emailedAt))).returning({ id: changelogEntry.id }));
+    // Shipping closes the loop: linked posts move to done. The timeline row
+    // is written from the post's status just before the move, so only posts
+    // this save actually moved get one, and a racing save does not email twice.
+    for (const ids of chunks) {
+      const notDone = and(eq(post.workspaceId, ws), inArray(post.id, ids), ne(post.status, done));
+      shipAt.push(writes.length);
+      writes.push(
+        db
+          .insert(activity)
+          .select(
+            db
+              .select({
+                id: sql`null`.as("id"),
+                postId: post.id,
+                actorId: sql`${actorId}`.as("actor_id"),
+                type: sql`'status'`.as("type"),
+                fromStatus: post.status,
+                toStatus: sql`${done}`.as("to_status"),
+                note: sql`${note}`.as("note"),
+                createdAt: sql`cast(unixepoch('subsecond') * 1000 as integer)`.as("created_at"),
+              })
+              .from(post)
+              .where(notDone),
+          )
+          .returning({ id: activity.postId, status: activity.fromStatus }),
+      );
+      writes.push(db.update(post).set({ status: done, statusChangedAt: new Date() }).where(notDone));
     }
   }
+  let results: unknown[];
+  try {
+    results = (await db.batch(writes as unknown as Parameters<typeof db.batch>[0])) as unknown as unknown[];
+  } catch (err) {
+    if (created) await db.delete(changelogEntry).where(eq(changelogEntry.id, entryId));
+    throw err;
+  }
+  const announce = data.publish && (results[claimAt] as unknown[]).length > 0;
+  const shipped = shipAt.flatMap((i) => results[i] as { id: number; status: string }[]).map((p) => ({ id: p.id, status: p.status ?? "" }));
   refresh(ctx, shipped.map((p) => p.id));
   if (data.publish && !wasPublished) notifyIntegrations(db, ws, { type: "changelog.published", entryId: id! }, ctx.origin);
   const actor = ctx.actor ?? { id: "", name: ctx.workspace.name, email: "" };
