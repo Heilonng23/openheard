@@ -8,6 +8,8 @@ import { getUser } from "@/functions/get-user";
 import { workspaceUrl } from "@/lib/workspace-url";
 
 export const Route = createFileRoute("/new")({
+  // An unknown workspace address links here with its name filled in.
+  validateSearch: (s: Record<string, unknown>): { slug?: string } => (typeof s.slug === "string" ? { slug: s.slug } : {}),
   beforeLoad: async () => {
     if (!(await getUser())) throw redirect({ to: "/login" });
   },
@@ -17,6 +19,7 @@ export const Route = createFileRoute("/new")({
 
 function NewWorkspace() {
   const root = useLoaderData({ from: "__root__" });
+  const { slug } = Route.useSearch();
   const rootDomain = root.rootDomain;
   const ownWorkspaces = (root as { ownWorkspaces?: { id: string }[] }).ownWorkspaces;
   const hasExistingWorkspace = !!ownWorkspaces && ownWorkspaces.length > 0;
@@ -28,6 +31,7 @@ function NewWorkspace() {
       <WorkspaceForm
         mode="create"
         domainSuffix={rootDomain ?? "openheard.com"}
+        initialSlug={slug}
         showHeardAbout={!hasExistingWorkspace}
         onSubmit={async (v) => {
           try {

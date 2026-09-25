@@ -3,9 +3,11 @@ import { HeadContent, Outlet, Scripts, ScrollRestoration, createRootRouteWithCon
 
 import Footer from "../components/footer";
 import Header from "../components/header";
+import Logo from "../components/logo";
 import { SignInDialog } from "../components/sign-in-dialog";
 
 import { getWorkspace } from "../functions/workspace";
+import type { MissingWorkspace } from "../lib/session";
 import appCss from "../index.css?url";
 import geistLatinFont from "@fontsource-variable/geist/files/geist-latin-wght-normal.woff2?url";
 
@@ -59,16 +61,46 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
     };
   },
   component: RootDocument,
-  notFoundComponent: () => (
-    <main className="mx-auto max-w-3xl px-8 py-24 text-center">
-      <h1 className="text-xl font-semibold">Nothing here</h1>
-      <p className="mt-2 text-muted-foreground">That page or workspace does not exist.</p>
-      <a href="/" className="mt-6 inline-block text-sm text-link hover:underline">
-        Back to the board
-      </a>
-    </main>
-  ),
+  notFoundComponent: ({ data }) => {
+    const missing = data as MissingWorkspace | undefined;
+    if (missing?.missingWorkspace) return <NoBoard {...missing} />;
+    return (
+      <main className="mx-auto max-w-3xl px-8 py-24 text-center">
+        <h1 className="text-xl font-semibold">Nothing here</h1>
+        <p className="mt-2 text-muted-foreground">That page or workspace does not exist.</p>
+        <a href="/" className="mt-6 inline-block text-sm text-link hover:underline">
+          Back to the board
+        </a>
+      </main>
+    );
+  },
 });
+
+// A subdomain with no workspace behind it.
+function NoBoard({ missingWorkspace, rootDomain, signedIn }: MissingWorkspace) {
+  const home = `https://${rootDomain ?? "openheard.com"}`;
+  return (
+    <main className="flex flex-1 flex-col items-center justify-center gap-3 px-6 py-24 text-center">
+      <a href={home} aria-label="openheard home" className="mb-3">
+        <Logo size={32} />
+      </a>
+      <h1 className="text-xl font-semibold">There is no board here yet</h1>
+      <p className="max-w-sm text-sm text-muted-foreground">
+        Nobody has made a workspace at {missingWorkspace}.{rootDomain ?? "openheard.com"} yet.
+      </p>
+      <div className="mt-3 flex items-center gap-5 text-sm font-medium">
+        {signedIn ? (
+          <a href={`${home}/new?slug=${encodeURIComponent(missingWorkspace)}`} className="text-link hover:underline">
+            Create this workspace
+          </a>
+        ) : null}
+        <a href={home} className="text-muted-foreground hover:text-foreground">
+          Go to {rootDomain ?? "openheard.com"}
+        </a>
+      </div>
+    </main>
+  );
+}
 
 const BARE_PAGES = ["/login", "/reset-password", "/join/", "/new", "/welcome", "/start", "/widget"];
 
@@ -87,6 +119,23 @@ function RootDocument() {
   const theme = widget ? (pathname === "/widget" && widgetTheme === "light" ? "" : "dark") : data?.workspace.theme === "light" && !admin && !marketing ? "" : "dark";
   // Workspace accent applies to the public board only; the dashboard keeps ours.
   const accent = !admin && data?.workspace.accent ? ({ "--link": data.workspace.accent, "--ring": data.workspace.accent } as React.CSSProperties) : undefined;
+  // No loader data means the root loader found no workspace for this host;
+  // the outlet holds the not-found page and nothing else has a workspace to read.
+  if (!data) {
+    return (
+      <html lang="en" className="dark">
+        <head>
+          <HeadContent />
+        </head>
+        <body>
+          <div className="flex min-h-svh flex-col">
+            <Outlet />
+          </div>
+          <Scripts />
+        </body>
+      </html>
+    );
+  }
   return (
     <html lang="en" className={theme} style={accent}>
       <head>

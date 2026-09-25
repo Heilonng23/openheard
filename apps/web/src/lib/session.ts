@@ -9,6 +9,7 @@ import { WIDGET_TOKEN_HEADER } from "./widget-auth";
 
 export type SessionUser = { id: string; name: string; email: string; role: Role | "guest"; image?: string | null };
 export type Workspace = typeof workspace.$inferSelect;
+export type MissingWorkspace = { missingWorkspace: string; rootDomain: string | null; signedIn: boolean };
 
 // Which workspace is this request for?
 // Cloud: acme.openheard.com -> "acme" (ROOT_DOMAIN=openheard.com). Local dev
@@ -135,7 +136,9 @@ async function resolveSession(request: Request, widget?: string) {
     await seedStatuses(db, "default");
     [ws] = await db.select().from(workspace).where(eq(workspace.id, slug)).limit(1);
   }
-  if (!ws) throw notFound();
+  // An address nobody has claimed yet. The root route shows it as a 404 that
+  // offers to create the workspace.
+  if (!ws) throw notFound({ data: { missingWorkspace: slug, rootDomain: root, signedIn: !!session } satisfies MissingWorkspace });
 
   // The shared demo login is nobody outside the demo, whatever memberships
   // happen to exist. One check here covers every server function at once.

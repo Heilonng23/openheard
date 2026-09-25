@@ -22,6 +22,7 @@ export function WorkspaceForm({
   domainSuffix,
   initialName = "",
   initialWebsite = "",
+  initialSlug = "",
   showHeardAbout = true,
   onSubmit,
 }: {
@@ -29,13 +30,14 @@ export function WorkspaceForm({
   domainSuffix: string;
   initialName?: string;
   initialWebsite?: string;
+  initialSlug?: string;
   showHeardAbout?: boolean;
   onSubmit: (values: WorkspaceFormValues) => Promise<void>;
 }) {
   const [website, setWebsite] = useState(initialWebsite);
   const [name, setName] = useState(initialName);
-  const [slug, setSlug] = useState("");
-  const [slugTouched, setSlugTouched] = useState(false);
+  const [slug, setSlug] = useState(initialSlug);
+  const [slugTouched, setSlugTouched] = useState(!!initialSlug);
   const [slugBlurred, setSlugBlurred] = useState(false);
   const [heardAboutUs, setHeardAboutUs] = useState("");
   const [busy, setBusy] = useState(false);
