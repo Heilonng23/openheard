@@ -182,7 +182,7 @@ function MatchWebsite({ initialUrl, onApplied }: { initialUrl: string; onApplied
               <span className="text-[13px]">{match.name}</span>
             </Found>
           ) : null}
-          <Found label="Accent" checked={pick.accent && !!chosen} disabled={!match.colors.length} onToggle={() => toggle("accent")} note={match.accent && chosen === match.accent && match.accentOriginal !== match.accent ? `Lightened from ${match.accentOriginal} so it reads on the dark board.` : !match.colors.length ? "No brand colour found. Your current accent stays." : undefined}>
+          <Found label="Accent" checked={pick.accent && !!chosen} disabled={!match.colors.length} onToggle={() => (!chosen && setChosen(match.colors[0] ?? null), toggle("accent"))} note={match.accent && chosen === match.accent && match.accentOriginal !== match.accent ? `Lightened from ${match.accentOriginal} so it reads on the dark board.` : !match.colors.length ? "No brand colour found. Your current accent stays." : undefined}>
             <span className="flex gap-1.5">
               {[...new Set([match.accent, ...match.colors].filter((c): c is string => !!c))].slice(0, 5).map((c) => (
                 <button key={c} type="button" onClick={() => (setChosen(c), setPick((p) => ({ ...p, accent: true })))} aria-label={`Use ${c}`} title={c} className={cn("inline-flex size-[22px] items-center justify-center rounded-full", chosen === c && "ring-2 ring-foreground ring-offset-2 ring-offset-background")} style={{ background: c }}>
