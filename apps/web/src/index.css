@@ -7,17 +7,35 @@
   --faint: #85858f;
 }
 
-/* Keep stable shell parts from fading during view transitions */
+/* Persistent chrome gets its own snapshot so only page content fades on
+   navigation. The old snapshot is hidden and the new one shown as is, so the
+   sidebar, settings nav and header never dim, slide or show two states. */
 header.sticky {
   view-transition-name: public-header;
 }
 [data-admin-sidebar] {
   view-transition-name: admin-sidebar;
 }
-::view-transition-old(public-header),
-::view-transition-new(public-header),
+[data-settings-nav] {
+  view-transition-name: settings-nav;
+}
+::view-transition-group(public-header),
 ::view-transition-group(admin-sidebar),
-::view-transition-old(admin-sidebar),
-::view-transition-new(admin-sidebar) {
+::view-transition-group(settings-nav),
+::view-transition-new(public-header),
+::view-transition-new(admin-sidebar),
+::view-transition-new(settings-nav) {
   animation: none;
+}
+::view-transition-old(public-header),
+::view-transition-old(admin-sidebar),
+::view-transition-old(settings-nav) {
+  display: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
 }

@@ -135,14 +135,16 @@ export function AdminSidebar({ onNewPost, onCollapse }: { onNewPost?: () => void
   const inInbox = pathname.startsWith("/dashboard/inbox");
 
   return (
-    <aside className="flex h-full w-[200px] flex-col px-3 pt-3.5 pb-4">
-      <div className="flex items-center justify-between px-1">
+    <aside className="flex h-full min-h-0 w-[200px] flex-col px-3 pt-3.5 pb-4">
+      <div className="flex shrink-0 items-center justify-between px-1">
         <WorkspaceSwitcher />
         <button type="button" onClick={onCollapse} className="inline-flex size-7 items-center justify-center rounded-md text-faint hover:bg-accent hover:text-foreground" title="Collapse sidebar">
           <SidebarSimpleIcon className="size-[15px]" />
         </button>
       </div>
 
+      {/* Pages scroll on short windows so the account footer stays on screen. */}
+      <div className="-mx-3 min-h-0 flex-1 overflow-y-auto px-3 pb-3 [scrollbar-width:none]">
       <Group>
         <Item to="/dashboard/inbox" active={inInbox && !(search as { status?: string }).status} icon={TrayIcon} label="Posts" count={root.total} />
         <Item to="/dashboard/roadmap" icon={MapTrifoldIcon} label="Roadmap" />
@@ -150,8 +152,7 @@ export function AdminSidebar({ onNewPost, onCollapse }: { onNewPost?: () => void
         <Item to="/dashboard/help" icon={LifebuoyIcon} label="Help center" />
         <Item icon={PlusIcon} label="New post" onClick={onNewPost} />
       </Group>
-
-      <div className="flex-1" />
+      </div>
 
       <AccountMenu>
         <Item to="/" icon={ArrowSquareOutIcon} label="Public board" />
@@ -165,7 +166,7 @@ function AccountMenu({ children }: { children: ReactNode }) {
   const root = useLoaderData({ from: "__root__" });
   const router = useRouter();
   return (
-    <div className="flex flex-col gap-0.5 border-t pt-3">
+    <div className="flex shrink-0 flex-col gap-0.5 border-t pt-3">
       {children}
       <DropdownMenu>
         <DropdownMenuTrigger className="flex h-9 w-full items-center gap-2 rounded-md px-2 outline-none hover:bg-accent/60 focus-visible:ring-1 focus-visible:ring-ring">
@@ -256,7 +257,7 @@ function Item({
 }) {
   const { pathname } = useLocation();
   const on = active ?? (to ? (exact ? pathname === to : pathname.startsWith(to) && to !== "/") : false);
-  const cls = cn("flex h-8 w-full items-center gap-2.5 rounded-md px-2 text-[13px] font-medium active:scale-[0.99]", sub && "h-[30px] pl-[38px]", on ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-accent/60 hover:text-foreground");
+  const cls = cn("flex h-8 w-full cursor-pointer items-center gap-2.5 rounded-md px-2 text-[13px] font-medium select-none", sub && "h-[30px] pl-[38px]", on ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-accent/60 hover:text-foreground");
   const icon = I ? <I weight={weight} style={iconColor ? { color: iconColor } : undefined} className={cn("size-4 shrink-0", !iconColor && (iconClassName ?? (on ? "text-foreground" : "text-muted-foreground")))} /> : null;
   const inner = (
     <>
@@ -285,10 +286,11 @@ export function AdminRail({ onExpand, onNewPost }: { onExpand?: () => void; onNe
   const root = useLoaderData({ from: "__root__" });
   const router = useRouter();
   const inInbox = pathname.startsWith("/dashboard/inbox");
-  const cls = (on: boolean) => cn("inline-flex size-9 items-center justify-center rounded-lg active:scale-95", on ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-accent/60 hover:text-foreground");
+  const cls = (on: boolean) => cn("inline-flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-lg select-none", on ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-accent/60 hover:text-foreground");
   return (
     <TooltipProvider delay={300}>
-    <aside className="flex h-full w-14 flex-col items-center gap-1 overflow-y-auto py-3.5 [scrollbar-width:none]">
+    <aside className="flex h-full min-h-0 w-14 flex-col items-center py-3.5">
+      <div className="flex min-h-0 w-full flex-1 flex-col items-center gap-1 overflow-y-auto [scrollbar-width:none]">
       <DropdownMenu>
         <Tip label={root.workspace.name}>
           <DropdownMenuTrigger className="mb-2.5 inline-flex size-9 shrink-0 items-center justify-center rounded-lg outline-none hover:bg-accent/60 focus-visible:ring-1 focus-visible:ring-ring">
@@ -327,7 +329,8 @@ export function AdminRail({ onExpand, onNewPost }: { onExpand?: () => void; onNe
           <PlusIcon className="size-[17px]" />
         </button>
       </Tip>
-      <div className="flex-1" />
+      </div>
+      <div className="flex shrink-0 flex-col items-center gap-1 pt-1">
       {onExpand ? (
         <Tip label="Expand sidebar">
           <button type="button" onClick={onExpand} className={cls(false)}>
@@ -361,6 +364,7 @@ export function AdminRail({ onExpand, onNewPost }: { onExpand?: () => void; onNe
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+      </div>
     </aside>
     </TooltipProvider>
   );

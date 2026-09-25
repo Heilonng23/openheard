@@ -52,7 +52,7 @@ export default function Header() {
                       key={to}
                       to={to}
                       className={cn(
-                        "group/nav inline-flex h-8 items-center gap-[7px] rounded-md px-2.5 text-[13px] font-medium transition-colors duration-150 hover:bg-accent/60",
+                        "group/nav inline-flex h-8 cursor-pointer items-center gap-[7px] rounded-md px-2.5 text-[13px] font-medium select-none transition-colors duration-150 hover:bg-accent/60",
                         active ? "text-foreground" : "text-faint hover:text-muted-foreground",
                       )}
                     >

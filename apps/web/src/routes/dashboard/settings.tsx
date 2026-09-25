@@ -32,8 +32,8 @@ function SettingsLayout() {
   const onLocked = locked.some((slug) => pathname === `/dashboard/settings/${slug}`);
   return (
     <Panel title="Settings" className="flex flex-col md:flex-row">
-      <nav className="flex shrink-0 flex-row gap-1 overflow-x-auto border-b px-3 py-2 md:w-[220px] md:flex-col md:overflow-x-visible md:border-r md:border-b-0 md:pt-3 md:pb-4">
-        <Link to="/dashboard" className="hidden h-[30px] items-center gap-2 rounded-md px-2 text-sm font-semibold hover:bg-accent/60 md:flex">
+      <nav data-settings-nav className="flex shrink-0 flex-row gap-1 overflow-x-auto border-b px-3 py-2 md:w-[220px] md:flex-col md:overflow-x-hidden md:overflow-y-auto md:border-r md:border-b-0 md:pt-3 md:pb-4">
+        <Link to="/dashboard" className="hidden h-[30px] cursor-pointer items-center gap-2 rounded-md px-2 text-sm font-semibold select-none hover:bg-accent/60 md:flex">
           <ArrowLeftIcon className="size-[13px] text-faint" /> Settings
         </Link>
         {groups.map((g) => (
@@ -43,7 +43,7 @@ function SettingsLayout() {
               const to = `/dashboard/settings/${slug}`;
               const on = pathname === to;
               return (
-                <Link key={slug} to={to} preload="viewport" className={cn("flex h-7 items-center whitespace-nowrap rounded-md px-2 text-[13px]", on ? "bg-secondary font-semibold text-foreground" : "text-muted-foreground hover:bg-accent/60 hover:text-foreground")}>
+                <Link key={slug} to={to} preload="viewport" className={cn("flex h-7 cursor-pointer items-center whitespace-nowrap rounded-md px-2 text-[13px] select-none", on ? "bg-secondary font-semibold text-foreground" : "text-muted-foreground hover:bg-accent/60 hover:text-foreground")}>
                   {label}
                 </Link>
               );
