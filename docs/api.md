@@ -10,17 +10,24 @@ Create an API key in **Dashboard → Settings → API keys** (or use the script 
 Authorization: Bearer oh_<your-key>
 ```
 
-Every key is scoped to one workspace. Revoked keys return `401`.
+There are two kinds of key:
+
+- **Workspace key**: acts as an admin of the workspace it was made in, and nothing else.
+- **Account key**: acts as the admin who made it, in every workspace they administer. Add `?workspace=<slug>` to any endpoint to pick one; without it the key's own workspace is used. A workspace the owner does not administer returns `403`, and so does a workspace key naming any other workspace.
+
+Revoked keys return `401`.
 
 ### Local dev: generate a key
 
 ```bash
-OPENHEARD_LOCAL=1 bun run apps/web/src/scripts/make-api-key.ts
+OPENHEARD_LOCAL=1 bun run apps/web/src/scripts/make-api-key.ts                      # workspace key for "default"
+OPENHEARD_LOCAL=1 bun run apps/web/src/scripts/make-api-key.ts --workspace acme       # workspace key for "acme"
+OPENHEARD_LOCAL=1 bun run apps/web/src/scripts/make-api-key.ts --account you@example.com  # account key
 ```
 
 ## Rate limits
 
-All API endpoints are rate-limited to **60 requests per minute** per API key (or per IP if no key is provided).
+All API endpoints are rate-limited to **60 requests per minute** per API key, account keys included, (or per IP if no key is provided).
 
 When you exceed the limit the server returns `429 Too Many Requests` with a JSON body and a `Retry-After` header (seconds until the window resets):
 
@@ -38,7 +45,7 @@ Every error returns JSON:
 { "error": "Human-readable message" }
 ```
 
-Status codes: `401` (bad/missing key), `404` (not found), `422` (validation), `405` (wrong method), `500` (server).
+Status codes: `401` (bad/missing key), `403` (workspace out of reach), `404` (not found), `422` (validation), `405` (wrong method), `500` (server).
 
 ---
 
@@ -107,10 +114,10 @@ Create a post. Returns `{ id }` with status `201`.
 Change a post's status.
 
 ```json
-{ "status": "planned" }
+{ "status": "planned", "note": "Optional note for followers" }
 ```
 
-Accepts a status key (`open`, `review`, `planned`, `progress`, `done`, `closed`) or the workspace's custom label.
+Accepts a status key (`open`, `review`, `planned`, `progress`, `done`, `closed`) or the workspace's custom label. It runs the same code as the dashboard: the change lands in the timeline, and voters, commenters and the author are emailed when status emails are on. Setting the current status again changes nothing.
 
 ### POST /api/v1/posts/:id/comments
 
@@ -147,7 +154,7 @@ Create a draft changelog entry. Returns `{ id }` with status `201`.
 
 ### POST /api/v1/changelog/:id/publish
 
-Publish a draft entry. Linked posts are moved to the "done" status automatically.
+Publish a draft entry. Linked posts move to the "done" status, and the first publish emails changelog subscribers and the linked posts' followers, as in the dashboard. Publishing an entry that is already out returns `{ ok: true, alreadyPublished: true }` and changes nothing.
 
 ### GET /api/v1/help/collections
 
