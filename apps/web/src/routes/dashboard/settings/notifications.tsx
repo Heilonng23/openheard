@@ -22,7 +22,8 @@ function Notifications() {
   const dirty = JSON.stringify(form) !== JSON.stringify(saved.team) || JSON.stringify(email) !== JSON.stringify(saved.email);
 
   async function save() {
-    await Promise.all([saveNotificationPrefs({ data: form }), saveEmailPrefs({ data: email })]);
+    const [, res] = await Promise.all([saveNotificationPrefs({ data: form }), saveEmailPrefs({ data: email })]);
+    if (res.confirmSent) toast.success("Check your inbox to confirm changelog emails");
     await router.invalidate();
   }
 
@@ -45,12 +46,16 @@ function Notifications() {
       <Row label="Something ships" help="Each new changelog entry.">
         <Toggle on={email.changelog} onChange={(v) => setEmail({ ...email, changelog: v })} label="Changelog" />
       </Row>
-      <div className="pt-6">
-        <SectionHead title="Emails to your users" />
-      </div>
-      <Row label="Status updates" help="Voters, commenters and the author hear when their post changes status, with your note.">
-        <Toggle on={email.workspaceStatusEmails} onChange={(v) => setEmail({ ...email, workspaceStatusEmails: v })} label="Status emails to users" />
-      </Row>
+      {email.workspaceStatusEmails !== undefined && (
+        <>
+          <div className="pt-6">
+            <SectionHead title="Emails to your users" />
+          </div>
+          <Row label="Status updates" help="Voters, commenters and the author hear when their post changes status, with your note.">
+            <Toggle on={email.workspaceStatusEmails} onChange={(v) => setEmail({ ...email, workspaceStatusEmails: v })} label="Status emails to users" />
+          </Row>
+        </>
+      )}
       <div className="flex items-center justify-end gap-3 border-t pt-4">
         <span className="text-xs text-faint">{dirty ? "Unsaved changes" : "Saved"}</span>
         <LoadingButton onAction={save} disabled={!dirty} successLabel="Saved" onError={(err) => toast.error(err instanceof Error ? err.message : "Could not save")}>

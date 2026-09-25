@@ -9,8 +9,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@openheard/env/server", () => ({ env: {} }));
 
+import { confirmPending, optOut } from "./email-prefs";
 import { signEmailToken, verifyEmailToken } from "./email-token";
-import { buildChangelogEmails, buildStatusEmails, changelogRecipients, deliver, pickRecipients, statusRecipients } from "./notify";
+import { MAX_RECIPIENTS_PER_EVENT, buildChangelogEmails, buildStatusEmails, changelogRecipients, deliver, pickRecipients, statusRecipients } from "./notify";
 
 const MIGRATIONS = new URL("../../../../packages/db/migrations/", import.meta.url).pathname;
 const KEY = "test-secret-not-a-real-one-32chars";
@@ -32,8 +33,10 @@ beforeEach(async () => {
   db = await freshDb();
   await db.insert(schema.workspace).values([{ id: "acme", name: "Acme" }, { id: "other", name: "Other" }, { id: "demo", name: "Demo" }]);
   await db.insert(schema.user).values(
-    ["admin", "author", "voter", "commenter", "both", "quiet", "outsider"].map((id) => ({ id, name: id, email: `${id === "both" ? "Both" : id}@acme.test` })),
+    ["admin", "author", "voter", "commenter", "both", "quiet", "outsider"].map((id) => ({ id, name: id, email: `${id === "both" ? "Both" : id}@acme.test`, emailVerified: true })),
   );
+  // An imported author or an unconfirmed password sign-up: no proof of the inbox.
+  await db.insert(schema.user).values({ id: "unverified", name: "unverified", email: "unverified@acme.test", emailVerified: false });
   await db.insert(schema.board).values({ id: "b", workspaceId: "acme", name: "Ideas" });
   await db.insert(schema.post).values([
     { id: 1, workspaceId: "acme", boardId: "b", authorId: "author", title: "Dark mode" },
@@ -44,6 +47,7 @@ beforeEach(async () => {
     { postId: 1, userId: "both" },
     { postId: 1, userId: "admin" },
     { postId: 1, userId: "quiet" },
+    { postId: 1, userId: "unverified" },
     { postId: 2, userId: "both" },
   ]);
   await db.insert(schema.anonymousVote).values({ postId: 1, anonToken: "anon-cookie" });
@@ -93,6 +97,11 @@ describe("status change recipients", () => {
     // both@ voted and commented: one email. admin moved it: none. quiet@
     // unsubscribed. The anonymous vote has no address and cannot appear.
     expect(emails(out)).toEqual(["author@acme.test", "both@acme.test", "commenter@acme.test", "voter@acme.test"]);
+  });
+
+  it("skips accounts whose email is not verified, even as the post author", async () => {
+    await db.insert(schema.post).values({ id: 3, workspaceId: "acme", boardId: "b", authorId: "unverified", title: "Imported" });
+    expect(emails(await statusRecipients(db, WS, [1, 3], ADMIN))).not.toContain("unverified@acme.test");
   });
 
   it("is nobody when the workspace turned status emails off", async () => {
@@ -164,6 +173,33 @@ describe("changelog recipients", () => {
     const reader = out.find((m) => m.to === "reader@elsewhere.test")!;
     expect(reader.html).not.toContain("Stop emails about posts you follow");
     expect(reader.subject).toBe("Acme shipped: Dark mode");
+  });
+
+  it("points the one-click unsubscribe at the changelog for someone who is both", async () => {
+    const out = await buildChangelogEmails({ db, workspace: WS, origin: "https://acme.example.com", actor: ADMIN, entry: { title: "Dark mode", body: "" }, posts: [{ id: 1, title: "Dark mode" }], key: KEY });
+    const header = out.find((m) => m.to === "voter@acme.test")!.headers!["List-Unsubscribe"];
+    const token = header.match(/t=([\w.-]+)>/)![1];
+    expect(await verifyEmailToken(token, KEY)).toMatchObject({ k: "changelog", e: "voter@acme.test" });
+  });
+
+  it("caps recipients before any email is built", async () => {
+    await db.insert(schema.changelogSubscriber).values(
+      Array.from({ length: MAX_RECIPIENTS_PER_EVENT + 50 }, (_, i) => ({ workspaceId: "acme", email: `many${i}@elsewhere.test`, confirmedAt: new Date() })),
+    );
+    expect(await changelogRecipients(db, WS, [1], ADMIN)).toHaveLength(MAX_RECIPIENTS_PER_EVENT);
+  });
+});
+
+describe("changelog confirm links", () => {
+  it("confirm a pending signup once and do nothing after an unsubscribe", async () => {
+    await db.insert(schema.changelogSubscriber).values({ workspaceId: "acme", email: "new@elsewhere.test" });
+    expect(await confirmPending(db, "acme", "new@elsewhere.test")).toBe(true);
+    expect((await changelogRecipients(db, WS, [], ADMIN)).map((r) => r.email)).toContain("new@elsewhere.test");
+
+    await optOut(db, "acme", "new@elsewhere.test", "changelog");
+    // Replaying the old link must not put them back on the list.
+    expect(await confirmPending(db, "acme", "new@elsewhere.test")).toBe(false);
+    expect((await changelogRecipients(db, WS, [], ADMIN)).map((r) => r.email)).not.toContain("new@elsewhere.test");
   });
 });
 

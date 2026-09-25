@@ -3,7 +3,7 @@
 // their handlers.
 import { changelogSubscriber, comment, emailOptout, post, user, vote } from "@openheard/db";
 import type { Db, EmailKind } from "@openheard/db";
-import { and, eq, inArray, isNotNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull } from "drizzle-orm";
 
 import { DEMO_ADMIN_ID, isDemo } from "./demo";
 import { type SendResult, sendEmail } from "./email";
@@ -33,13 +33,24 @@ export function pickRecipients(candidates: Candidate[], ex: Exclusions): Candida
   return out;
 }
 
-// Everyone with an account who voted on, commented on or wrote these posts.
+// A Worker invocation has a bounded number of outbound calls and waitUntil
+// gets about 30 seconds, so one event sends to at most this many people.
+// Recipient lists are cut to this before any email is signed or rendered.
+export const MAX_RECIPIENTS_PER_EVENT = 300;
+// Rows read per source before deduping, so a huge list never loads whole.
+const CANDIDATE_LIMIT = MAX_RECIPIENTS_PER_EVENT * 4;
+
+// Everyone with a verified account who voted on, commented on or wrote these
+// posts. Unverified addresses (password sign-ups not yet confirmed, imported
+// authors) never get mail: nobody proved they own the inbox.
 export async function followersOf(db: Db, postIds: number[]): Promise<Candidate[]> {
   if (!postIds.length) return [];
+  const cols = { userId: user.id, email: user.email };
+  const verified = eq(user.emailVerified, true);
   const [authors, voters, commenters] = await Promise.all([
-    db.select({ userId: user.id, email: user.email }).from(post).innerJoin(user, eq(user.id, post.authorId)).where(inArray(post.id, postIds)),
-    db.select({ userId: user.id, email: user.email }).from(vote).innerJoin(user, eq(user.id, vote.userId)).where(inArray(vote.postId, postIds)),
-    db.select({ userId: user.id, email: user.email }).from(comment).innerJoin(user, eq(user.id, comment.authorId)).where(inArray(comment.postId, postIds)),
+    db.select(cols).from(post).innerJoin(user, eq(user.id, post.authorId)).where(and(inArray(post.id, postIds), verified)).orderBy(asc(user.id)).limit(CANDIDATE_LIMIT),
+    db.select(cols).from(vote).innerJoin(user, eq(user.id, vote.userId)).where(and(inArray(vote.postId, postIds), verified)).orderBy(asc(user.id)).limit(CANDIDATE_LIMIT),
+    db.select(cols).from(comment).innerJoin(user, eq(user.id, comment.authorId)).where(and(inArray(comment.postId, postIds), verified)).orderBy(asc(user.id)).limit(CANDIDATE_LIMIT),
   ]);
   return [...authors, ...voters, ...commenters];
 }
@@ -54,7 +65,13 @@ type WorkspaceLike = { id: string; statusEmails: boolean };
 export async function statusRecipients(db: Db, ws: WorkspaceLike, postIds: number[], actor: { id: string; email?: string | null }): Promise<Candidate[]> {
   if (isDemo(ws) || !ws.statusEmails) return [];
   const [candidates, out] = await Promise.all([followersOf(db, postIds), optedOut(db, ws.id, "status")]);
-  return pickRecipients(candidates, { actorId: actor.id, actorEmail: actor.email, optedOut: out });
+  return capped(pickRecipients(candidates, { actorId: actor.id, actorEmail: actor.email, optedOut: out }), "status-email");
+}
+
+function capped<T>(list: T[], label: string): T[] {
+  if (list.length <= MAX_RECIPIENTS_PER_EVENT) return list;
+  console.error(`[${label}] ${list.length} recipients, sending to the first ${MAX_RECIPIENTS_PER_EVENT}`);
+  return list.slice(0, MAX_RECIPIENTS_PER_EVENT);
 }
 
 export type ChangelogRecipient = Candidate & { follows: boolean; subscribed: boolean };
@@ -68,7 +85,9 @@ export async function changelogRecipients(db: Db, ws: WorkspaceLike, postIds: nu
     db
       .select({ email: changelogSubscriber.email })
       .from(changelogSubscriber)
-      .where(and(eq(changelogSubscriber.workspaceId, ws.id), isNotNull(changelogSubscriber.confirmedAt))),
+      .where(and(eq(changelogSubscriber.workspaceId, ws.id), isNotNull(changelogSubscriber.confirmedAt)))
+      .orderBy(asc(changelogSubscriber.email))
+      .limit(CANDIDATE_LIMIT),
     optedOut(db, ws.id, "changelog"),
   ]);
   const subscribers = pickRecipients(
@@ -79,15 +98,11 @@ export async function changelogRecipients(db: Db, ws: WorkspaceLike, postIds: nu
   const byEmail = new Map<string, ChangelogRecipient>();
   for (const f of followers) byEmail.set(f.email, { ...f, follows: true, subscribed: subscribed.has(f.email) });
   for (const s of subscribers) if (!byEmail.has(s.email)) byEmail.set(s.email, { ...s, follows: false, subscribed: true });
-  return [...byEmail.values()];
+  return capped([...byEmail.values()], "changelog-email");
 }
 
 // ---- sending ----
 
-// A Worker invocation has a bounded number of outbound calls and waitUntil
-// gets about 30 seconds, so one event sends to at most this many people.
-// Past that the rest are logged as skipped rather than silently dropped.
-export const MAX_RECIPIENTS_PER_EVENT = 300;
 const CONCURRENCY = 4;
 
 export type Outgoing = { to: string } & Rendered & { headers?: Record<string, string> };
@@ -157,7 +172,8 @@ async function unsubLinks(origin: string, workspaceId: string, email: string, ki
     const t = await signEmailToken({ k, w: workspaceId, e: email }, key);
     unsubs.push({ url: `${origin}/unsubscribe?t=${t}`, label: UNSUB_LABEL[k] });
     // The inbox's own unsubscribe button: one POST, no page, no sign-in.
-    header ??= { "List-Unsubscribe": `<${origin}/api/unsubscribe?t=${t}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" };
+    // The last kind wins, so a changelog email's button stops changelog mail.
+    header = { "List-Unsubscribe": `<${origin}/api/unsubscribe?t=${t}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" };
   }
   return { unsubs, headers: header };
 }

@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 
-import { Button } from "@openheard/ui/components/button";
 import { EmailLinkPage } from "@/components/email-link-page";
 import { unsubscribe } from "@/functions/notifications";
 
@@ -20,38 +19,18 @@ const WHAT = { status: "updates on posts you voted on, commented on or wrote", c
 function UnsubscribePage() {
   const { t } = Route.useSearch();
   const [result, setResult] = useState<Result | null>(null);
-  const [undone, setUndone] = useState(false);
-  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (!t) return setResult({ ok: false });
     unsubscribe({ data: { t } }).then(setResult, () => setResult({ ok: false }));
   }, [t]);
 
-  async function toggle(undo: boolean) {
-    setBusy(true);
-    try {
-      await unsubscribe({ data: { t, undo } });
-      setUndone(undo);
-    } finally {
-      setBusy(false);
-    }
-  }
-
   if (!result) return <EmailLinkPage title="Unsubscribing" body="One moment." />;
   if (!result.ok) return <EmailLinkPage title="This link does not work" body="It may have been copied incompletely. Use the link from the latest email." />;
-  const what = WHAT[result.kind];
-  return undone ? (
-    <EmailLinkPage title="You are back on the list" body={`${result.workspaceName} will email you ${what} again.`}>
-      <Button variant="secondary" disabled={busy} onClick={() => toggle(false)}>
-        Unsubscribe again
-      </Button>
-    </EmailLinkPage>
-  ) : (
-    <EmailLinkPage title="You are unsubscribed" body={`${result.workspaceName} will stop emailing you ${what}.`}>
-      <Button variant="secondary" disabled={busy} onClick={() => toggle(true)}>
-        Undo
-      </Button>
-    </EmailLinkPage>
+  return (
+    <EmailLinkPage
+      title="You are unsubscribed"
+      body={`${result.workspaceName} will stop emailing you ${WHAT[result.kind]}. Changed your mind? Turn it back on in your notification settings or the changelog page.`}
+    />
   );
 }
