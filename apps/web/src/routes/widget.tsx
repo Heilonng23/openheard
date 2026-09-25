@@ -262,7 +262,12 @@ function Widget() {
                 )}
               >
                 {t}
-                {t === "changelog" && unseen ? <span className="size-1.5 rounded-full bg-link" aria-label="new updates" /> : null}
+                {t === "changelog" && unseen ? (
+                  <>
+                    <span aria-hidden className="size-1.5 rounded-full bg-link" />
+                    <span className="sr-only">, new updates</span>
+                  </>
+                ) : null}
                 {tab === t ? <motion.span layoutId="widget-tab" transition={reduced ? { duration: 0 } : { type: "spring", stiffness: 500, damping: 40 }} className="absolute inset-x-0 -bottom-px h-[1.5px] bg-foreground" /> : null}
               </button>
             ))}
@@ -315,6 +320,35 @@ function Widget() {
 }
 
 function SignInSheet({ state, wsName, onContinue, onCancel }: { state: "ask" | "waiting" | "retry"; wsName: string; onContinue: () => void; onCancel: () => void }) {
+  // A modal sheet: focus moves in, Tab stays inside, and focus goes back to
+  // whatever asked for sign-in once it closes.
+  const sheet = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const before = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const buttons = () => [...(sheet.current?.querySelectorAll<HTMLElement>("button") ?? [])];
+    buttons()[0]?.focus();
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== "Tab") return;
+      const all = buttons();
+      const first = all[0];
+      const last = all[all.length - 1];
+      if (!first || !last) return;
+      const inside = sheet.current?.contains(document.activeElement);
+      if (e.shiftKey && (document.activeElement === first || !inside)) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && (document.activeElement === last || !inside)) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      if (before?.isConnected) before.focus();
+    };
+  }, []);
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -329,6 +363,7 @@ function SignInSheet({ state, wsName, onContinue, onCancel }: { state: "ask" | "
         animate={{ y: 0 }}
         exit={{ y: 24 }}
         transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+        ref={sheet}
         role="dialog"
         aria-modal="true"
         aria-labelledby="widget-sign-in"
