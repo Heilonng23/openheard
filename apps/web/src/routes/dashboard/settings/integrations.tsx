@@ -43,7 +43,8 @@ function Destination({ kind, saved, boards }: { kind: IntegrationKind; saved: Sa
   const copy = COPY[kind];
   const [url, setUrl] = useState("");
   const [events, setEvents] = useState<IntegrationEvent[]>((saved?.events as IntegrationEvent[]) ?? ["post.created", "post.status_changed"]);
-  const [boardIds, setBoardIds] = useState<string[]>(saved?.boardIds ?? []);
+  // Picks of since-deleted boards drop out, so saving is never stuck on them.
+  const [boardIds, setBoardIds] = useState<string[]>(() => (saved?.boardIds ?? []).filter((id) => boards.some((b) => b.id === id)));
   const [enabled, setEnabled] = useState(saved?.enabled ?? true);
   const [busy, setBusy] = useState<"save" | "test" | "remove" | null>(null);
   const [secret, setSecret] = useState<string | null>(null);
