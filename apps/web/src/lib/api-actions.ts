@@ -13,6 +13,7 @@ import { user } from "@openheard/db/schema/auth";
 import { and, desc, eq, inArray, isNotNull, like, or, sql, asc } from "drizzle-orm";
 import { ApiError } from "./api-auth";
 import { toAttachmentView } from "./attachments";
+import { notifyIntegrations } from "./integration-db";
 
 // Re-usable query logic for the HTTP API and MCP server.
 // Does NOT import from functions/* (those depend on TanStack server fns).
@@ -165,6 +166,7 @@ export async function mutateCreatePost(
     })
     .returning({ id: post.id });
 
+  notifyIntegrations(db, workspaceId, { type: "post.created", postId: created.id });
   return { id: created.id };
 }
 
@@ -201,6 +203,7 @@ export async function mutateSetStatus(
 
   await db.update(post).set({ status: statusKey, statusChangedAt: new Date() }).where(eq(post.id, postId));
   await db.insert(activity).values({ postId, actorId: null, type: "status", fromStatus: p.status, toStatus: statusKey });
+  notifyIntegrations(db, workspaceId, { type: "post.status_changed", postId, fromStatus: p.status });
   return { ok: true, status: statusKey };
 }
 
@@ -225,6 +228,7 @@ export async function mutateAddComment(
     .values({ postId, authorId: null, body: body.trim(), internal: false })
     .returning({ id: comment.id });
   await db.update(post).set({ commentCount: sql`${post.commentCount} + 1` }).where(eq(post.id, postId));
+  notifyIntegrations(db, workspaceId, { type: "comment.created", commentId: c.id });
   return { id: c.id };
 }
 
@@ -357,5 +361,6 @@ export async function mutatePublishChangelog(db: Db, workspaceId: string, entryI
     }
   }
 
+  notifyIntegrations(db, workspaceId, { type: "changelog.published", entryId });
   return { ok: true };
 }

@@ -10,7 +10,7 @@ export const isDemo = (workspace: { id: string } | null | undefined) => workspac
 // Settings that are hidden in the demo, matched against the slugs in
 // lib/admin-nav.ts. Billing is somebody's real card; the rest either shows
 // member emails or hands out credentials that outlive the nightly reset.
-export const DEMO_HIDDEN_SETTINGS = ["billing", "team", "access", "api-keys", "export"] as const;
+export const DEMO_HIDDEN_SETTINGS = ["billing", "team", "access", "api-keys", "integrations", "export"] as const;
 
 export function assertNotDemo(workspace: { id: string }) {
   if (isDemo(workspace)) throw new Error("Not available in the demo workspace");
