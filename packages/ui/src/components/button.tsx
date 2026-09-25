@@ -5,8 +5,10 @@ import { cva, type VariantProps } from "class-variance-authority";
 
 // One button. Every variant shares the radius (8px), the heights (30 / 34 /
 // 38) and the horizontal padding, so buttons line up wherever they sit. The
-// primary variant can carry a static inset arrow square. Widths never change
-// on hover or press.
+// primary variant can carry a static inset arrow square: a hugging button
+// keeps its label left of the arrow, a full-width one centres the label and
+// mirrors the arrow slot on the left so it sits in the true middle. Widths
+// never change on hover or press.
 const buttonVariants = cva(
   "group/button relative inline-flex shrink-0 items-center justify-center gap-2 overflow-hidden rounded-lg text-[13px] font-semibold whitespace-nowrap select-none outline-none transition-[transform,background-color] duration-100 ease-out focus-visible:ring-2 focus-visible:ring-ring/60 active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
@@ -32,13 +34,20 @@ const buttonVariants = cva(
         true: "",
         false: "",
       },
+      full: {
+        true: "w-full",
+        false: "",
+      },
     },
     compoundVariants: [
       { arrow: true, size: "sm", className: "pr-[34px]" },
       { arrow: true, size: "default", className: "pr-[38px]" },
       { arrow: true, size: "lg", className: "pr-[42px]" },
+      { arrow: true, full: true, size: "sm", className: "pl-[34px]" },
+      { arrow: true, full: true, size: "default", className: "pl-[38px]" },
+      { arrow: true, full: true, size: "lg", className: "pl-[42px]" },
     ],
-    defaultVariants: { variant: "primary", size: "default", arrow: false },
+    defaultVariants: { variant: "primary", size: "default", arrow: false, full: false },
   },
 );
 
@@ -66,15 +75,15 @@ const arrowBox = cva(
   },
 );
 
-type ButtonProps = ButtonPrimitive.Props & VariantProps<typeof buttonVariants> & { full?: boolean };
+type ButtonProps = ButtonPrimitive.Props & VariantProps<typeof buttonVariants>;
 
-function Button({ className, variant = "primary", size = "default", arrow = false, full, children, ...props }: ButtonProps) {
+function Button({ className, variant = "primary", size = "default", arrow = false, full = false, children, ...props }: ButtonProps) {
   const withArrow = !!arrow && size !== "icon" && size !== "icon-sm" && variant !== "link";
   return (
-    <ButtonPrimitive data-slot="button" className={cn(buttonVariants({ variant, size, arrow: withArrow }), full && "w-full", withArrow && "justify-start", className)} {...props}>
+    <ButtonPrimitive data-slot="button" className={cn(buttonVariants({ variant, size, arrow: withArrow, full: !!full }), withArrow && !full && "justify-start", className)} {...props}>
       {withArrow ? (
         <>
-          <span className={cn(full && "flex-1 text-left")}>{children}</span>
+          <span>{children}</span>
           <i aria-hidden className={arrowBox({ variant, size })}>
             <ArrowRightIcon weight="bold" className="size-[13px]" />
           </i>

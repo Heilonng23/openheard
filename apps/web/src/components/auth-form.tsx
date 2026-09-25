@@ -95,7 +95,7 @@ export function AuthForm({
           </Button>
           <div className="flex w-full items-center gap-3">
             <span className="h-px flex-1 bg-border" />
-            <span className="font-mono text-[11px] text-faint">or</span>
+            <span className="text-xs text-faint">or</span>
             <span className="h-px flex-1 bg-border" />
           </div>
         </>
