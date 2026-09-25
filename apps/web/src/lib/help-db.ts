@@ -45,10 +45,13 @@ export async function searchHelpArticles(db: Db, workspaceId: string, q: string,
     })
     .from(helpArticle)
     .leftJoin(helpCollection, eq(helpCollection.id, helpArticle.collectionId))
-    .where(and(published(workspaceId), sql`${score} >= ${Math.max(1, opts.minScore ?? 1)}`))
+    .where(published(workspaceId))
     .orderBy(desc(sql`score`), asc(helpArticle.position), asc(helpArticle.title))
     .limit(Math.min(Math.max(Math.trunc(Number.isFinite(opts.limit) ? opts.limit! : 8), 1), 25));
-  return rows.map((r) => ({
+  // The score is worked out once, for the sort. Rows come best first, so
+  // dropping weak ones after the limit leaves the same hits as filtering first.
+  const minScore = Math.max(1, opts.minScore ?? 1);
+  return rows.filter((r) => Number(r.score) >= minScore).map((r) => ({
     id: r.id,
     slug: r.slug,
     title: r.title,
