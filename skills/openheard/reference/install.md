@@ -59,5 +59,3 @@ OPENHEARD_LOCAL=1 bun run apps/web/src/scripts/make-api-key.ts --account you@exa
 claude mcp add --transport http openheard-local http://localhost:3001/api/mcp \
   --header "Authorization: Bearer oh_your_key_here"
 ```
-
-`bun run apps/web/src/scripts/mcp-e2e.ts http://localhost:3001 oh_...` runs the whole setup flow against a local server with an account key and prints a transcript.

@@ -75,8 +75,6 @@ claude mcp add --transport http openheard-local http://localhost:3001/api/mcp \
   --header "Authorization: Bearer oh_your_key_here"
 ```
 
-`bun run apps/web/src/scripts/mcp-e2e.ts http://localhost:3001 oh_...` runs the whole setup flow against a local server with an account key and prints a transcript.
-
 ## How the tools behave
 
 - **Names or ids.** Boards, statuses and tags accept their name or id; statuses also their label (`"In progress"`).
