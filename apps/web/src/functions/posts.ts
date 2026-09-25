@@ -470,11 +470,22 @@ export const searchPosts = createServerFn({ method: "GET" })
     const words = data.q.toLowerCase().match(/[a-z0-9]{4,}/g) ?? [];
     const terms = words.length ? words.slice(0, 5) : [data.q.toLowerCase()];
     const escaped = terms.map(escapeLike);
+    // Posts waiting for approval stay out of everyone's search but the team's, as on the board.
+    const reviewKeys = context.workspace.requireApproval && context.user?.role !== "admin"
+      ? (await listStatuses(db, context.workspace.id)).filter((s) => s.kind === "review").map((s) => s.key)
+      : [];
     const hits = sql.join(escaped.map((w) => sql`(lower(${post.title}) like ${"%" + w + "%"} escape '\\')`), sql` + `);
     return db
       .select({ id: post.id, title: post.title, voteCount: post.voteCount, status: post.status })
       .from(post)
-      .where(and(eq(post.workspaceId, context.workspace.id), sql`${post.mergedIntoId} is null`, or(...escaped.map((w) => like(post.title, `%${w}%`)))))
+      .where(
+        and(
+          eq(post.workspaceId, context.workspace.id),
+          sql`${post.mergedIntoId} is null`,
+          reviewKeys.length ? sql`${post.status} not in (${sql.join(reviewKeys.map((k) => sql`${k}`), sql`, `)})` : undefined,
+          or(...escaped.map((w) => like(post.title, `%${w}%`))),
+        ),
+      )
       .orderBy(desc(hits), desc(post.voteCount))
       .limit(8);
   });
