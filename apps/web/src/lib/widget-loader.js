@@ -26,6 +26,8 @@
   var focusOnReady = true;
   // While a post is sending, Esc and outside clicks leave the panel open.
   var busy = false;
+  // What had focus before the panel opened, for when there is no launcher to return to.
+  var opener = null;
 
   function seen() {
     try {
@@ -131,10 +133,13 @@
     launcher.setAttribute("aria-expanded", String(isOpen));
     badge();
     if (isOpen) {
+      opener = d.activeElement !== host && d.activeElement !== d.body ? d.activeElement : null;
       post({ type: "openheard:open", fresh: true });
       if (frame && ready) frame.focus({ preventScroll: true });
     } else if (d.activeElement === host) {
-      launcher.focus();
+      if (showLauncher) launcher.focus();
+      else if (opener && opener.isConnected && opener.focus) opener.focus();
+      else host.blur();
     }
   }
 
