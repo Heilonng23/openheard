@@ -45,6 +45,8 @@ export const workspace = sqliteTable("workspace", {
   showChangelog: integer("show_changelog", { mode: "boolean" }).notNull().default(true),
   // Space-separated origins allowed to frame /widget; null means any site.
   widgetOrigins: text("widget_origins"),
+  // Email voters, commenters and the author when a post changes status.
+  statusEmails: integer("status_emails", { mode: "boolean" }).notNull().default(true),
   // App-side default: SQLite cannot ALTER TABLE ADD a column with a function default.
   createdAt: integer("created_at", { mode: "timestamp_ms" })
     .notNull()
@@ -278,6 +280,9 @@ export const changelogEntry = sqliteTable("changelog_entry", {
   version: text("version"),
   authorId: text("author_id").references(() => user.id, { onDelete: "set null" }),
   publishedAt: integer("published_at", { mode: "timestamp_ms" }),
+  // Set once the entry has been emailed, so editing a published entry does
+  // not send it again.
+  emailedAt: integer("emailed_at", { mode: "timestamp_ms" }),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).default(now).notNull(),
 });
 
@@ -292,6 +297,39 @@ export const changelogPost = sqliteTable(
       .references(() => post.id, { onDelete: "cascade" }),
   },
   (t) => [primaryKey({ columns: [t.entryId, t.postId] }), uniqueIndex("changelog_post_uidx").on(t.entryId, t.postId)],
+);
+
+// People who asked for changelog emails from the public page. A row with no
+// confirmedAt is waiting on the double opt-in link.
+export const changelogSubscriber = sqliteTable(
+  "changelog_subscriber",
+  {
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspace.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    confirmedAt: integer("confirmed_at", { mode: "timestamp_ms" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).default(now).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.workspaceId, t.email] })],
+);
+
+export const EMAIL_KINDS = ["status", "changelog"] as const;
+export type EmailKind = (typeof EMAIL_KINDS)[number];
+
+// Addresses that turned a kind of email off for a workspace, from settings or
+// an unsubscribe link. Keyed by address so it covers people without accounts.
+export const emailOptout = sqliteTable(
+  "email_optout",
+  {
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspace.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    kind: text("kind", { enum: EMAIL_KINDS }).notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).default(now).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.workspaceId, t.email, t.kind] })],
 );
 
 export const workspaceRelations = relations(workspace, ({ many }) => ({ members: many(membership), boards: many(board) }));

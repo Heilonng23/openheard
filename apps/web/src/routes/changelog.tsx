@@ -11,6 +11,7 @@ import { SkeletonSwap } from "@/components/interior/skeleton-swap";
 import { RailLabel, Shell } from "@/components/shell";
 import { ChangelogSkeleton, ErrorState } from "@/components/states";
 import { deleteChangelog, listChangelog, saveChangelog } from "@/functions/changelog";
+import { subscribeChangelog } from "@/functions/notifications";
 import { searchPosts } from "@/functions/posts";
 import { cn } from "@openheard/ui/lib/utils";
 
@@ -60,18 +61,7 @@ function ChangelogPage() {
       <section className="flex flex-col gap-2.5 px-2.5">
         <RailLabel>Get updates</RailLabel>
         <p className="-mt-1 text-[13px] leading-[1.5] text-muted-foreground">One email when something ships. No digest, no marketing.</p>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            toast("Email updates are on the roadmap. RSS works today.");
-          }}
-          className="flex h-[34px] items-center gap-1.5 rounded-lg border border-input bg-card pr-1 pl-2.5 focus-within:border-ring/60"
-        >
-          <input type="email" placeholder="you@company.com" aria-label="Email address" className="min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-faint" />
-          <button type="submit" className="inline-flex size-[26px] items-center justify-center rounded-md bg-accent text-foreground hover:bg-input" aria-label="Subscribe">
-            <ArrowRightIcon weight="bold" className="size-3" />
-          </button>
-        </form>
+        <SubscribeBox />
         <a href="/changelog.rss" className="inline-flex items-center gap-1.5 text-xs text-faint hover:text-muted-foreground">
           <RssIcon className="size-3.5" /> RSS feed
         </a>
@@ -149,6 +139,51 @@ function ChangelogPage() {
       {admin ? <EntryDialog entry={editing} onClose={() => setEditing(null)} /> : null}
     </Shell>
     </SkeletonSwap>
+  );
+}
+
+function SubscribeBox() {
+  const [email, setEmail] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (sent) return <p className="text-[13px] leading-[1.5] text-foreground" aria-live="polite">Check your inbox for a link to confirm.</p>;
+  return (
+    <>
+      <form
+        onSubmit={async (e) => {
+          e.preventDefault();
+          setBusy(true);
+          setError(null);
+          try {
+            await subscribeChangelog({ data: { email } });
+            setSent(true);
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : "";
+            setError(msg.includes("valid email") ? "Enter a valid email" : msg || "Could not subscribe");
+          } finally {
+            setBusy(false);
+          }
+        }}
+        className="flex h-[34px] items-center gap-1.5 rounded-lg border border-input bg-card pr-1 pl-2.5 focus-within:border-ring/60"
+      >
+        <input
+          type="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="you@company.com"
+          aria-label="Email address"
+          aria-invalid={error ? true : undefined}
+          className="min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-faint"
+        />
+        <button type="submit" disabled={busy} className="inline-flex size-[26px] items-center justify-center rounded-md bg-accent text-foreground hover:bg-input disabled:opacity-50" aria-label="Subscribe">
+          <ArrowRightIcon weight="bold" className="size-3" />
+        </button>
+      </form>
+      {error ? <p className="-mt-1 text-xs text-destructive" role="alert">{error}</p> : null}
+    </>
   );
 }
 

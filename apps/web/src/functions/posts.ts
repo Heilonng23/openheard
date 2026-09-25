@@ -10,6 +10,7 @@ import { z } from "zod";
 import { AttachmentGoneError, claimQuery, reserveAttachments } from "@/lib/attachment-db";
 import { MAX_IMAGES, toAttachmentView } from "@/lib/attachments";
 import { invalidate } from "@/lib/kv-cache";
+import { buildStatusEmails, deliver, inBackground } from "@/lib/notify";
 import { requireAdmin, requireUser, sessionMiddleware, widgetSessionMiddleware } from "@/lib/session";
 
 function originFromRequest(): string {
@@ -363,7 +364,19 @@ export const setStatus = createServerFn({ method: "POST" })
     await db.update(post).set({ status: data.status, statusChangedAt: new Date() }).where(eq(post.id, data.postId));
     await db.insert(activity).values({ postId: data.postId, actorId: u.id, type: "status", fromStatus: current.status, toStatus: data.status, note: data.note || null });
     void invalidate(`workspace:${context.workspace.id}`);
-    purgeWorkspaceCache(originFromRequest(), [data.postId]);
+    const origin = originFromRequest();
+    purgeWorkspaceCache(origin, [data.postId]);
+    const ws = context.workspace;
+    await inBackground("status-email", async () => {
+      const statuses = await listStatuses(db, ws.id);
+      const label = (key: string) => {
+        const s = statuses.find((x) => x.key === key);
+        return { label: s?.label ?? key, color: s?.color ?? "#999999" };
+      };
+      const [p] = await db.select({ title: post.title }).from(post).where(eq(post.id, data.postId));
+      const change = { postId: data.postId, postTitle: p?.title ?? "", from: label(current.status), to: label(data.status), note: data.note };
+      await deliver(await buildStatusEmails({ db, workspace: ws, origin, actor: u, change }), undefined, "status-email");
+    });
     return { ok: true };
   });
 

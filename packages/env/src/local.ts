@@ -58,6 +58,23 @@ function localBucket() {
   };
 }
 
+// The Email binding's shape: each message is logged and written to
+// apps/web/.local-emails as an .html file you can open in a browser.
+function localMailbox() {
+  const dir = new URL("../../../apps/web/.local-emails/", import.meta.url);
+  let n = 0;
+  return {
+    async send(m: { to: string; subject: string; html: string; text: string }) {
+      const { mkdir, writeFile } = await import("node:fs/promises");
+      await mkdir(dir, { recursive: true });
+      const name = `${Date.now()}-${++n}-${m.subject.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 50)}.html`;
+      await writeFile(new URL(name, dir), m.html);
+      console.log(`[email] local: ${m.subject} -> ${m.to}\n  ${m.text.replace(/\n/g, "\n  ")}\n  saved apps/web/.local-emails/${name}`);
+      return { messageId: name };
+    },
+  };
+}
+
 // The Rate Limiting binding's shape, counted in memory per process.
 function localLimiter(limit: number, periodSeconds: number) {
   const hits = new Map<string, { count: number; resets: number }>();
@@ -76,7 +93,7 @@ export const env = {
   ...process.env,
   DB: undefined,
   DB_LOCAL: typeof window === "undefined" ? drizzle(createClient({ url }), { schema }) : undefined,
-  EMAIL: undefined,
+  EMAIL: typeof window === "undefined" ? localMailbox() : undefined,
   UPLOADS: typeof window === "undefined" ? localBucket() : undefined,
   UPLOAD_USER_LIMIT: localLimiter(10, 60),
   UPLOAD_IP_LIMIT: localLimiter(30, 60),
