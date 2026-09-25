@@ -9,7 +9,6 @@ import { AuthForm } from "@/components/auth-form";
 import Logo from "@/components/logo";
 import { checkSlug, createWorkspace } from "@/functions/admin";
 import { getUser } from "@/functions/get-user";
-import { getWorkspaceMemberCount } from "@/functions/invites";
 import { consumePendingAction } from "@/lib/pending-action";
 import { workspaceUrl } from "@/lib/workspace-url";
 
@@ -56,7 +55,6 @@ export const Route = createFileRoute("/start")({
     }
     return { user };
   },
-  loader: () => getWorkspaceMemberCount(),
   head: () => ({ meta: [{ title: "Get started · openheard" }] }),
   component: StartPage,
 });
@@ -77,7 +75,6 @@ async function finishOnboarding(data: OnboardingData, rootDomain: string | null)
 function StartPage() {
   const router = useRouter();
   const { user } = Route.useRouteContext();
-  const memberCount = Route.useLoaderData();
   const rootData = useLoaderData({ from: "__root__" });
   const rootDomain = rootData.rootDomain;
   const hasGoogle = rootData.googleSignIn;
@@ -316,7 +313,6 @@ function StartPage() {
               callbackURL="/start"
               onSuccess={afterAuth}
               onGoogleClick={onGoogleClick}
-              showFirstAccountHint={memberCount === 0}
             />
           </div>
         )}

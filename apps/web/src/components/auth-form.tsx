@@ -173,7 +173,7 @@ export function AuthForm({
       </button>
 
       {showFirstAccountHint ? (
-        <p className="text-center text-xs text-faint">The first account on a fresh install becomes the admin.</p>
+        <p className="text-center text-xs text-faint">You're setting up this install. This account will be the admin.</p>
       ) : null}
     </div>
   );

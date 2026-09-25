@@ -83,7 +83,7 @@ function LoginPage() {
           hasGoogle={hasGoogle}
           callbackURL={callbackURL}
           onSuccess={afterAuth}
-          showFirstAccountHint={memberCount === 0}
+          showFirstAccountHint={!root.rootDomain && memberCount === 0}
         />
       </div>
     </main>
