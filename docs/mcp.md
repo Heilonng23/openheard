@@ -118,13 +118,13 @@ Every workspace tool also takes `workspace` (account keys only).
 | `get_post` | Read one post in full: body, public comments, status history, images and similar posts that may be duplicates. | read |
 | `create_post` | Create a feedback post on a board, for example from a support email or a call note. | write |
 | `update_post` | Edit a post: title, body, board, tags, ETA or pin. | write |
-| `set_status` | Move a post to a status (e.g. | write |
-| `bulk_set_status` | Move several posts to one status at once, e.g. | write |
+| `set_status` | Move a post to a status, e.g. planned, progress, done or closed. Voters, commenters and the author are emailed if status emails are on. | write |
+| `bulk_set_status` | Move several posts to one status at once, e.g. after triage. Failures are listed without stopping the rest. | write |
 | `merge_posts` | Merge a duplicate into the post that stays. | needs `confirm: true` |
 | `delete_post` | Delete a post with its votes and comments, for spam or test posts. | needs `confirm: true` |
 | `vote` | Vote on a post as the key's owner, for example when a customer asked for it in a call. | write |
 | `add_comment` | Post a public reply on a post as the key's owner. | write |
-| `add_internal_note` | Add a note on a post that only the team sees in the dashboard, e.g. | write |
+| `add_internal_note` | Add a note on a post that only the team sees in the dashboard, e.g. customer names, revenue or links to tickets. | write |
 | `list_comments` | List a post's comments oldest first, including internal notes (marked internal: true). | read |
 
 ### Boards, statuses and tags
@@ -132,7 +132,7 @@ Every workspace tool also takes `workspace` (account keys only).
 | Tool | What it does | Kind |
 |------|--------------|------|
 | `list_boards` | List boards with their ids and post counts. | read |
-| `create_board` | Add a board, e.g. | write |
+| `create_board` | Add a board, e.g. 'Bugs' or 'Integrations'. Posts live on exactly one board. | write |
 | `update_board` | Rename a board or change its description. | write |
 | `delete_board` | Delete an empty board. | needs `confirm: true` |
 | `list_statuses` | List statuses in board order with key, label, colour, kind (open, review, planned, progress, done, closed), whether they show on the roadmap, and post counts. | read |
@@ -141,7 +141,7 @@ Every workspace tool also takes `workspace` (account keys only).
 | `delete_status` | Delete a status no post uses. | needs `confirm: true` |
 | `reorder_statuses` | Set the status order used on the board and roadmap. | write |
 | `list_tags` | List tags with their ids. | read |
-| `create_tag` | Add a tag for grouping posts across boards, e.g. | write |
+| `create_tag` | Add a tag for grouping posts across boards, e.g. 'mobile' or 'enterprise'. Creating an existing tag returns it. | write |
 | `update_tag` | Rename a tag. | write |
 | `delete_tag` | Delete a tag and remove it from every post. | needs `confirm: true` |
 
