@@ -106,6 +106,16 @@ export async function recordHelpVote(db: Db, articleId: number, voter: string, h
   ]);
 }
 
+// Deletes one article and its answers. Foreign keys are not enforced on every
+// SQLite connection, so the answers go explicitly rather than by cascade.
+export async function removeHelpArticle(db: Db, workspaceId: string, articleId: number) {
+  const owned = and(eq(helpArticle.id, articleId), eq(helpArticle.workspaceId, workspaceId));
+  await db.batch([
+    db.delete(helpArticleFeedback).where(sql`${helpArticleFeedback.articleId} in (select ${helpArticle.id} from ${helpArticle} where ${owned})`),
+    db.delete(helpArticle).where(owned),
+  ]);
+}
+
 // One article by slug. Drafts only when the caller is on the team.
 export async function helpArticleBySlug(db: Db, workspaceId: string, slug: string, opts: { drafts?: boolean } = {}) {
   const [row] = await db

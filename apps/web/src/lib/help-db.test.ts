@@ -9,7 +9,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import { eq } from "drizzle-orm";
 
-import { helpArticleBySlug, helpCenterIndex, helpNav, publishedHelpCount, recordHelpVote, searchHelpArticles } from "./help-db";
+import { helpArticleBySlug, helpCenterIndex, helpNav, publishedHelpCount, recordHelpVote, removeHelpArticle, searchHelpArticles } from "./help-db";
 
 const MIGRATIONS = new URL("../../../../packages/db/migrations/", import.meta.url).pathname;
 
@@ -161,5 +161,25 @@ describe("recordHelpVote", () => {
     await db.update(schema.helpArticle).set({ helpfulCount: 40, unhelpfulCount: 7 }).where(eq(schema.helpArticle.id, id));
     await recordHelpVote(db, id, "u:1", false);
     expect(await counts()).toEqual([0, 1]);
+  });
+});
+
+describe("removeHelpArticle", () => {
+  it("takes the article's answers with it even without foreign keys", async () => {
+    const db = await freshDb();
+    await seed(db);
+    await (db as unknown as { run: (q: string) => Promise<unknown> }).run("PRAGMA foreign_keys = OFF");
+    const invoices = (await helpArticleBySlug(db, "acme", "invoices"))!.id;
+    const csv = (await helpArticleBySlug(db, "acme", "export-csv"))!.id;
+    await recordHelpVote(db, invoices, "u:1", true);
+    await recordHelpVote(db, csv, "u:1", true);
+
+    await removeHelpArticle(db, "other", invoices);
+    expect(await helpArticleBySlug(db, "acme", "invoices")).not.toBeNull();
+
+    await removeHelpArticle(db, "acme", invoices);
+    expect(await helpArticleBySlug(db, "acme", "invoices")).toBeNull();
+    const left = await db.select().from(schema.helpArticleFeedback);
+    expect(left.map((r) => r.articleId)).toEqual([csv]);
   });
 });

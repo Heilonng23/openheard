@@ -6,7 +6,7 @@ import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { HELP_ICONS, HELP_SLUG, networkOf, uniqueSlug } from "@/lib/help";
-import { helpArticleBySlug, helpCenterIndex, helpCollectionBySlug, helpNav, recordHelpVote, searchHelpArticles } from "@/lib/help-db";
+import { helpArticleBySlug, helpCenterIndex, helpCollectionBySlug, helpNav, recordHelpVote, removeHelpArticle, searchHelpArticles } from "@/lib/help-db";
 import { invalidate } from "@/lib/kv-cache";
 import { rateLimit } from "@/lib/rate-limit";
 import { requireAdmin, sessionMiddleware, type SessionUser } from "@/lib/session";
@@ -188,7 +188,7 @@ export const deleteHelpArticle = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ id: z.number().int() }).parse(d))
   .handler(async ({ data, context }) => {
     requireAdmin(context.user);
-    await createDb().delete(helpArticle).where(and(eq(helpArticle.id, data.id), eq(helpArticle.workspaceId, context.workspace.id)));
+    await removeHelpArticle(createDb(), context.workspace.id, data.id);
     await refreshShell(context.workspace.id);
     return { ok: true };
   });
