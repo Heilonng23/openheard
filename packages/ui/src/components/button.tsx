@@ -66,15 +66,19 @@ const arrowBox = cva(
   },
 );
 
+// A full-width arrow button pads its left side like its right, so the label
+// sits in the middle of the button rather than beside the arrow.
+const BALANCE: Record<string, string> = { sm: "pl-[34px]", default: "pl-[38px]", lg: "pl-[42px]" };
+
 type ButtonProps = ButtonPrimitive.Props & VariantProps<typeof buttonVariants> & { full?: boolean };
 
 function Button({ className, variant = "primary", size = "default", arrow = false, full, children, ...props }: ButtonProps) {
   const withArrow = !!arrow && size !== "icon" && size !== "icon-sm" && variant !== "link";
   return (
-    <ButtonPrimitive data-slot="button" className={cn(buttonVariants({ variant, size, arrow: withArrow }), full && "w-full", withArrow && "justify-start", className)} {...props}>
+    <ButtonPrimitive data-slot="button" className={cn(buttonVariants({ variant, size, arrow: withArrow }), full && "w-full", full && withArrow && BALANCE[size ?? "default"], className)} {...props}>
       {withArrow ? (
         <>
-          <span className={cn(full && "flex-1 text-left")}>{children}</span>
+          <span>{children}</span>
           <i aria-hidden className={arrowBox({ variant, size })}>
             <ArrowRightIcon weight="bold" className="size-[13px]" />
           </i>

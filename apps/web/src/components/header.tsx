@@ -40,7 +40,7 @@ export default function Header() {
           <>
             <div className="flex h-full items-center gap-3 md:gap-4">
               <Link to="/" className="flex items-center gap-2.5 text-[14px] font-semibold tracking-[-0.01em] text-foreground">
-                <Logo />
+                {data?.workspace.logoUrl ? <img src={data.workspace.logoUrl} alt="" className="size-6 rounded-md object-cover" /> : <Logo />}
                 <span className="hidden sm:inline">{data?.workspace.name ?? "openheard"}</span>
               </Link>
               <span className="hidden h-4 w-px bg-input lg:block" aria-hidden />

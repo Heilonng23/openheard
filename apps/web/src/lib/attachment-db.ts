@@ -1,8 +1,8 @@
 // Storing, claiming and deleting image attachments. Server only: it pulls in
 // the database and the R2 binding, so routes reach it through a dynamic import.
-import { attachment, type Db } from "@openheard/db";
+import { attachment, workspace, type Db } from "@openheard/db";
 import { env } from "@openheard/env/server";
-import { and, eq, inArray, isNull, lt, sql, type SQL } from "drizzle-orm";
+import { and, eq, inArray, isNull, like, lt, sql, type SQL } from "drizzle-orm";
 
 import { MAX_IMAGE_BYTES, MAX_IMAGES, formatBytes, imageSize, sniffImageType, toAttachmentView } from "./attachments";
 
@@ -129,10 +129,13 @@ export function sweepUnclaimed(db: Db, olderThan = DAY) {
 // Objects whose row is gone. Posts, boards and workspaces cascade their rows
 // away in the database, which cannot reach into the bucket, so the nightly
 // run deletes what is left behind. Fresh objects are skipped: their row may
-// be a moment behind the write.
+// be a moment behind the write. A workspace's current logo lives in the
+// same bucket with no attachment row, so it counts as known too.
 export async function sweepOrphans(db: Db, olderThan = DAY) {
   const bucket = uploadsBucket();
   if (!bucket) return 0;
+  const logos = await db.select({ id: workspace.id, logoUrl: workspace.logoUrl }).from(workspace).where(like(workspace.logoUrl, "/logo/%"));
+  const logoKeys = new Set(logos.map((w) => objectKey(w.id, w.logoUrl!.slice("/logo/".length))));
   const cutoff = Date.now() - olderThan;
   let cursor: string | undefined;
   let removed = 0;
@@ -146,7 +149,7 @@ export async function sweepOrphans(db: Db, olderThan = DAY) {
       const keys = old.slice(i, i + D1_CHUNK).map((o) => o.key);
       for (const r of await db.select({ key: attachment.key }).from(attachment).where(inArray(attachment.key, keys))) known.add(r.key);
     }
-    const gone = old.map((o) => o.key).filter((k) => !known.has(k));
+    const gone = old.map((o) => o.key).filter((k) => !known.has(k) && !logoKeys.has(k));
     if (gone.length) await bucket.delete(gone);
     removed += gone.length;
   } while (cursor);
