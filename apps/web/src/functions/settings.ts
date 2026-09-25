@@ -1,5 +1,6 @@
-import { API_KEY_SCOPES, apiKey, board, createDb, membership, post, postTag, tag } from "@openheard/db";
+import { apiKey, board, createDb, membership, post, postTag, tag } from "@openheard/db";
 
+import { apiKeyInput } from "@/lib/api-auth";
 import { purgeWorkspaceCache } from "@/lib/cache";
 import { listStatuses } from "@/lib/status-db";
 import { user } from "@openheard/db/schema/auth";
@@ -13,7 +14,7 @@ import { assertNotDemo, assertNotDemoIdentity } from "@/lib/demo";
 import * as setup from "@/lib/ops/setup";
 import { updateWorkspace } from "@/lib/ops/workspace";
 import { adminOps } from "@/lib/ops/session";
-import { requireAdmin, requireUser, sessionMiddleware } from "@/lib/session";
+import { requireAdmin, requireUser, rootDomain, sessionMiddleware } from "@/lib/session";
 
 const slug = (s: string) =>
   s
@@ -132,18 +133,20 @@ export const listApiKeys = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     requireAdmin(context.user);
     assertNotDemo(context.workspace);
-    return createDb()
+    const keys = await createDb()
       .select({ id: apiKey.id, name: apiKey.name, prefix: apiKey.prefix, scope: apiKey.scope, createdAt: apiKey.createdAt, lastUsedAt: apiKey.lastUsedAt, revokedAt: apiKey.revokedAt })
       .from(apiKey)
       .where(eq(apiKey.workspaceId, context.workspace.id))
       .orderBy(apiKey.createdAt);
+    // Keys for all workspaces connect at the root domain, not this workspace's subdomain.
+    return { keys, workspaceName: context.workspace.name, rootDomain: await rootDomain() };
   });
 
 // Returns the plain key exactly once. Only the hash is kept. An account key
 // acts for its creator in every workspace they administer, this one first.
 export const createApiKey = createServerFn({ method: "POST" })
   .middleware([sessionMiddleware])
-  .validator((d: unknown) => z.object({ name: z.string().trim().min(1).max(40), scope: z.enum(API_KEY_SCOPES).default("workspace") }).parse(d))
+  .validator((d: unknown) => apiKeyInput.parse(d))
   .handler(async ({ data, context }) => {
     const u = requireAdmin(context.user);
     assertNotDemo(context.workspace);

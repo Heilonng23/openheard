@@ -1,7 +1,8 @@
-import { apiKey, createDb, membership, workspace } from "@openheard/db";
+import { API_KEY_SCOPES, apiKey, createDb, membership, workspace } from "@openheard/db";
 import type { ApiKeyScope, Db } from "@openheard/db";
 import { user } from "@openheard/db/schema/auth";
 import { and, eq, isNull } from "drizzle-orm";
+import { z } from "zod";
 
 import type { Actor, OpCtx } from "./ops/context";
 
@@ -20,6 +21,10 @@ async function sha256(s: string) {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
   return Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, "0")).join("");
 }
+
+// A new key reaches every workspace its maker administers unless it is
+// limited to the one it was made in.
+export const apiKeyInput = z.object({ name: z.string().trim().min(1).max(40), scope: z.enum(API_KEY_SCOPES).default("account") });
 
 export async function authenticateApiKey(request: Request, db: Db = createDb()): Promise<ApiContext> {
   const auth = request.headers.get("authorization");
@@ -65,7 +70,7 @@ export async function resolveApiWorkspace(ctx: ApiContext, slug?: string | null)
   const { db } = ctx;
   const target = slug?.trim().toLowerCase() || ctx.workspaceId;
   if (ctx.scope === "workspace" && target !== ctx.workspaceId) {
-    throw new ApiError(403, `This key only reaches workspace '${ctx.workspaceId}'. Use an account key (Settings > API keys) to work across workspaces.`);
+    throw new ApiError(403, `This key only reaches workspace '${ctx.workspaceId}'. To work across workspaces, create a key in Settings > API keys with 'Limit to this workspace' off.`);
   }
   let actor: Actor | null = null;
   if (ctx.userId) {
@@ -129,6 +134,15 @@ export function apiJson(data: unknown, status = 200) {
     status,
     headers: { "content-type": "application/json" },
   });
+}
+
+// A response for a call that acted on one workspace: the body and a header
+// both name it, so a call without ?workspace= is never ambiguous.
+export function apiJsonFor(workspaceId: string, data: unknown, status = 200) {
+  const body = data && typeof data === "object" && !Array.isArray(data) && !("workspace" in data) ? { workspace: workspaceId, ...data } : data;
+  const res = apiJson(body, status);
+  res.headers.set("openheard-workspace", workspaceId);
+  return res;
 }
 
 export function apiErrorResponse(err: unknown) {

@@ -10,12 +10,14 @@ import { eq } from "drizzle-orm";
 import { readFileSync, readdirSync } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@openheard/env/server", () => ({ env: { BETTER_AUTH_SECRET: "test-secret-not-a-real-one-32chars" } }));
+// ROOT_DOMAIN is set only by the root-domain tests.
+const env = vi.hoisted(() => ({ BETTER_AUTH_SECRET: "test-secret-not-a-real-one-32chars" }) as { BETTER_AUTH_SECRET: string; ROOT_DOMAIN?: string });
+vi.mock("@openheard/env/server", () => ({ env }));
 vi.mock("@openheard/db", async () => ({ ...(await import("@openheard/db/schema/index")) }));
 // Invite emails go nowhere in tests.
 vi.mock("@/lib/email", () => ({ sendInviteEmail: vi.fn(async () => undefined), sendEmail: vi.fn(async () => ({ ok: true })) }));
 
-import { authenticateApiKey } from "@/lib/api-auth";
+import { apiKeyInput, authenticateApiKey } from "@/lib/api-auth";
 
 import { createMcpServer } from "./server";
 
@@ -74,10 +76,10 @@ async function seed() {
   await makeKey("annacct", "acme", "account", "ann");
 }
 
-async function connect(key: string) {
-  const request = new Request("http://localhost:3000/api/mcp", { headers: { authorization: `Bearer ${key}` } });
+async function connect(key: string, origin = "http://localhost:3000") {
+  const request = new Request(`${origin}/api/mcp`, { headers: { authorization: `Bearer ${key}` } });
   const api = await authenticateApiKey(request, db);
-  const server = createMcpServer(api, "http://localhost:3000");
+  const server = createMcpServer(api, origin);
   const [a, b] = InMemoryTransport.createLinkedPair();
   await server.connect(a);
   const client = new Client({ name: "test", version: "1" });
@@ -90,6 +92,7 @@ async function connect(key: string) {
 }
 
 beforeEach(async () => {
+  delete env.ROOT_DOMAIN;
   db = await freshDb();
   await seed();
 });
@@ -127,7 +130,7 @@ describe("workspace keys", () => {
     const call = await connect(keys.acmekey!);
     const r = await call("create_workspace", { name: "Newco board" });
     expect(r.isError).toBe(true);
-    expect(r.text).toContain("account key");
+    expect(r.text).toContain("Limit to this workspace");
   });
 });
 
@@ -135,7 +138,8 @@ describe("account keys", () => {
   it("list and reach the workspaces their owner administers", async () => {
     const call = await connect(keys.annacct!);
     const list = await call("list_workspaces");
-    expect(list.data.workspaces.map((w: { id: string }) => w.id)).toEqual(["acme", "beta", "other"]);
+    // Only the ones it can act on: Ann is just a member of other.
+    expect(list.data.workspaces.map((w: { id: string }) => w.id)).toEqual(["acme", "beta"]);
     const beta = await call("create_board", { workspace: "beta", name: "Bugs" });
     expect(beta.data).toMatchObject({ id: "beta-bugs", created: true });
   });
@@ -174,6 +178,66 @@ describe("account keys", () => {
   });
 });
 
+describe("keys on the root domain", () => {
+  const ROOT = "https://openheard.com";
+
+  it("are made for all workspaces unless limited", () => {
+    expect(apiKeyInput.parse({ name: "Claude" }).scope).toBe("account");
+    expect(apiKeyInput.parse({ name: "Script", scope: "workspace" }).scope).toBe("workspace");
+  });
+
+  it("account keys list admin workspaces and act on the home one by default", async () => {
+    env.ROOT_DOMAIN = "openheard.com";
+    const call = await connect(keys.annacct!, ROOT);
+    const list = await call("list_workspaces");
+    expect(list.data.home).toBe("acme");
+    expect(list.data.workspaces).toEqual([
+      expect.objectContaining({ id: "acme", url: "https://acme.openheard.com/" }),
+      expect.objectContaining({ id: "beta", url: "https://beta.openheard.com/" }),
+    ]);
+    const home = await call("list_posts", { sort: "new" });
+    expect(home.data.workspace).toBe("acme");
+    expect(home.data.posts.map((p: { id: number }) => p.id).sort()).toEqual([1, 2]);
+  });
+
+  it("account keys create a post in a second workspace, named in the reply", async () => {
+    env.ROOT_DOMAIN = "openheard.com";
+    const call = await connect(keys.annacct!, ROOT);
+    const r = await call("create_post", { workspace: "beta", title: "Export to CSV", board: "Feature requests" });
+    expect(r.isError, r.text).toBe(false);
+    expect(r.data.workspace).toBe("beta");
+    expect(r.data.url).toContain("https://beta.openheard.com/p/");
+    const rows = await db.select().from(schema.post).where(eq(schema.post.workspaceId, "beta"));
+    expect(rows.map((p) => p.title)).toEqual(["Export to CSV"]);
+  });
+
+  it("account keys never reach a workspace where the owner is not an admin", async () => {
+    const call = await connect(keys.annacct!, ROOT);
+    for (const workspace of ["other", "missing"]) {
+      const r = await call("list_posts", { workspace });
+      expect(r.isError).toBe(true);
+    }
+    const write = await call("set_status", { workspace: "other", post_id: 3, status: "planned" });
+    expect(write.isError).toBe(true);
+    const [p] = await db.select().from(schema.post).where(eq(schema.post.id, 3));
+    expect(p!.status).toBe("open");
+  });
+
+  it("workspace keys stay confined to their own workspace", async () => {
+    const call = await connect(keys.acmekey!, ROOT);
+    const list = await call("list_workspaces");
+    expect(list.data.workspaces.map((w: { id: string }) => w.id)).toEqual(["acme"]);
+    const own = await call("list_posts");
+    expect(own.data.workspace).toBe("acme");
+    for (const workspace of ["beta", "other"]) {
+      const r = await call("list_posts", { workspace });
+      expect(r.isError).toBe(true);
+      expect(r.text).toContain("only reaches workspace 'acme'");
+    }
+    expect((await call("create_workspace", { name: "Newco board" })).isError).toBe(true);
+  });
+});
+
 describe("destructive tools", () => {
   it("do nothing without confirm: true", async () => {
     const call = await connect(keys.acmekey!);
@@ -200,7 +264,7 @@ describe("destructive tools", () => {
     const again = await call("merge_posts", { from: 2, into: 1, confirm: true });
     expect(again.data.alreadyMerged).toBe(true);
     const deleted = await call("delete_post", { id: 2, confirm: true });
-    expect(deleted.data).toEqual({ deleted: 2 });
+    expect(deleted.data).toEqual({ workspace: "acme", deleted: 2 });
   });
 });
 

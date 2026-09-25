@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { ClaudeLogo, CursorLogo, OpenAILogo } from "@/components/admin/agent-logos";
-import { SectionHead } from "@/components/admin/panel";
+import { SectionHead, Toggle } from "@/components/admin/panel";
 import { createApiKey, listApiKeys, revokeApiKey } from "@/functions/settings";
 import { since } from "@/lib/time";
 import { cn } from "@openheard/ui/lib/utils";
@@ -18,12 +18,13 @@ export const Route = createFileRoute("/dashboard/settings/api-keys")({
 });
 
 function ApiKeys() {
-  const keys = Route.useLoaderData();
+  const { keys, workspaceName, rootDomain } = Route.useLoaderData();
   const router = useRouter();
   const [name, setName] = useState("");
-  const [scope, setScope] = useState<"workspace" | "account">("workspace");
+  const [limited, setLimited] = useState(false);
+  const scope = limited ? "workspace" : "account";
   const [fresh, setFresh] = useState<string | null>(null);
-  const [freshScope, setFreshScope] = useState<"workspace" | "account">("workspace");
+  const [freshScope, setFreshScope] = useState<Scope>("account");
   const [busy, setBusy] = useState(false);
   const live = keys.filter((k) => !k.revokedAt);
 
@@ -45,35 +46,23 @@ function ApiKeys() {
 
   return (
     <>
-      <PageHead title="API keys" sub="Keys for the HTTP API, the MCP server and the CLI. A workspace key acts as an admin of this workspace only. An account key acts as you in every workspace you administer, and can create new ones." />
+      <PageHead title="API keys" sub="Keys for the HTTP API, the MCP server and the CLI. A key acts as you in every workspace you administer, and can create new ones." />
 
-      <form onSubmit={create} className="flex flex-wrap items-center gap-2 pb-6">
-        <div className="inline-flex h-8 items-center gap-0.5 rounded-lg border bg-card p-0.5" role="radiogroup" aria-label="Key type">
-          {(
-            [
-              ["workspace", "Workspace key"],
-              ["account", "Account key"],
-            ] as const
-          ).map(([v, label]) => (
-            <button
-              key={v}
-              type="button"
-              role="radio"
-              aria-checked={scope === v}
-              onClick={() => setScope(v)}
-              className={cn("inline-flex h-full items-center rounded-md px-2.5 text-xs transition-colors", scope === v ? "bg-secondary font-semibold text-foreground" : "text-muted-foreground hover:text-foreground")}
-            >
-              {label}
-            </button>
-          ))}
+      <form onSubmit={create} className="flex flex-col gap-3 pb-6">
+        <div className="flex flex-wrap items-center gap-2">
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Key name, e.g. Claude on my laptop" className="h-8 flex-1 rounded-lg border border-input bg-card px-2.5 text-[13px] outline-none placeholder:text-faint focus:border-ring/60" />
+          <Button size="sm" type="submit" disabled={busy || !name.trim()}>
+            <PlusIcon weight="bold" className="size-3" /> Create key
+          </Button>
         </div>
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Key name, e.g. Claude on my laptop" className="h-8 flex-1 rounded-lg border border-input bg-card px-2.5 text-[13px] outline-none placeholder:text-faint focus:border-ring/60" />
-        <Button size="sm" type="submit" disabled={busy || !name.trim()}>
-          <PlusIcon weight="bold" className="size-3" /> Create key
-        </Button>
+        <div className="flex items-center gap-2.5">
+          <Toggle on={limited} onChange={setLimited} label="Limit to this workspace" />
+          <span className="text-[13px] font-semibold">Limit to this workspace</span>
+          <span className="text-xs text-faint">Use it for a key you share with a teammate or a script.</span>
+        </div>
       </form>
 
-      <Connect fresh={fresh} scope={freshScope} onDone={() => setFresh(null)} />
+      <Connect fresh={fresh} scope={fresh ? freshScope : scope} rootDomain={rootDomain} onDone={() => setFresh(null)} />
 
       <SectionHead title="Active keys" right={<span className="text-xs text-faint">{live.length}</span>} />
       {live.length === 0 ? <p className="border-t py-4 text-sm text-faint">No keys yet.</p> : null}
@@ -82,7 +71,7 @@ function ApiKeys() {
           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
             <span className="text-[13px] font-semibold">{k.name}</span>
             <span className="text-[11px] text-faint">
-              {k.prefix}… · {k.scope === "account" ? "account key" : "workspace key"}
+              {k.prefix}… · {k.scope === "account" ? "All your workspaces" : `Only ${workspaceName}`}
             </span>
           </div>
           <span className="text-xs text-faint">{k.lastUsedAt ? `used ${since(k.lastUsedAt)}` : "never used"}</span>
@@ -130,23 +119,35 @@ const AGENTS: { id: Agent; label: string; Logo: ((p: { className?: string }) => 
   { id: "other", label: "Other", Logo: null },
 ];
 
+type Scope = "workspace" | "account";
+
+// Keys for all workspaces connect at the root domain; a key limited to one
+// workspace keeps that workspace's own address.
+function apiOrigin(scope: Scope, rootDomain: string | null) {
+  const { protocol, hostname, port, origin } = window.location;
+  if (scope === "account" && rootDomain && hostname.endsWith("." + rootDomain)) {
+    return `${rootDomain === "localhost" ? protocol : "https:"}//${rootDomain}${port ? `:${port}` : ""}`;
+  }
+  return origin;
+}
+
 // What an agent does once connected. Step 1 differs per agent.
-function setupPrompt(connect: string, scope: "workspace" | "account") {
+function setupPrompt(connect: string, scope: Scope) {
   return `Connect openheard, our feedback board, and set it up for this project.
 
 1. ${connect}
    If the openheard tools do not show up yet, tell me to restart you, then continue from step 2.
-2. Call get_workspace to check the connection${scope === "account" ? " (this is an account key: list_workspaces shows every board I run, and create_workspace can make a new one)" : ""}.
+2. ${scope === "account" ? "Call list_workspaces. This key reaches every workspace I run. If there is more than one, ask me which to use for this project and pass it as workspace on every call; create_workspace can make a new one." : "Call get_workspace to check the connection."}
 3. Set it up: ask me for our website, then match_website and apply_branding. Suggest boards and statuses and create the ones I agree to. configure_widget to match our brand. get_widget_snippet for this codebase's framework and add it once to the root layout; show me the diff.
 4. Ask me before anything public or emailed, and never write this key into a committed file.`;
 }
 
 // Connecting an agent, per agent. A new key fills in here and is shown once.
-function Connect({ fresh, scope, onDone }: { fresh: string | null; scope: "workspace" | "account"; onDone: () => void }) {
+function Connect({ fresh, scope, rootDomain, onDone }: { fresh: string | null; scope: Scope; rootDomain: string | null; onDone: () => void }) {
   const [agent, setAgent] = useState<Agent>("claude");
   // Set after mount: the server does not know which address the page is on.
   const [origin, setOrigin] = useState("");
-  useEffect(() => setOrigin(window.location.origin), []);
+  useEffect(() => setOrigin(apiOrigin(scope, rootDomain)), [scope, rootDomain]);
   const url = `${origin}/api/mcp`;
   const key = fresh ?? "<your key>";
   const header = `Authorization: Bearer ${key}`;
@@ -161,7 +162,7 @@ function Connect({ fresh, scope, onDone }: { fresh: string | null; scope: "works
         <div className="flex flex-col gap-0.5">
           <span className="text-[13px] font-semibold">{fresh ? "Your key is ready. Copy what you need now; it is shown once." : "Connect your AI agent"}</span>
           <span className="text-xs text-muted-foreground">
-            {fresh ? "Pick your agent, then paste the prompt. It connects itself and sets openheard up." : "Create a key above and it fills in here. Pick Account key to let the agent run all your workspaces."}
+            {fresh ? "Pick your agent, then paste the prompt. It connects itself and sets openheard up." : scope === "account" ? "Create a key above and it fills in here. One key reaches all your workspaces." : "Create a key above and it fills in here. This key reaches only this workspace."}
           </span>
         </div>
         {fresh ? (

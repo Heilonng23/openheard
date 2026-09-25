@@ -18,7 +18,7 @@ export const PROMPTS: Prompt[] = [
     name: "weekly-triage",
     title: "Weekly triage",
     description: "Review the week's feedback: dedupe, set statuses, reply to what is waiting.",
-    args: { workspace: z.string().optional().describe("Workspace slug, for account keys") },
+    args: { workspace: z.string().optional().describe("Workspace slug; leave empty for the key's home workspace") },
     text: (a) =>
       `Run a weekly triage of our openheard feedback.${ws(a)}
 
@@ -41,7 +41,7 @@ export const PROMPTS: Prompt[] = [
     text: (a) =>
       `Set up openheard for ${a.name ?? "this product"}${a.website ? ` (${a.website})` : ""}.
 
-1. ${a.workspace ? `Use workspace "${a.workspace}".` : "Call list_workspaces. If the key is an account key and no workspace fits, call create_workspace with the name and website. Otherwise use the key's workspace."}
+1. ${a.workspace ? `Use workspace "${a.workspace}".` : "Call list_workspaces. If one fits this product, use it (ask the user when more than one could). If none fits and the key is not limited to one workspace, call create_workspace with the name and website."}
 2. ${a.website ? `Call match_website with ${a.website} and show me the name, accent, theme and logo. After I agree, call apply_branding.` : "Ask me for the product website, then match_website and apply_branding."}
 3. Look at list_boards and list_statuses. Suggest 2 to 4 boards that fit the product (for example Feature requests, Bugs, Integrations) and any extra status. Create them after I agree.
 4. Suggest widget settings that match the brand (configure_widget: theme, accent 'brand', launcher, position, tabs, allowed_sites with the production origin).
@@ -55,7 +55,7 @@ export const PROMPTS: Prompt[] = [
     args: {
       what: z.string().optional().describe("What shipped, in a sentence or a list of post ids"),
       version: z.string().optional().describe("Version label, e.g. v1.4.0"),
-      workspace: z.string().optional().describe("Workspace slug, for account keys"),
+      workspace: z.string().optional().describe("Workspace slug; leave empty for the key's home workspace"),
     },
     text: (a) =>
       `We shipped ${a.what ?? "something"}${a.version ? ` in ${a.version}` : ""}. Announce it through openheard.${ws(a)}
@@ -72,7 +72,7 @@ export const PROMPTS: Prompt[] = [
     description: "Read a post and its thread, then draft a reply and next step for it.",
     args: {
       post_id: z.string().optional().describe("Post id"),
-      workspace: z.string().optional().describe("Workspace slug, for account keys"),
+      workspace: z.string().optional().describe("Workspace slug; leave empty for the key's home workspace"),
     },
     text: (a) =>
       `Help me answer feedback post ${a.post_id ?? "(ask me which one)"}.${ws(a)}

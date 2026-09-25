@@ -3,7 +3,7 @@ import { STATUS_KINDS } from "@openheard/db/schema/feedback";
 import { INTEGRATION_EVENTS } from "@openheard/db/schema/integrations";
 import { z } from "zod";
 
-import { type ApiContext, ApiError, apiOps } from "@/lib/api-auth";
+import { type ApiContext, ApiError, apiOps, workspaceOrigin } from "@/lib/api-auth";
 import { mutateCreatePost, mutateDraftChangelog, mutatePublishChangelog, queryGetPost, queryListPosts } from "@/lib/api-actions";
 import { HELP_ICONS } from "@/lib/help";
 import { helpArticleBySlug, searchHelpArticles } from "@/lib/help-db";
@@ -29,10 +29,17 @@ type Result = { content: { type: "text"; text: string }[]; isError?: boolean };
 const WORKSPACE_ARG = z
   .string()
   .optional()
-  .describe("Workspace slug to act on. Only account keys may name another workspace; leave empty for the key's own workspace. See list_workspaces.");
+  .describe("Workspace slug to act on. Only keys for all your workspaces may name another one; leave empty for the key's home workspace (the one it was made in). See list_workspaces.");
 const CONFIRM_ARG = z.boolean().optional().describe("Must be true. Ask the user first; this cannot be undone.");
 
 const ok = (data: unknown): Result => ({ content: [{ type: "text", text: JSON.stringify(data) }] });
+
+// Every workspace tool says which workspace it acted on, so a call without
+// `workspace` never leaves the agent guessing.
+function named(data: unknown, workspaceId: string): unknown {
+  if (data && typeof data === "object" && !Array.isArray(data)) return "workspace" in data ? data : { workspace: workspaceId, ...data };
+  return { workspace: workspaceId, result: data };
+}
 const fail = (message: string): Result => ({ content: [{ type: "text", text: message }], isError: true });
 
 function errorText(err: unknown): string {
@@ -49,7 +56,7 @@ export function createMcpServer(api: ApiContext, requestOrigin: string) {
     {
       instructions:
         "openheard is a feedback board with a roadmap, changelog, help center and an embeddable widget. " +
-        "Start with get_workspace or summarize_feedback to see where things stand. Account keys can work across workspaces: call list_workspaces and pass `workspace` to other tools. " +
+        "Start with list_workspaces. Most keys reach every workspace their owner administers: if there is more than one, ask the user which to use and pass `workspace` to other tools; without it a tool acts on the key's home workspace. Every result names the workspace it acted on. " +
         "Destructive tools (delete_*, merge_posts, disconnect) need confirm: true; ask the user before setting it. Ids come from the list_* tools; boards, statuses and tags also accept their names.",
     },
   );
@@ -76,7 +83,8 @@ export function createMcpServer(api: ApiContext, requestOrigin: string) {
         }
         const target = await apiOps(api, requestOrigin, raw.workspace as string | undefined);
         const ctx: Ctx = { ...target, api };
-        return ok(await run(raw as z.infer<z.ZodObject<S>>, ctx));
+        const data = await run(raw as z.infer<z.ZodObject<S>>, ctx);
+        return ok(meta.account ? data : named(data, ctx.workspace.id));
       } catch (err) {
         return fail(errorText(err));
       }
@@ -94,19 +102,21 @@ export function createMcpServer(api: ApiContext, requestOrigin: string) {
     "list_workspaces",
     {
       title: "List workspaces",
-      description: "List the workspaces this key can act on, with your role and board URL. Use it first with an account key to pick the `workspace` argument for other tools.",
+      description: "List the workspaces this key can act on, with your role and board URL. Call it first; when there is more than one, ask the user which to use and pass it as `workspace` to other tools.",
       annotations: READ,
       account: true,
     },
     {},
     async (_args, ctx) => {
       if (api.scope === "workspace") return { scope: "workspace", workspaces: [{ id: ctx.workspace.id, name: ctx.workspace.name, role: "admin", url: link(ctx, "/") }] };
-      const rows = await ws.workspacesOf(api.db, api.userId!);
-      return {
-        scope: "account",
-        default: api.workspaceId,
-        workspaces: rows.map((r) => ({ id: r.id, name: r.name, role: r.role, website: r.website })),
-      };
+      // Only the ones this key can act on: its owner must be an admin there.
+      const rows = (await ws.workspacesOf(api.db, api.userId!)).filter((r) => r.role === "admin");
+      const workspaces = [];
+      for (const r of rows) {
+        const { origin, query } = await workspaceOrigin(r.id, requestOrigin);
+        workspaces.push({ id: r.id, name: r.name, role: r.role, website: r.website, url: `${origin}/${query}` });
+      }
+      return { scope: "account", home: api.workspaceId, workspaces };
     },
   );
 
@@ -115,7 +125,7 @@ export function createMcpServer(api: ApiContext, requestOrigin: string) {
     {
       title: "Create workspace",
       description:
-        "Create a new workspace (a feedback board with roadmap, changelog and help center) owned by you. Needs an account key. With `website`, the board starts in that site's colours and logo. Afterwards pass `workspace: <id>` to other tools to set it up.",
+        "Create a new workspace (a feedback board with roadmap, changelog and help center) owned by you. Needs a key for all your workspaces (not limited to one). With `website`, the board starts in that site's colours and logo. Afterwards pass `workspace: <id>` to other tools to set it up.",
       annotations: WRITE,
       account: true,
     },
@@ -126,7 +136,7 @@ export function createMcpServer(api: ApiContext, requestOrigin: string) {
       who_can_post: z.enum(["anyone", "members"]).optional().describe("Who may post: anyone signed in (default) or only team members"),
     },
     async (args, ctx) => {
-      if (api.scope !== "account") throw new OpError("Creating workspaces needs an account key. Create one in Settings > API keys > Account key.", 403);
+      if (api.scope !== "account") throw new OpError("Creating workspaces needs a key for all your workspaces. Create one in Settings > API keys with 'Limit to this workspace' off.", 403);
       const owner = needActor(ctx, "Creating a workspace");
       const { id } = await ws.createWorkspace(api.db, owner, { name: args.name, slug: args.slug, website: args.website, whoCanPost: args.who_can_post });
       const next = await apiOps(api, requestOrigin, id);

@@ -1,6 +1,6 @@
 # openheard MCP tools
 
-Every workspace tool also takes `workspace` (account keys only).
+Every workspace tool also takes `workspace`. Without it a tool acts on the key's home workspace; keys limited to one workspace cannot name another.
 
 ### Workspaces and branding
 

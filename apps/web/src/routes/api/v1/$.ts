@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { authenticateApiKey, apiJson, apiErrorResponse, apiOps, ApiError } from "@/lib/api-auth";
+import { authenticateApiKey, apiJsonFor, apiErrorResponse, apiOps, ApiError } from "@/lib/api-auth";
 import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import {
   queryListPosts,
@@ -37,6 +37,7 @@ const getRoutes: RouteHandler = async (request, params) => {
   // the host that serves that workspace's uploads.
   const ops = await apiOps(api, url.origin, url.searchParams.get("workspace"));
   const ctx = { db: ops.db, workspaceId: ops.workspace.id };
+  const reply = (data: unknown, status?: number) => apiJsonFor(ops.workspace.id, data, status);
 
   if (segments[0] === "posts" && segments.length === 1) {
     const result = await queryListPosts(ctx.db, ctx.workspaceId, {
@@ -47,48 +48,48 @@ const getRoutes: RouteHandler = async (request, params) => {
       limit: url.searchParams.has("limit") ? Number(url.searchParams.get("limit")) : undefined,
       offset: url.searchParams.has("offset") ? Number(url.searchParams.get("offset")) : undefined,
     });
-    return apiJson(result);
+    return reply(result);
   }
 
   if (segments[0] === "posts" && segments.length === 2) {
     const id = Number(segments[1]);
     if (!Number.isInteger(id)) throw new ApiError(422, "Invalid post ID");
     const result = await queryGetPost(ctx.db, ctx.workspaceId, id, ops.origin);
-    return apiJson(result);
+    return reply(result);
   }
 
   if (segments[0] === "statuses" && segments.length === 1) {
     const result = await queryStatuses(ctx.db, ctx.workspaceId);
-    return apiJson({ statuses: result });
+    return reply({ statuses: result });
   }
 
   if (segments[0] === "boards" && segments.length === 1) {
     const result = await queryBoards(ctx.db, ctx.workspaceId);
-    return apiJson({ boards: result });
+    return reply({ boards: result });
   }
 
   if (segments[0] === "changelog" && segments.length === 1) {
     const result = await queryChangelog(ctx.db, ctx.workspaceId);
-    return apiJson({ entries: result });
+    return reply({ entries: result });
   }
 
   // Help center, published articles only.
   if (segments[0] === "help" && segments[1] === "collections" && segments.length === 2) {
     const { collections, uncategorised } = await helpCenterIndex(ctx.db, ctx.workspaceId);
-    return apiJson({ collections, uncategorised });
+    return reply({ collections, uncategorised });
   }
 
   if (segments[0] === "help" && segments[1] === "articles" && segments.length === 2) {
     const q = url.searchParams.get("q")?.trim() ?? "";
     if (!q) throw new ApiError(422, "Pass a search query as ?q=");
     const limit = url.searchParams.has("limit") ? Number(url.searchParams.get("limit")) : undefined;
-    return apiJson({ articles: await searchHelpArticles(ctx.db, ctx.workspaceId, q.slice(0, 120), { limit }) });
+    return reply({ articles: await searchHelpArticles(ctx.db, ctx.workspaceId, q.slice(0, 120), { limit }) });
   }
 
   if (segments[0] === "help" && segments[1] === "articles" && segments.length === 3) {
     const article = await helpArticleBySlug(ctx.db, ctx.workspaceId, segments[2]!);
     if (!article) throw new ApiError(404, "Article not found");
-    return apiJson(article);
+    return reply(article);
   }
 
   throw new ApiError(404, "Not found");
@@ -100,6 +101,7 @@ const postRoutes: RouteHandler = async (request, params) => {
   const body = await parseJsonBody(request);
   const url = new URL(request.url);
   const ops = await apiOps(ctx, url.origin, url.searchParams.get("workspace"));
+  const reply = (data: unknown, status?: number) => apiJsonFor(ops.workspace.id, data, status);
 
   if (segments[0] === "posts" && segments.length === 1) {
     const result = await mutateCreatePost(ops.db, ops.workspace.id, {
@@ -108,21 +110,21 @@ const postRoutes: RouteHandler = async (request, params) => {
       boardId: body.board as string,
       authorEmail: body.author_email as string | undefined,
     }, ops.origin);
-    return apiJson(result, 201);
+    return reply(result, 201);
   }
 
   if (segments[0] === "posts" && segments[2] === "status" && segments.length === 3) {
     const id = Number(segments[1]);
     if (!Number.isInteger(id)) throw new ApiError(422, "Invalid post ID");
     const result = await mutateSetStatus(ops, id, body.status as string, body.note as string | undefined);
-    return apiJson(result);
+    return reply(result);
   }
 
   if (segments[0] === "posts" && segments[2] === "comments" && segments.length === 3) {
     const id = Number(segments[1]);
     if (!Number.isInteger(id)) throw new ApiError(422, "Invalid post ID");
     const result = await mutateAddComment(ops, id, body.body as string);
-    return apiJson(result, 201);
+    return reply(result, 201);
   }
 
   if (segments[0] === "changelog" && segments.length === 1) {
@@ -132,14 +134,14 @@ const postRoutes: RouteHandler = async (request, params) => {
       version: body.version as string | undefined,
       postIds: body.post_ids as number[] | undefined,
     });
-    return apiJson(result, 201);
+    return reply(result, 201);
   }
 
   if (segments[0] === "changelog" && segments[2] === "publish" && segments.length === 3) {
     const id = Number(segments[1]);
     if (!Number.isInteger(id)) throw new ApiError(422, "Invalid changelog ID");
     const result = await mutatePublishChangelog(ops, id);
-    return apiJson(result);
+    return reply(result);
   }
 
   throw new ApiError(404, "Not found");

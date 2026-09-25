@@ -10,24 +10,23 @@ Create an API key in **Dashboard → Settings → API keys** (or use the script 
 Authorization: Bearer oh_<your-key>
 ```
 
-There are two kinds of key:
+Call the API at `https://openheard.com/api/v1/` (self-hosted: your own domain). One key reaches all your workspaces: it acts as the admin who made it, in every workspace they administer. Add `?workspace=<slug>` to any endpoint to pick one; without it the key's home workspace (the one it was made in) is used. Every response names the workspace it acted on, in a `workspace` field and the `openheard-workspace` header.
 
-- **Workspace key**: acts as an admin of the workspace it was made in, and nothing else.
-- **Account key**: acts as the admin who made it, in every workspace they administer. Add `?workspace=<slug>` to any endpoint to pick one; without it the key's own workspace is used. A workspace the owner does not administer returns `403`, and so does a workspace key naming any other workspace.
+A key made with **Limit to this workspace** on reaches only its own workspace, at the root address or the workspace's own (`https://acme.openheard.com/api/v1/`). A workspace the owner does not administer returns `403`, and so does a limited key naming any other workspace.
 
 Revoked keys return `401`.
 
 ### Local dev: generate a key
 
 ```bash
-OPENHEARD_LOCAL=1 bun run apps/web/src/scripts/make-api-key.ts                      # workspace key for "default"
-OPENHEARD_LOCAL=1 bun run apps/web/src/scripts/make-api-key.ts --workspace acme       # workspace key for "acme"
-OPENHEARD_LOCAL=1 bun run apps/web/src/scripts/make-api-key.ts --account you@example.com  # account key
+OPENHEARD_LOCAL=1 bun run apps/web/src/scripts/make-api-key.ts                      # limited to "default"
+OPENHEARD_LOCAL=1 bun run apps/web/src/scripts/make-api-key.ts --workspace acme       # limited to "acme"
+OPENHEARD_LOCAL=1 bun run apps/web/src/scripts/make-api-key.ts --account you@example.com  # all of that person's workspaces
 ```
 
 ## Rate limits
 
-All API endpoints are rate-limited to **60 requests per minute** per API key, account keys included, (or per IP if no key is provided).
+All API endpoints are rate-limited to **60 requests per minute** per API key (or per IP if no key is provided).
 
 When you exceed the limit the server returns `429 Too Many Requests` with a JSON body and a `Retry-After` header (seconds until the window resets):
 

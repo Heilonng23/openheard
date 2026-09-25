@@ -2,25 +2,26 @@
 
 Run your feedback board by talking to an agent. The MCP server gives Claude Code, Cursor, Claude Desktop or any [Model Context Protocol](https://modelcontextprotocol.io) client everything an admin does in the dashboard: triage posts, merge duplicates, set statuses and reply, set up boards and statuses, brand the board from a website, configure and install the widget, write the help center, ship changelog entries, connect Slack or Discord, and invite the team. Every write runs the same code as the dashboard, emails and alerts included.
 
-**Endpoint:** `https://<your-workspace>.openheard.com/api/mcp` (self-hosted: `https://your-domain/api/mcp`)
+**Endpoint:** `https://openheard.com/api/mcp` (self-hosted: `https://your-domain/api/mcp`)
 **Transport:** Streamable HTTP (stateless)
 **Auth:** `Authorization: Bearer <key>`, a key from **Settings > API keys**
 
 ## Keys
 
-- **Workspace key**: acts as an admin of the workspace it was made in, and nothing else. Good for a project repo or a teammate's tool.
-- **Account key**: acts as you in every workspace you administer, and can create new workspaces. Tools take an optional `workspace` argument (the slug); without it the key's own workspace is used. Only admins can make one, and it stops reaching a workspace the moment you stop being an admin there.
+One key reaches all your workspaces. It acts as you in every workspace you administer, and can create new ones. Tools take an optional `workspace` argument (the slug); without it they act on the key's home workspace, the one it was made in. Every result names the workspace it acted on. Only admins can make keys, and a key stops reaching a workspace the moment you stop being an admin there.
 
-A workspace key that names another workspace is refused, as is an account key naming a workspace you do not administer.
+Turn on **Limit to this workspace** when you make a key to share it with a teammate or a script. That key acts as an admin of its workspace only, and keeps working at that workspace's own address (`https://acme.openheard.com/api/mcp`) as well as the root one.
+
+A limited key that names another workspace is refused, as is any key naming a workspace you do not administer.
 
 ## Install
 
-Make a key first: **Settings > API keys**, pick **Workspace key** or **Account key**, name it, copy it (it is shown once).
+Make a key first: **Settings > API keys**, name it, copy it (it is shown once). Leave **Limit to this workspace** off so one key reaches all your workspaces.
 
 ### Claude Code
 
 ```bash
-claude mcp add --transport http openheard https://acme.openheard.com/api/mcp \
+claude mcp add --transport http openheard https://openheard.com/api/mcp \
   --header "Authorization: Bearer oh_your_key_here"
 ```
 
@@ -40,7 +41,7 @@ cp -r skills/openheard ~/.claude/skills/openheard
 {
   "mcpServers": {
     "openheard": {
-      "url": "https://acme.openheard.com/api/mcp",
+      "url": "https://openheard.com/api/mcp",
       "headers": { "Authorization": "Bearer oh_your_key_here" }
     }
   }
@@ -56,7 +57,7 @@ Claude Desktop talks to local servers, so bridge with `mcp-remote` in `claude_de
   "mcpServers": {
     "openheard": {
       "command": "npx",
-      "args": ["-y", "mcp-remote", "https://acme.openheard.com/api/mcp", "--header", "Authorization:${AUTH_HEADER}"],
+      "args": ["-y", "mcp-remote", "https://openheard.com/api/mcp", "--header", "Authorization:${AUTH_HEADER}"],
       "env": { "AUTH_HEADER": "Bearer oh_your_key_here" }
     }
   }
@@ -68,7 +69,7 @@ Restart Claude Desktop after saving.
 ### Local dev
 
 ```bash
-# Workspace key for "default", or --workspace <slug>, or an account key with --account <email>
+# --account <email>: a key for all that person's workspaces. Without it the key is limited to --workspace <slug> (default "default")
 OPENHEARD_LOCAL=1 bun run apps/web/src/scripts/make-api-key.ts --account you@example.com
 
 claude mcp add --transport http openheard-local http://localhost:3001/api/mcp \
@@ -97,7 +98,7 @@ Clients that show MCP prompts (Claude Code lists them as `/mcp__openheard__<name
 
 ## Tools
 
-Every workspace tool also takes `workspace` (account keys only).
+Every workspace tool also takes `workspace`. Without it a tool acts on the key's home workspace; keys limited to one workspace cannot name another.
 
 ### Workspaces and branding
 
@@ -206,7 +207,7 @@ Every workspace tool also takes `workspace` (account keys only).
 
 ## Rate limits
 
-60 requests per minute per key, account keys included (per IP without a key). Over the limit the server answers `429` with `Retry-After`. Website matching (`match_website`, `apply_branding`, `create_workspace` with a website) has its own limit of 5 a minute and 30 an hour per person.
+60 requests per minute per key (per IP without a key). Over the limit the server answers `429` with `Retry-After`. Website matching (`match_website`, `apply_branding`, `create_workspace` with a website) has its own limit of 5 a minute and 30 an hour per person.
 
 ## Example
 

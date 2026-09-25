@@ -11,7 +11,7 @@ openheard is a feedback board with voting, a roadmap, a changelog, a help center
 
 - Ask before anything people will see or get emailed: `set_status` (emails followers), `publish_changelog` (emails voters and subscribers), `add_comment` (public), `invite_member`.
 - Destructive tools (`delete_*`, `merge_posts`, `disconnect`) need `confirm: true`. Show what goes, get a yes, then set it.
-- With an account key, run `list_workspaces` first and pass `workspace` on every call. Never guess a slug.
+- Run `list_workspaces` first. One key reaches all the user's workspaces: if there is more than one, ask which to use and pass `workspace` on every call. Never guess a slug. Every result names the workspace it acted on.
 - Boards, statuses and tags accept names. When a call fails, the error lists what exists; use that list rather than guessing again.
 - Link things in replies: every result carries a `url`.
 
@@ -19,20 +19,20 @@ openheard is a feedback board with voting, a roadmap, a changelog, a help center
 
 If the `openheard` tools are missing, the server is not connected:
 
-1. The user makes a key: **Settings > API keys**. Pick **Account key** to manage several workspaces or create new ones; pick **Workspace key** for one board.
+1. The user makes a key: **Settings > API keys**. One key reaches all their workspaces and can create new ones. **Limit to this workspace** is for a key shared with a teammate or a script.
 2. Add it (Claude Code):
    ```bash
-   claude mcp add --transport http openheard https://<workspace>.openheard.com/api/mcp --header "Authorization: Bearer oh_..."
+   claude mcp add --transport http openheard https://openheard.com/api/mcp --header "Authorization: Bearer oh_..."
    ```
    Self-hosted: use the install's own origin. Cursor and Claude Desktop: see [reference/install.md](reference/install.md).
-3. Check with `get_workspace`.
+3. Check with `list_workspaces`.
 
 Never paste the key into a committed file. For `.mcp.json` use `${OPENHEARD_KEY}` from the environment.
 
 ## 2. Set up a new workspace
 
 1. `match_website` with the product site. Show the name, accent, theme and logo.
-2. Account key and no workspace yet: `create_workspace` (name, slug of 5+ characters, website). The website's brand is applied on creation. Otherwise use `apply_branding` with `website`, or with the fields the user kept.
+2. No workspace for this product yet: `create_workspace` (name, slug of 5+ characters, website). The website's brand is applied on creation. Otherwise use `apply_branding` with `website`, or with the fields the user kept.
 3. `list_boards` / `list_statuses`. Propose 2 to 4 boards that fit the product (Feature requests exists already; add for example Bugs or Integrations) and any extra status (`kind` decides behaviour: `done` = shipped, `closed` = declined). Create them after a yes.
 4. `configure_widget`: theme `auto`, accent `brand`, launcher and position to taste, `allowed_sites` with the production origin (plus `http://localhost:<port>` while developing).
 5. Install the snippet. See [reference/widget-install.md](reference/widget-install.md):
