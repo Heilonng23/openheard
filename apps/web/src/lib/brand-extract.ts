@@ -72,6 +72,7 @@ export function parsePage(html: string, url: string): PageInfo {
   const icons: { href: string; size: number }[] = [];
   const stylesheets: string[] = [];
   const logoImgs: string[] = [];
+  const logoAlts: string[] = [];
   const fontHints: string[] = [];
   let tileColor: string | null = null;
   let darkClass = false;
@@ -99,6 +100,7 @@ export function parsePage(html: string, url: string): PageInfo {
       const src = absolute(a.src, url);
       const hay = `${a.src ?? ""} ${a.alt ?? ""} ${a.class ?? ""} ${a.id ?? ""}`.toLowerCase();
       if (src && isRaster(src) && hay.includes("logo")) logoImgs.push(src);
+      if (a.alt && hay.includes("logo")) logoAlts.push(a.alt);
     } else {
       const hay = `${a.class ?? ""} ${a["data-theme"] ?? ""} ${a["data-color-mode"] ?? ""}`.toLowerCase();
       if (/\bdark\b/.test(hay)) darkClass = true;
@@ -108,7 +110,10 @@ export function parsePage(html: string, url: string): PageInfo {
 
   const inlineCss = [...doc.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)].map((m) => m[1]).join("\n");
   const title = decode(doc.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i)?.[1] ?? "").trim();
-  const siteName = meta["og:site_name"]?.[0] || meta["application-name"]?.[0] || nameFromTitle(title, url);
+  const siteName =
+    [meta["og:site_name"]?.[0], meta["application-name"]?.[0], ...logoAlts.map(nameFromAlt)].map((n) => (n ? brandLike(n) : null)).find(Boolean) ??
+    nameFromTitle(title, url) ??
+    nameFromHost(url);
   const og = absolute(meta["og:image"]?.[0], url);
 
   const bySize = (list: { href: string; size: number }[]) => list.sort((x, y) => y.size - x.size).map((i) => i.href);
@@ -116,7 +121,7 @@ export function parsePage(html: string, url: string): PageInfo {
 
   return {
     url,
-    siteName: siteName ? siteName.slice(0, 60) : null,
+    siteName,
     themeColors: meta["theme-color"] ?? [],
     colorScheme: meta["color-scheme"]?.[0] ?? null,
     darkClass,
@@ -128,17 +133,44 @@ export function parsePage(html: string, url: string): PageInfo {
   };
 }
 
+const NAME_MAX = 32;
+const hostPart = (url: string) => new URL(url).hostname.replace(/^www\./, "").split(".")[0];
+const squash = (p: string) => p.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+// A name reads like a brand when it is short: a few words, not a sentence.
+function brandLike(raw: string): string | null {
+  const n = raw.replace(/\s+/g, " ").trim();
+  return n && n.length <= NAME_MAX && n.split(" ").length <= 4 ? n : null;
+}
+
+// "Acme logo", "Acme home" -> Acme.
+function nameFromAlt(alt: string): string {
+  return alt.replace(/\b(logo(type)?|wordmark|home(page)?|link)\b/gi, "").replace(/[\s\-–—|:·]+$|^[\s\-–—|:·]+/g, "").trim();
+}
+
 // "Linear – Plan and build" is Linear; "Agentic Infrastructure - Vercel" is
-// Vercel. The piece that matches the domain wins, else the first.
+// Vercel. The piece that matches the domain wins, else the shortest.
+// A title with no separator is kept only when it matches the domain or is
+// short enough to be a name, not a tagline.
 function nameFromTitle(title: string, url: string): string | null {
   if (!title) return null;
   const parts = title
-    .split(/\s+[|–—\-:·•]\s+/)
+    .split(/\s+[|–—\-:·•]\s+|:\s+/)
     .map((p) => p.trim())
     .filter((p) => p && !/^(home|homepage|welcome|index)$/i.test(p));
-  const host = new URL(url).hostname.replace(/^www\./, "").split(".")[0].replace(/[^a-z0-9]/g, "");
-  const squash = (p: string) => p.toLowerCase().replace(/[^a-z0-9]/g, "");
-  return parts.find((p) => squash(p) === host) ?? parts.find((p) => squash(p).startsWith(host)) ?? parts[0] ?? null;
+  const host = squash(hostPart(url));
+  const byHost = parts.find((p) => squash(p) === host) ?? parts.find((p) => host && squash(p).startsWith(host));
+  if (byHost) return brandLike(byHost);
+  if (parts.length === 1) return parts[0].split(" ").length <= 2 ? brandLike(parts[0]) : null;
+  const words = (p: string) => p.split(" ").length;
+  return parts.flatMap((p) => brandLike(p) ?? []).reduce<string | null>((best, p) => (!best || words(p) < words(best) ? p : best), null);
+}
+
+// "business-ideas.example" -> Business Ideas.
+function nameFromHost(url: string): string | null {
+  const words = hostPart(url).split(/[-_]+/).filter(Boolean);
+  const name = words.map((w) => w[0].toUpperCase() + w.slice(1)).join(" ");
+  return name ? name.slice(0, NAME_MAX) : null;
 }
 
 // "InterVariable.woff2" -> Inter, "Sohne.cb178166.woff2" -> Sohne.

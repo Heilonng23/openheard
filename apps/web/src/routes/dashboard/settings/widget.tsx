@@ -104,7 +104,8 @@ function WidgetSettings() {
       {page === "install" ? (
         <Install src={src} locked={locked} origins={ws.widgetOrigins} />
       ) : (
-        <div className="grid items-start gap-8 xl:grid-cols-[minmax(0,1fr)_520px]">
+        <div className="@container">
+        <div className="grid items-start gap-8 @min-[1000px]:grid-cols-[minmax(0,1fr)_440px]">
           <div className="min-w-0">
             {page === "appearance" ? <Appearance key={discards} draft={draft} set={set} brand={brand} /> : <Content draft={draft} set={set} ws={ws} />}
             <div className="flex items-center justify-end gap-3 border-t pt-4">
@@ -120,6 +121,7 @@ function WidgetSettings() {
             </div>
           </div>
           <Preview src={src} settings={draft} brand={brand} />
+        </div>
         </div>
       )}
     </>
@@ -196,8 +198,8 @@ function Appearance({ draft, set, brand }: { draft: WidgetSettings; set: SetFn; 
         />
       </Row>
       <Row label="Accent" help="Launcher, voted pills and links. Defaults to your brand colour.">
-        <div className="flex items-center gap-2">
-          <span className="flex gap-1.5">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="flex flex-wrap gap-1.5">
             {SWATCHES.map((c) => (
               <button
                 key={c}
@@ -224,7 +226,7 @@ function Appearance({ draft, set, brand }: { draft: WidgetSettings; set: SetFn; 
         </div>
       </Row>
       <Row label="Launcher" help="The button that opens the widget.">
-        <div className="flex gap-2" role="radiogroup" aria-label="Launcher">
+        <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Launcher">
           {(
             [
               ["icon", "Icon"],
@@ -260,7 +262,7 @@ function Appearance({ draft, set, brand }: { draft: WidgetSettings; set: SetFn; 
         </div>
       </Row>
       <Row label="Label and icon" help="Shown on the launcher.">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <input
             value={draft.label}
             maxLength={WIDGET_LABEL_MAX}
@@ -442,7 +444,7 @@ function Preview({ src, settings, brand }: { src: string; settings: WidgetSettin
   const line = (w: number) => `<div style="height:10px;width:${w}%;border-radius:5px;background:#e6e4de;margin:0 0 12px"></div>`;
   const doc = `<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;font:14px system-ui,sans-serif;background:#f7f5f0}header{height:48px;border-bottom:1px solid #e6e4de;display:flex;align-items:center;padding:0 20px;gap:10px}main{padding:28px 20px}</style></head><body><header><div style="width:18px;height:18px;border-radius:5px;background:#d8d5cc"></div>${line(12).replace("margin:0 0 12px", "margin:0")}</header><main>${line(60)}${line(90)}${line(80)}</main><script>window.openheard=function(){(window.openheard.q=window.openheard.q||[]).push(arguments)};window.openheard("config",${JSON.stringify(first.current).replace(/</g, "\\u003c")})</script><script src="${src}" data-open-on-load async></script></body></html>`;
   return (
-    <div className="xl:sticky xl:top-0">
+    <div className="@min-[1000px]:sticky @min-[1000px]:top-0">
       {head}
       <div className="overflow-hidden rounded-xl border">
         <iframe ref={frame} title="Widget preview" srcDoc={doc} className="block h-[680px] w-full bg-[#f7f5f0]" />

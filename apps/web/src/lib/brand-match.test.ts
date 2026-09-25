@@ -56,6 +56,37 @@ describe("brand extraction from saved pages", () => {
   });
 });
 
+describe("brand name", () => {
+  const nameOf = (head: string, url = "https://acme.example/") => parsePage(`<html><head>${head}</head><body></body></html>`, url).siteName;
+
+  it("prefers og:site_name, then application-name, then the logo's alt text", () => {
+    expect(nameOf('<title>Acme | Ship faster</title><meta property="og:site_name" content="Acme Cloud"><meta name="application-name" content="AcmeApp">')).toBe("Acme Cloud");
+    expect(nameOf('<title>Ship faster</title><meta name="application-name" content="AcmeApp">')).toBe("AcmeApp");
+    expect(nameOf('<title>Business Ideas That Already Make Money</title></head><body><img class="site-logo" src="/l.png" alt="Starter Story logo">')).toBe("Starter Story");
+  });
+
+  it("does not take a tagline title as the name", () => {
+    expect(nameOf("<title>Business Ideas That Already Make Money</title>", "https://www.starterstory.example/")).toBe("Starterstory");
+    expect(nameOf("<title>Business Ideas That Already Make Money</title>", "https://business-ideas.example/")).toBe("Business Ideas");
+    // A long og:site_name is a sentence too; the title's short part wins.
+    expect(nameOf('<title>Relay — Business ideas that already make money</title><meta property="og:site_name" content="The best place to find business ideas that make money">')).toBe("Relay");
+  });
+
+  it("splits the title on common separators and keeps the short brand-like part", () => {
+    expect(nameOf("<title>Plan and build products | Relay</title>")).toBe("Relay");
+    expect(nameOf("<title>Acme - The system for product teams</title>")).toBe("Acme");
+    expect(nameOf("<title>Home · Birch</title>")).toBe("Birch");
+    expect(nameOf("<title>Tally: forms that feel like a doc</title>")).toBe("Tally");
+    expect(nameOf("<title>Welcome to the best feedback tool on the internet today — Acme Labs</title>")).toBe("Acme Labs");
+  });
+
+  it("falls back to the bare domain and caps the length", () => {
+    expect(nameOf("", "https://www.northwind.example/")).toBe("Northwind");
+    expect(nameOf('<meta property="og:site_name" content="A Very Long Brand Name That Keeps Going">', "https://acme.example/")).toBe("Acme");
+    expect(nameOf("", "https://a-really-long-hyphenated-domain-name-here.example/")!.length).toBeLessThanOrEqual(32);
+  });
+});
+
 describe("colours", () => {
   it("parses the forms sites use", () => {
     expect(parseColor("#abc")).toEqual({ r: 0xaa, g: 0xbb, b: 0xcc });

@@ -57,6 +57,7 @@ function Branding() {
       <PageHead title="Branding" sub="How the public board looks to your users. The dashboard stays the same for everyone." />
       <MatchWebsite
         initialUrl={ws.website ?? ""}
+        currentName={ws.name === "openheard" ? "" : ws.name}
         onApplied={async (applied) => {
           if (applied) setAccent(applied);
           await router.invalidate();
@@ -64,8 +65,8 @@ function Branding() {
       />
       <SectionHead title="Appearance" />
       <Row label="Accent" help="Voted pills, the active nav dot, links and focus rings on the public board.">
-        <div className="flex items-center gap-2">
-          <span className="flex gap-1.5">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="flex flex-wrap gap-1.5">
             {SWATCHES.map((c) => (
               <button key={c} type="button" onClick={() => setAccent(c)} aria-label={c} className={cn("inline-flex size-[22px] items-center justify-center rounded-full", accent === c && "ring-2 ring-foreground ring-offset-2 ring-offset-background")} style={{ background: c }}>
                 {accent === c ? <CheckIcon weight="bold" className="size-2.5 text-[#0d0d0f]" /> : null}
@@ -101,7 +102,7 @@ function Branding() {
   );
 }
 
-function MatchWebsite({ initialUrl, onApplied }: { initialUrl: string; onApplied: (accent: string | null) => Promise<void> }) {
+function MatchWebsite({ initialUrl, currentName, onApplied }: { initialUrl: string; currentName: string; onApplied: (accent: string | null) => Promise<void> }) {
   const [url, setUrl] = useState(initialUrl);
   const [state, setState] = useState<"idle" | "reading" | "applying">("idle");
   const [error, setError] = useState<string | null>(null);
@@ -118,7 +119,8 @@ function MatchWebsite({ initialUrl, onApplied }: { initialUrl: string; onApplied
       const m = await matchBrand({ data: { url } });
       setMatch(m);
       setChosen(m.accent);
-      setPick({ logo: !!m.logo, name: !!m.name, accent: !!m.accent, theme: !!m.theme });
+      // A page's name is often a tagline, so it only replaces a name the user never set.
+      setPick({ logo: !!m.logo, name: !!m.name && !currentName, accent: !!m.accent, theme: !!m.theme });
     } catch (err) {
       setMatch(null);
       setError(err instanceof Error ? err.message : "Could not read that website");
@@ -153,7 +155,7 @@ function MatchWebsite({ initialUrl, onApplied }: { initialUrl: string; onApplied
     <div className="pb-6">
       <SectionHead title="Match my website" />
       <Row label="Website" help="We read your homepage for its colours, logo and name. Nothing changes until you apply.">
-        <form onSubmit={read} className="flex items-center gap-2">
+        <form onSubmit={read} className="flex flex-wrap items-center gap-2">
           <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="yoursite.com" aria-label="Website" inputMode="url" className="h-8 w-56 rounded-lg border border-input bg-card px-2.5 text-[13px] outline-none placeholder:text-faint focus:border-ring/60" />
           <Button type="submit" variant="secondary" size="sm" disabled={!url.trim() || state !== "idle"}>
             {state === "reading" ? "Reading…" : "Match my website"}
@@ -178,12 +180,12 @@ function MatchWebsite({ initialUrl, onApplied }: { initialUrl: string; onApplied
             </Found>
           ) : null}
           {match.name ? (
-            <Found label="Name" checked={pick.name} onToggle={() => toggle("name")}>
+            <Found label="Name" checked={pick.name} onToggle={() => toggle("name")} note={currentName && currentName !== match.name ? `Tick to rename ${currentName}.` : undefined}>
               <span className="text-[13px]">{match.name}</span>
             </Found>
           ) : null}
           <Found label="Accent" checked={pick.accent && !!chosen} disabled={!match.colors.length} onToggle={() => (!chosen && setChosen(match.colors[0] ?? null), toggle("accent"))} note={match.accent && chosen === match.accent && match.accentOriginal !== match.accent ? `Lightened from ${match.accentOriginal} so it reads on the dark board.` : !match.colors.length ? "No brand colour found. Your current accent stays." : undefined}>
-            <span className="flex gap-1.5">
+            <span className="flex flex-wrap gap-1.5">
               {[...new Set([match.accent, ...match.colors].filter((c): c is string => !!c))].slice(0, 5).map((c) => (
                 <button key={c} type="button" onClick={() => (setChosen(c), setPick((p) => ({ ...p, accent: true })))} aria-label={`Use ${c}`} title={c} className={cn("inline-flex size-[22px] items-center justify-center rounded-full", chosen === c && "ring-2 ring-foreground ring-offset-2 ring-offset-background")} style={{ background: c }}>
                   {chosen === c ? <CheckIcon weight="bold" className="size-2.5 text-[#0d0d0f]" /> : null}
@@ -221,15 +223,15 @@ function MatchWebsite({ initialUrl, onApplied }: { initialUrl: string; onApplied
 // One detected item: a tick box when it can be applied, the value on the right.
 function Found({ label, checked, disabled, onToggle, note, children }: { label: string; checked?: boolean; disabled?: boolean; onToggle?: () => void; note?: string; children: ReactNode }) {
   return (
-    <div className="flex min-h-12 items-center justify-between gap-6 border-t py-2.5">
-      <label className={cn("flex min-w-0 items-center gap-2.5", onToggle && !disabled && "cursor-pointer")}>
+    <div className="flex min-h-12 flex-wrap items-center justify-between gap-x-6 gap-y-2 border-t py-2.5">
+      <label className={cn("flex min-w-[180px] flex-[1_1_200px] items-center gap-2.5", onToggle && !disabled && "cursor-pointer")}>
         {onToggle ? <input type="checkbox" checked={!!checked} disabled={disabled} onChange={onToggle} className="size-3.5 accent-white" /> : <span className="size-3.5" />}
         <span className="flex min-w-0 flex-col gap-0.5">
           <span className="text-[13px] font-semibold">{label}</span>
           {note ? <span className="text-xs text-faint">{note}</span> : null}
         </span>
       </label>
-      <div className="shrink-0">{children}</div>
+      <div className="max-w-full min-w-0 pl-6">{children}</div>
     </div>
   );
 }

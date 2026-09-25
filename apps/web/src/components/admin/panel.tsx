@@ -69,14 +69,16 @@ export function SectionHead({ title, right }: { title: string; right?: ReactNode
 }
 
 // Settings row: label and description left, control right, hairline above.
+// The label keeps about 200px; when the control does not fit beside it, the
+// control drops onto its own line instead of squeezing the label.
 export function Row({ label, help, children }: { label: string; help?: string; children: ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-6 border-t py-3.5">
-      <div className="flex min-w-0 flex-col gap-0.5">
+    <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2.5 border-t py-3.5">
+      <div className="flex min-w-[180px] flex-[1_1_200px] flex-col gap-0.5">
         <div className="text-[13px] font-semibold">{label}</div>
         {help ? <div className="text-xs text-faint">{help}</div> : null}
       </div>
-      <div className="shrink-0">{children}</div>
+      <div className="max-w-full min-w-0">{children}</div>
     </div>
   );
 }
