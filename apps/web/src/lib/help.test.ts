@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { type Block, HELP_SLUG, escapeLike, networkOf, parseInline, parseMarkdown, safeHref, searchTerms, slugify, summary, tableOfContents, uniqueSlug } from "./help";
+import { type Block, HELP_SLUG, escapeLike, networkOf, parseInline, parseMarkdown, safeHref, safeImage, searchTerms, slugify, summary, tableOfContents, uniqueSlug } from "./help";
 
 describe("slugify", () => {
   it("lowercases and dashes", () => {
@@ -152,5 +152,14 @@ describe("markdown", () => {
     expect(safeHref("//evil.test")).toBeNull();
     expect(parseInline("[click](javascript:alert(1))")[0]).toEqual({ t: "text", v: "click" });
     expect(safeHref("/help/billing")).toBe("/help/billing");
+  });
+
+  it("refuses paths a browser reads as another host", () => {
+    expect(safeHref("/\\evil.test")).toBeNull();
+    expect(safeHref("/\\/evil.test")).toBeNull();
+    expect(parseInline("[docs](/\\evil.test)")[0]).toEqual({ t: "text", v: "docs" });
+    expect(safeImage("/\\evil.test/x.png")).toBeNull();
+    expect(safeImage("//evil.test/x.png")).toBeNull();
+    expect(safeImage("/uploads/abc")).toBe("/uploads/abc");
   });
 });

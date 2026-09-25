@@ -117,17 +117,18 @@ export type Block =
 export type TocItem = { id: string; text: string; level: 2 | 3 };
 
 // Links may go to the web, to mail, or elsewhere on this site. Anything else
-// (javascript:, data:) renders as plain text.
+// (javascript:, data:) renders as plain text. A path may not start "//" or
+// "/\": browsers read a backslash as a slash, so both leave the site.
 export function safeHref(href: string): string | null {
   const h = href.trim();
   if (/^(https?:|mailto:)/i.test(h)) return h;
-  if (/^(\/(?!\/)|#)/.test(h)) return h;
+  if (/^(\/(?![/\\])|#)/.test(h)) return h;
   return null;
 }
 
 export function safeImage(src: string): string | null {
   const s = src.trim();
-  return /^(https:|\/(?!\/))/i.test(s) ? s : null;
+  return /^(https:|\/(?![/\\]))/i.test(s) ? s : null;
 }
 
 export function parseInline(src: string): Inline[] {
