@@ -140,26 +140,22 @@ export async function seedDemoContent(db: Db, workspaceId: string, adminId: stri
   // belongs to somebody else rather than silently adopting or renaming it.
   await assertUnowned(db, schema.board, BOARDS.map((b) => scoped(b.slug)), ws);
   await assertUnowned(db, schema.tag, TAGS.map((t) => scoped(t.toLowerCase())), ws);
-  await db
+  // The board ids are primary keys, so inserting them is the atomic claim:
+  // whoever gets rows back seeds, and a second or concurrent run stops here
+  // instead of duplicating posts and releases.
+  const claimed = await db
     .insert(schema.board)
     .values(BOARDS.map((b, i) => ({ id: scoped(b.slug), workspaceId: ws, name: b.name, description: b.description, position: i })))
-    .onConflictDoNothing();
+    .onConflictDoNothing()
+    .returning({ id: schema.board.id });
+  if (claimed.length === 0) return { posts: 0, entries: 0, articles: 0 };
   await db
     .insert(schema.tag)
     .values(TAGS.map((t) => ({ id: scoped(t.toLowerCase()), workspaceId: ws, name: t })))
     .onConflictDoNothing();
 
-  // Seeding twice must not duplicate the board: skip posts and releases that
-  // are already there, matched by title and version.
-  const existingTitles = new Set((await db.select({ title: schema.post.title }).from(schema.post).where(eq(schema.post.workspaceId, ws))).map((r) => r.title));
-  const existingVersions = new Set((await db.select({ version: schema.changelogEntry.version }).from(schema.changelogEntry).where(eq(schema.changelogEntry.workspaceId, ws))).map((r) => r.version));
-
   let i = 0;
   for (const p of POSTS) {
-    if (existingTitles.has(p.title)) {
-      i++;
-      continue;
-    }
     const author = members[i % members.length]!;
     const [row] = await db
       .insert(schema.post)
@@ -188,7 +184,6 @@ export async function seedDemoContent(db: Db, workspaceId: string, adminId: stri
   }
 
   for (const e of ENTRIES) {
-    if (existingVersions.has(e.version)) continue;
     const [row] = await db
       .insert(schema.changelogEntry)
       .values({ workspaceId: ws, title: e.title, version: e.version, body: e.body, authorId: adminId, publishedAt: at(e.days), createdAt: at(e.days) })

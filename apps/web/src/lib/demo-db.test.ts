@@ -129,4 +129,15 @@ describe("seedDemoContent", () => {
     expect(new Set(titles).size).toBe(titles.length);
     expect(new Set(versions).size).toBe(versions.length);
   });
+
+  it("does not duplicate posts or releases when two first runs race", async () => {
+    const db = await freshDb();
+    await ensureDemoWorkspace(db);
+    await Promise.all([seedDemoContent(db, DEMO_WORKSPACE_ID, DEMO_ADMIN_ID), seedDemoContent(db, DEMO_WORKSPACE_ID, DEMO_ADMIN_ID)]);
+    const titles = (await db.select({ title: schema.post.title }).from(schema.post).where(eq(schema.post.workspaceId, DEMO_WORKSPACE_ID))).map((r) => r.title);
+    const versions = (await db.select({ version: schema.changelogEntry.version }).from(schema.changelogEntry).where(eq(schema.changelogEntry.workspaceId, DEMO_WORKSPACE_ID))).map((r) => r.version);
+    expect(titles.length).toBeGreaterThan(0);
+    expect(new Set(titles).size).toBe(titles.length);
+    expect(new Set(versions).size).toBe(versions.length);
+  });
 });
