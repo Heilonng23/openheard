@@ -176,6 +176,22 @@ describe("account keys", () => {
     const boards = await call("list_boards", { workspace: "launchpad" });
     expect(boards.data.boards).toHaveLength(1);
   });
+
+  it("never hold the cloud's platform owner to a plan limit", async () => {
+    await db.update(schema.user).set({ role: "admin" }).where(eq(schema.user.id, "ann"));
+    const call = await connect(keys.annacct!);
+    // Self-hosted: the install owner keeps the Free limit.
+    expect((await call("create_workspace", { name: "Launch pad", slug: "launchpad" })).text).toContain("Free allows 2 workspaces");
+    env.ROOT_DOMAIN = "openheard.com";
+    for (const slug of ["launchpad", "second", "thirdone", "fourth", "fifthone"]) {
+      expect((await call("create_workspace", { name: slug, slug })).data.id).toBe(slug);
+    }
+    // Everyone else on the cloud still stops at Free's two.
+    await db.insert(schema.membership).values({ workspaceId: "second", userId: "bob", role: "admin" });
+    await makeKey("bobacct", "other", "account", "bob");
+    const bob = await connect(keys.bobacct!);
+    expect((await bob("create_workspace", { name: "Bobs place", slug: "bobsplace" })).text).toContain("Free allows 2 workspaces");
+  });
 });
 
 describe("keys on the root domain", () => {

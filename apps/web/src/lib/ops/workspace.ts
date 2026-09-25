@@ -32,6 +32,15 @@ export async function workspacesOf(db: Db, userId: string) {
     .orderBy(membership.createdAt);
 }
 
+// On the cloud every signup is a member, so the one account holding the
+// global admin role runs the instance and is never held to a plan. A
+// self-hosted install keeps the plan limits it always had.
+async function isPlatformOwner(role: string | undefined): Promise<boolean> {
+  if (role !== "admin") return false;
+  const { env } = await import("@openheard/env/server");
+  return !!(env as unknown as { ROOT_DOMAIN?: string }).ROOT_DOMAIN;
+}
+
 // A new workspace with the default statuses and one board, owned by `owner`.
 // With a website it starts in that site's colours and logo.
 export async function createWorkspace(
@@ -44,9 +53,9 @@ export async function createWorkspace(
   const name = data.name.trim();
   if (name.length < 2 || name.length > 60) throw new OpError("Name must be 2 to 60 characters");
   const [{ n: owned }] = await db.select({ n: count() }).from(membership).where(and(eq(membership.userId, owner.id), eq(membership.role, "admin"), ne(membership.workspaceId, "default")));
-  const [acct] = await db.select({ plan: user.plan }).from(user).where(eq(user.id, owner.id)).limit(1);
+  const [acct] = await db.select({ plan: user.plan, role: user.role }).from(user).where(eq(user.id, owner.id)).limit(1);
   const limit = PLANS[acct?.plan ?? "free"].workspaces;
-  if (owned >= limit) throw new OpError(acct?.plan === "pro" ? `Pro allows ${limit} workspaces` : `Free allows ${limit} workspaces. Upgrade to Pro for ${PLANS.pro.workspaces}.`, 403);
+  if (owned >= limit && !(await isPlatformOwner(acct?.role))) throw new OpError(acct?.plan === "pro" ? `Pro allows ${limit} workspaces` : `Free allows ${limit} workspaces. Upgrade to Pro for ${PLANS.pro.workspaces}.`, 403);
   const id = slugify(data.slug || name);
   // checkSlug applies the same floor; the mutation cannot rely on it.
   if (!id || id.length < 5 || RESERVED_SLUGS.includes(id)) throw new OpError("Pick a different slug: at least 5 letters, numbers or dashes");
