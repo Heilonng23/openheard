@@ -48,6 +48,7 @@
   var frame = null;
   var ready = false;
   var queuedTab = null;
+  var frameTab = null;
   // Opening on page load must not pull focus away from the host page.
   var focusOnReady = true;
   // While a post is sending, Esc and outside clicks leave the panel open.
@@ -219,7 +220,7 @@
     frame.setAttribute("allow", "clipboard-write");
     var c = frameConfig();
     var params = { seen: String(seen()), theme: c.theme, accent: c.accent, radius: c.radius };
-    if (tab) params.tab = tab;
+    if (tab) params.tab = frameTab = tab;
     if (c.tabs) params.tabs = c.tabs;
     frame.src = origin + "/widget" + query(params);
     panel.appendChild(frame);
@@ -231,10 +232,10 @@
 
   function setOpen(next, tab) {
     if (next) ensureFrame(tab);
-    if (next && tab) {
-      if (ready) post({ type: "openheard:open", tab: tab });
-      else queuedTab = tab;
-    }
+    if (next && tab && ready) post({ type: "openheard:open", tab: tab });
+    // Before the frame is ready only the latest open counts: a tab-less
+    // reopen or a close drops a tab asked for earlier.
+    if (!ready) queuedTab = (next && tab) || null;
     if (next === isOpen) return;
     // The panel grows from wherever the launcher's centre is, pill or circle.
     if (next && launcher.offsetWidth) wrap.style.setProperty("--lw", launcher.offsetWidth + "px");
@@ -270,7 +271,9 @@
     if (m.type === "openheard:ready") {
       ready = true;
       post({ type: "openheard:config", config: frameConfig() });
-      if (isOpen) post({ type: "openheard:open", tab: queuedTab || undefined, fresh: true });
+      // A frame first loaded for a tab goes back to the first one when the
+      // open that is showing asked for none.
+      if (isOpen) post({ type: "openheard:open", tab: queuedTab || undefined, home: !queuedTab && !!frameTab, fresh: true });
       queuedTab = null;
       if (isOpen && focusOnReady) frame.focus({ preventScroll: true });
     } else if (m.type === "openheard:close") {

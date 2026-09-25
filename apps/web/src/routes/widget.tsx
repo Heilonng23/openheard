@@ -129,8 +129,8 @@ function Widget() {
         return;
       }
       if (e.source === window.parent && e.data?.type === MSG.open) {
-        if (tabs.includes(e.data.tab)) {
-          setTab(e.data.tab);
+        if (tabs.includes(e.data.tab) || e.data.home) {
+          setTab(tabs.includes(e.data.tab) ? e.data.tab : tabs[0]);
           setView({ kind: "list" });
         }
         if (e.data.fresh) setOpened((n) => n + 1);
