@@ -10,7 +10,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { DEMO_ADMIN_ID, DEMO_WORKSPACE_ID } from "./demo";
-import { ensureDemoWorkspace, resetDemoWorkspace } from "./demo-db";
+import { ensureDemoContent, ensureDemoWorkspace, resetDemoWorkspace } from "./demo-db";
 import { seedDemoContent, seedUserId } from "./demo-seed";
 
 const MIGRATIONS = new URL("../../../../packages/db/migrations/", import.meta.url).pathname;
@@ -140,5 +140,38 @@ describe("seedDemoContent", () => {
     expect(titles.length).toBeGreaterThan(0);
     expect(new Set(titles).size).toBe(titles.length);
     expect(new Set(versions).size).toBe(versions.length);
+  });
+
+  it("finishes a seed an earlier run left with boards but nothing else", async () => {
+    const db = await freshDb();
+    await ensureDemoWorkspace(db);
+    const complete = await resetDemoWorkspace(db);
+    const count = async (table: typeof schema.post | typeof schema.changelogEntry | typeof schema.helpArticle) =>
+      (await db.select({ id: table.id }).from(table).where(eq(table.workspaceId, DEMO_WORKSPACE_ID))).length;
+    const full = { posts: await count(schema.post), entries: await count(schema.changelogEntry), articles: await count(schema.helpArticle) };
+
+    // Keep the claimed boards, drop everything after them, and age the claim
+    // past the point where a live run would still be holding it.
+    await resetDemoWorkspace(db);
+    await db.delete(schema.helpArticleFeedback);
+    await db.delete(schema.helpArticle).where(eq(schema.helpArticle.workspaceId, DEMO_WORKSPACE_ID));
+    await db.delete(schema.helpCollection).where(eq(schema.helpCollection.workspaceId, DEMO_WORKSPACE_ID));
+    await db.delete(schema.changelogPost);
+    await db.delete(schema.changelogEntry).where(eq(schema.changelogEntry.workspaceId, DEMO_WORKSPACE_ID));
+    await db.delete(schema.postTag);
+    await db.delete(schema.vote);
+    await db.delete(schema.activity);
+    await db.delete(schema.comment);
+    await db.delete(schema.post).where(eq(schema.post.workspaceId, DEMO_WORKSPACE_ID));
+    await db.update(schema.board).set({ createdAt: new Date(Date.now() - 3_600_000) }).where(eq(schema.board.workspaceId, DEMO_WORKSPACE_ID));
+
+    await ensureDemoContent(db);
+
+    expect(full.posts).toBe(complete.posts);
+    expect(await count(schema.post)).toBe(full.posts);
+    expect(await count(schema.changelogEntry)).toBe(full.entries);
+    expect(await count(schema.helpArticle)).toBe(full.articles);
+    expect(await ensureDemoContent(db)).toBeNull();
+    expect(await count(schema.post)).toBe(full.posts);
   });
 });

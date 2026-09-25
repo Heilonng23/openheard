@@ -5,7 +5,7 @@ import { hashPassword } from "better-auth/crypto";
 import { and, eq, inArray, ne, sql } from "drizzle-orm";
 
 import { DEMO_ADMIN_EMAIL, DEMO_ADMIN_ID, DEMO_WORKSPACE_ID } from "./demo";
-import { SEED_PEOPLE, seedDemoContent, seedUserId } from "./demo-seed";
+import { SEED_PEOPLE, demoSeedComplete, seedDemoContent, seedUserId } from "./demo-seed";
 
 const DEMO_ADMIN_NAME = "Demo admin";
 
@@ -100,14 +100,11 @@ export async function ensureDemoWorkspace(db: Db) {
 
 // Everything a public visitor needs on a deployment that has never run the
 // cron: the workspace, the shared admin, and a board with something on it.
-// Idempotent, and cheap once seeded (one counting query).
+// Idempotent, finishes a seed an earlier run left half done, and cheap once
+// seeded (one counting query).
 export async function ensureDemoContent(db: Db) {
   await ensureDemoWorkspace(db);
-  const [seeded] = await db
-    .select({ n: sql<number>`count(*)` })
-    .from(schema.post)
-    .where(eq(schema.post.workspaceId, DEMO_WORKSPACE_ID));
-  if (seeded && seeded.n > 0) return null;
+  if (await demoSeedComplete(db, DEMO_WORKSPACE_ID)) return null;
   return seedDemoContent(db, DEMO_WORKSPACE_ID, DEMO_ADMIN_ID);
 }
 

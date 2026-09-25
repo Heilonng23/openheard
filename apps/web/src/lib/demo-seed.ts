@@ -4,7 +4,7 @@
 // workspace but "default" prefixes them with its own id.
 import type { Db } from "@openheard/db";
 import * as schema from "@openheard/db/schema/index";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 
 const day = 86_400_000;
 const at = (daysAgo: number) => new Date(Date.now() - daysAgo * day);
@@ -122,6 +122,23 @@ async function assertUnowned(db: Db, table: typeof schema.board | typeof schema.
   if (foreign) throw new Error(`Id ${foreign.id} is already in use by another workspace`);
 }
 
+// How long a run may take before another one treats its claim as abandoned.
+const STALE_CLAIM_MS = 5 * 60_000;
+
+const HELP_SLUGS = HELP.flatMap((c) => c.articles.map((a) => a.slug));
+
+// True once every seeded post, release and help article is in place. One query,
+// so it is cheap enough to run on the demo entry path.
+export async function demoSeedComplete(db: Db, ws: string): Promise<boolean> {
+  const [row] = await db.all<{ posts: number; entries: number; articles: number }>(sql`
+    SELECT
+      (SELECT count(DISTINCT title) FROM post WHERE workspace_id = ${ws} AND title IN (${sql.join(POSTS.map((p) => sql`${p.title}`), sql`, `)})) AS posts,
+      (SELECT count(DISTINCT title) FROM changelog_entry WHERE workspace_id = ${ws} AND title IN (${sql.join(ENTRIES.map((e) => sql`${e.title}`), sql`, `)})) AS entries,
+      (SELECT count(DISTINCT slug) FROM help_article WHERE workspace_id = ${ws} AND slug IN (${sql.join(HELP_SLUGS.map((s) => sql`${s}`), sql`, `)})) AS articles
+  `);
+  return !!row && row.posts === POSTS.length && row.entries === ENTRIES.length && row.articles === HELP_SLUGS.length;
+}
+
 export async function seedDemoContent(db: Db, workspaceId: string, adminId: string) {
   const ws = workspaceId;
   const scoped = (slug: string) => scopedId(ws, slug);
@@ -141,21 +158,32 @@ export async function seedDemoContent(db: Db, workspaceId: string, adminId: stri
   await assertUnowned(db, schema.board, BOARDS.map((b) => scoped(b.slug)), ws);
   await assertUnowned(db, schema.tag, TAGS.map((t) => scoped(t.toLowerCase())), ws);
   // The board ids are primary keys, so inserting them is the atomic claim:
-  // whoever gets rows back seeds, and a second or concurrent run stops here
-  // instead of duplicating posts and releases.
+  // whoever gets rows back seeds, and a concurrent run stops here instead of
+  // duplicating posts and releases. A claim older than a few minutes with the
+  // seed still incomplete means that run died part way, so this one finishes
+  // it, skipping whatever already landed.
   const claimed = await db
     .insert(schema.board)
     .values(BOARDS.map((b, i) => ({ id: scoped(b.slug), workspaceId: ws, name: b.name, description: b.description, position: i })))
     .onConflictDoNothing()
     .returning({ id: schema.board.id });
-  if (claimed.length === 0) return { posts: 0, entries: 0, articles: 0 };
+  if (claimed.length === 0) {
+    const [claim] = await db.select({ createdAt: schema.board.createdAt }).from(schema.board).where(eq(schema.board.id, scoped(BOARDS[0].slug))).limit(1);
+    const fresh = claim && Date.now() - claim.createdAt.getTime() < STALE_CLAIM_MS;
+    if (fresh || (await demoSeedComplete(db, ws))) return { posts: 0, entries: 0, articles: 0 };
+  }
   await db
     .insert(schema.tag)
     .values(TAGS.map((t) => ({ id: scoped(t.toLowerCase()), workspaceId: ws, name: t })))
     .onConflictDoNothing();
 
-  let i = 0;
+  const postTitles = new Set((await db.select({ title: schema.post.title }).from(schema.post).where(eq(schema.post.workspaceId, ws))).map((r) => r.title));
+  let posts = 0;
+  let i = -1;
   for (const p of POSTS) {
+    i++;
+    if (postTitles.has(p.title)) continue;
+    posts++;
     const author = members[i % members.length]!;
     const [row] = await db
       .insert(schema.post)
@@ -173,7 +201,6 @@ export async function seedDemoContent(db: Db, workspaceId: string, adminId: stri
     if (i % 2 === 0) {
       await db.insert(schema.comment).values({ postId: row.id, authorId: members[(i + 1) % members.length]!, body: "Same boat here. We would also want the status mapping to be editable.", createdAt: at(Math.max(0, p.days - 1)) });
     }
-    i++;
   }
 
   const seeded = await db.select({ id: schema.post.id, title: schema.post.title }).from(schema.post).where(eq(schema.post.workspaceId, ws));
@@ -183,7 +210,11 @@ export async function seedDemoContent(db: Db, workspaceId: string, adminId: stri
     if (n) await db.update(schema.post).set({ commentCount: n }).where(eq(schema.post.id, id));
   }
 
+  const entryTitles = new Set((await db.select({ title: schema.changelogEntry.title }).from(schema.changelogEntry).where(eq(schema.changelogEntry.workspaceId, ws))).map((r) => r.title));
+  let entries = 0;
   for (const e of ENTRIES) {
+    if (entryTitles.has(e.title)) continue;
+    entries++;
     const [row] = await db
       .insert(schema.changelogEntry)
       .values({ workspaceId: ws, title: e.title, version: e.version, body: e.body, authorId: adminId, publishedAt: at(e.days), createdAt: at(e.days) })
@@ -194,26 +225,34 @@ export async function seedDemoContent(db: Db, workspaceId: string, adminId: stri
 
   const articles = await seedHelpCenter(db, ws, adminId);
 
-  return { posts: POSTS.length, entries: ENTRIES.length, articles };
+  return { posts, entries, articles };
 }
 
-// Slugs are unique per workspace, so a second seed leaves an existing help
-// center alone instead of failing on it.
+// Slugs are unique per workspace, so a second seed skips the collections and
+// articles that already exist instead of failing on them.
 export async function seedHelpCenter(db: Db, ws: string, adminId: string): Promise<number> {
   let articles = 0;
-  const hasHelp = (await db.select({ id: schema.helpCollection.id }).from(schema.helpCollection).where(eq(schema.helpCollection.workspaceId, ws)).limit(1)).length > 0;
-  for (const [i, c] of hasHelp ? [] : HELP.entries()) {
-    const [col] = await db
-      .insert(schema.helpCollection)
-      .values({ workspaceId: ws, slug: c.slug, title: c.title, description: c.description, icon: c.icon, position: i })
-      .returning({ id: schema.helpCollection.id });
+  let n = -1;
+  const cols = await db.select({ id: schema.helpCollection.id, slug: schema.helpCollection.slug }).from(schema.helpCollection).where(eq(schema.helpCollection.workspaceId, ws));
+  const have = new Set((await db.select({ slug: schema.helpArticle.slug }).from(schema.helpArticle).where(eq(schema.helpArticle.workspaceId, ws))).map((r) => r.slug));
+  for (const [i, c] of HELP.entries()) {
+    let colId = cols.find((x) => x.slug === c.slug)?.id;
+    if (colId === undefined) {
+      const [col] = await db
+        .insert(schema.helpCollection)
+        .values({ workspaceId: ws, slug: c.slug, title: c.title, description: c.description, icon: c.icon, position: i })
+        .returning({ id: schema.helpCollection.id });
+      colId = col!.id;
+    }
     for (const [j, a] of c.articles.entries()) {
-      const when = at(30 - articles * 4);
-      const helpful = 12 - articles * 2;
-      const unhelpful = articles % 2;
+      n++;
+      if (have.has(a.slug)) continue;
+      const when = at(30 - n * 4);
+      const helpful = 12 - n * 2;
+      const unhelpful = n % 2;
       const [row] = await db.insert(schema.helpArticle).values({
         workspaceId: ws,
-        collectionId: col.id,
+        collectionId: colId,
         slug: a.slug,
         title: a.title,
         excerpt: a.excerpt,
