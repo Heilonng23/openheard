@@ -5,6 +5,7 @@ import { getRequest } from "@tanstack/react-start/server";
 import { and, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { z } from "zod";
 
+import { notifyIntegrations } from "@/lib/integration-db";
 import { statusOfKind } from "@/lib/status-db";
 import { requireAdmin, sessionMiddleware, widgetSessionMiddleware } from "@/lib/session";
 
@@ -40,12 +41,14 @@ export const saveChangelog = createServerFn({ method: "POST" })
     const db = createDb();
     const ws = context.workspace.id;
     let id = data.id;
+    let wasPublished = false;
     const values = { workspaceId: ws, title: data.title, body: data.body, version: data.version || null, authorId: u.id, publishedAt: data.publish ? new Date() : null };
     // Entry and post ids are global. A scoped UPDATE that matches nothing is
     // silent, so prove ownership of everything this touches before writing.
     if (id) {
-      const [owned] = await db.select({ id: changelogEntry.id }).from(changelogEntry).where(and(eq(changelogEntry.id, id), eq(changelogEntry.workspaceId, ws))).limit(1);
+      const [owned] = await db.select({ id: changelogEntry.id, publishedAt: changelogEntry.publishedAt }).from(changelogEntry).where(and(eq(changelogEntry.id, id), eq(changelogEntry.workspaceId, ws))).limit(1);
       if (!owned) throw new Error("Changelog entry not found");
+      wasPublished = !!owned.publishedAt;
     }
     const postIds = [...new Set(data.postIds)];
     if (postIds.length) {
@@ -72,6 +75,7 @@ export const saveChangelog = createServerFn({ method: "POST" })
       }
     }
     purgeWorkspaceCache(new URL(getRequest().url).origin);
+    if (data.publish && !wasPublished) notifyIntegrations(db, ws, { type: "changelog.published", entryId: id! }, new URL(getRequest().url).origin);
     return { id };
   });
 

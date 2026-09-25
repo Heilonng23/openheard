@@ -9,6 +9,7 @@ import { z } from "zod";
 
 import { AttachmentGoneError, claimQuery, reserveAttachments } from "@/lib/attachment-db";
 import { MAX_IMAGES, toAttachmentView } from "@/lib/attachments";
+import { notifyIntegrations } from "@/lib/integration-db";
 import { invalidate } from "@/lib/kv-cache";
 import { requireAdmin, requireUser, sessionMiddleware, widgetSessionMiddleware } from "@/lib/session";
 
@@ -247,6 +248,7 @@ export const createPost = createServerFn({ method: "POST" })
     }
     void invalidate(`workspace:${context.workspace.id}`);
     purgeWorkspaceCache(originFromRequest());
+    notifyIntegrations(db, context.workspace.id, { type: "post.created", postId: created!.id }, originFromRequest());
     return { id: created!.id, pending: initialStatus !== "open" };
   });
 
@@ -324,7 +326,10 @@ export const addComment = createServerFn({ method: "POST" })
       ] as unknown as Parameters<typeof db.batch>[0]);
       throw new AttachmentGoneError();
     }
-    if (!internal) purgeWorkspaceCache(originFromRequest(), [data.postId]);
+    if (!internal) {
+      purgeWorkspaceCache(originFromRequest(), [data.postId]);
+      notifyIntegrations(db, context.workspace.id, { type: "comment.created", commentId: created!.id }, originFromRequest());
+    }
     return { ok: true };
   });
 
@@ -364,6 +369,7 @@ export const setStatus = createServerFn({ method: "POST" })
     await db.insert(activity).values({ postId: data.postId, actorId: u.id, type: "status", fromStatus: current.status, toStatus: data.status, note: data.note || null });
     void invalidate(`workspace:${context.workspace.id}`);
     purgeWorkspaceCache(originFromRequest(), [data.postId]);
+    notifyIntegrations(db, context.workspace.id, { type: "post.status_changed", postId: data.postId, fromStatus: current.status }, originFromRequest());
     return { ok: true };
   });
 
