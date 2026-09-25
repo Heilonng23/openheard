@@ -68,7 +68,7 @@ export function FeedbackList() {
       ) : (
         <ol role="list" className="mx-2 flex flex-col">
           {data?.posts.map((p) => (
-            <li key={p.id} className="border-b border-white/6 last:border-b-0">
+            <li key={p.id} className="border-b border-foreground/6 last:border-b-0">
               <div
                 role="button"
                 tabIndex={0}

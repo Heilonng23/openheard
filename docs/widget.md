@@ -8,8 +8,9 @@ the corner that opens a panel with three tabs:
 - **Changelog**: what shipped, with a "new" badge on the launcher when there is
   a release the user has not seen
 
-It works on any site. The copy-paste snippet and a live preview are in the
-dashboard under **Settings → Widget**.
+It works on any site. The copy-paste snippet is in the dashboard under
+**Settings → Widget → Install**; how it looks and which tabs it shows are
+under **Appearance** and **Content**, next to a live preview.
 
 ## Install
 
@@ -22,19 +23,41 @@ Add one tag before `</body>`:
 Use your own workspace address. On a self-hosted install that is the origin
 the board runs on, for example `https://feedback.example.com/widget.js`.
 
-The script is under 4 KB gzipped, loads with `async`, and does nothing until
+The script is about 6 KB gzipped, loads with `async`, and does nothing until
 the page has parsed. The panel itself only loads when someone hovers or opens
 the launcher.
 
+## Appearance
+
+Set the look in the dashboard under **Settings → Widget**. It is saved on the
+workspace and the loader reads it from `/widget.json`, so a change reaches
+every site within a minute without touching the snippet:
+
+- **Theme**: dark, light, or auto, which follows the visitor's system setting
+- **Accent**: the launcher, voted pills and links; defaults to your brand accent
+- **Launcher**: a round icon, an icon with a label, or hidden when you open
+  the widget from your own button
+- **Label and icon**: up to 24 characters, and one of five icons
+- **Position**: bottom right or bottom left
+- **Corner radius**: sharp, soft or round
+- **Tabs**: turn Feedback, Roadmap or Changelog off; the first one left on
+  opens by default. A tab hidden on the whole board (Settings → Access) stays
+  out of the widget too.
+
 ## Options
 
-Set them as data attributes on the script tag.
+Data attributes on the script tag override the saved settings on that page.
 
 | Attribute | Values | Default |
 | --- | --- | --- |
-| `data-position` | `bottom-right`, `bottom-left` | `bottom-right` |
-| `data-accent` | a hex colour, e.g. `#3ecf8e` | the workspace accent |
-| `data-launcher` | `false` hides the button | shown |
+| `data-theme` | `dark`, `light`, `auto` | saved setting |
+| `data-accent` | a hex colour, e.g. `#3ecf8e` | saved setting |
+| `data-launcher` | `icon`, `label`, `hidden` (`false` also hides it) | saved setting |
+| `data-label` | launcher text, up to 24 characters | saved setting |
+| `data-icon` | `chat`, `lightbulb`, `megaphone`, `question`, `sparkle` | saved setting |
+| `data-position` | `bottom-right`, `bottom-left` | saved setting |
+| `data-radius` | `sharp`, `soft`, `round` | saved setting |
+| `data-tabs` | comma-separated, e.g. `feedback,changelog` | saved setting |
 | `data-open-on-load` | present to open the panel right away | closed |
 
 ```html
@@ -63,6 +86,7 @@ window.openheard("open");              // open on the last tab
 window.openheard("open", "roadmap");   // feedback | roadmap | changelog
 window.openheard("close");
 window.openheard("toggle");
+window.openheard("config", { theme: "light", position: "bottom-left" }); // override the look at runtime
 ```
 
 Calls made before the script has loaded are safe if you queue them:
@@ -78,8 +102,9 @@ Calls made before the script has loaded are safe if you queue them:
 Escape or a click anywhere on your page closes the panel, except while a post
 is still sending.
 
-The panel is always dark, in openheard's colours, with your workspace accent
-on the launcher and on voted pills, so it reads as one object on any page.
+The panel uses openheard's colours in the theme you pick, with your accent on
+the launcher, voted pills and links. With motion reduced in the visitor's
+system settings, it fades instead of growing out of the launcher.
 
 ## The "new" badge
 
@@ -115,8 +140,8 @@ page's scripts, and closing the tab forgets it.
 ## Allowed sites
 
 By default any site can embed the widget, so the snippet works the moment you
-paste it. To limit it, list your sites under **Settings → Widget → Allowed
-sites**, one origin per line:
+paste it. To limit it, list your sites under **Settings → Widget → Install →
+Allowed sites**, one origin per line:
 
 ```
 https://app.example.com
@@ -142,7 +167,8 @@ visitors into voting or posting. Clear the list to allow any site again.
   it and its styles do not reach your page.
 - The loader only accepts messages from its own iframe on the board's origin.
   Nothing secret crosses between your page and the panel: only "close",
-  "open this tab" and "the changelog was seen".
+  "open this tab", "the changelog was seen" and the look (theme, accent,
+  corners, tabs).
 - `/widget.js` and `/widget.json` are public and readable from any origin.
   `/widget.json` is cached at the edge per workspace, whatever its query
   string, and rate limited per IP.

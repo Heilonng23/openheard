@@ -35,7 +35,7 @@ export function RoadmapTab() {
             {items.length === 0 ? <p className="px-5 pb-3 text-xs text-faint">Nothing here yet</p> : null}
             <ol role="list" className="mx-2 flex flex-col">
               {items.map((p) => (
-                <li key={p.id} className="border-b border-white/6 last:border-b-0">
+                <li key={p.id} className="border-b border-foreground/6 last:border-b-0">
                   <div
                     role="button"
                     tabIndex={0}
@@ -103,7 +103,7 @@ function ChangelogRow({ entry: e, fresh, onPost }: { entry: ChangelogEntry; fres
   const [open, setOpen] = useState(false);
   const long = e.body.length > 160 || e.posts.length > 0;
   return (
-    <li className="border-b border-white/6 last:border-b-0">
+    <li className="border-b border-foreground/6 last:border-b-0">
       <div
         role={long ? "button" : undefined}
         tabIndex={long ? 0 : undefined}

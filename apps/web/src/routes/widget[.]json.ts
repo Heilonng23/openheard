@@ -2,9 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 
 const CORS = { "access-control-allow-origin": "*", "content-type": "application/json; charset=utf-8" };
 
-// What the loader needs before the panel ever opens: launcher colour, panel
-// background, and when the changelog last moved, for the "new" badge. All of
-// it is public, so any origin may read it. The edge caches it per workspace
+// What the loader needs before the panel ever opens: the widget's appearance
+// settings, its tabs, and when the changelog last moved, for the "new" badge.
+// All of it is public, so any origin may read it. The edge caches it per workspace
 // (see edgeCacheKey); the rate limit is for whatever gets past that.
 export const Route = createFileRoute("/widget.json")({
   server: {
@@ -12,11 +12,12 @@ export const Route = createFileRoute("/widget.json")({
       GET: async ({ request }) => {
         // Server-only modules load here, never at the top: this file is a
         // route, and routes are reachable from the client bundle.
-        const [{ changelogEntry, createDb }, { and, desc, eq, isNotNull }, { workspaceFromRequest }, { rateLimit, rateLimitResponse }] = await Promise.all([
+        const [{ changelogEntry, createDb }, { and, desc, eq, isNotNull }, { workspaceFromRequest }, { rateLimit, rateLimitResponse }, { widgetMeta, widgetTabs }] = await Promise.all([
           import("@openheard/db"),
           import("drizzle-orm"),
           import("@/lib/session"),
           import("@/lib/rate-limit"),
+          import("@/lib/widget-settings"),
         ]);
         const ip = request.headers.get("cf-connecting-ip") ?? request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
         const limited = await rateLimit(`widget-json:${ip}`, { window: 60, max: 120 });
@@ -27,7 +28,7 @@ export const Route = createFileRoute("/widget.json")({
         }
         const ws = await workspaceFromRequest(request);
         if (!ws) return new Response(JSON.stringify({ error: "Not found" }), { status: 404, headers: CORS });
-        const [latest] = ws.showChangelog
+        const [latest] = widgetTabs(ws).includes("changelog")
           ? await createDb()
               .select({ at: changelogEntry.publishedAt })
               .from(changelogEntry)
@@ -35,13 +36,7 @@ export const Route = createFileRoute("/widget.json")({
               .orderBy(desc(changelogEntry.publishedAt))
               .limit(1)
           : [];
-        const body = {
-          name: ws.name,
-          accent: ws.accent,
-          theme: ws.theme === "light" ? "light" : "dark",
-          changelog: ws.showChangelog,
-          latestChangelogAt: latest?.at ? new Date(latest.at).getTime() : null,
-        };
+        const body = widgetMeta(ws, latest?.at ? new Date(latest.at).getTime() : null);
         return new Response(JSON.stringify(body), { headers: { ...CORS, "cache-control": "public, max-age=60" } });
       },
     },
