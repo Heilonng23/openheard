@@ -23,6 +23,7 @@ const DEMO_WORKSPACE_DEFAULTS = {
   anonymousVoting: true,
   showRoadmap: true,
   showChangelog: true,
+  widgetSettings: null,
 };
 
 // The demo admin signs in with a password nobody types: it is derived from the

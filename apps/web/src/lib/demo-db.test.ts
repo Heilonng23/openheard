@@ -69,7 +69,7 @@ describe("resetDemoWorkspace", () => {
   });
 
   it("keeps the workspace row and the shared admin, and restores its settings", async () => {
-    await db.update(schema.workspace).set({ anonymousVoting: false, whoCanPost: "members", name: "Hijacked" }).where(eq(schema.workspace.id, DEMO_WORKSPACE_ID));
+    await db.update(schema.workspace).set({ anonymousVoting: false, whoCanPost: "members", name: "Hijacked", widgetSettings: { tabs: ["changelog"] } }).where(eq(schema.workspace.id, DEMO_WORKSPACE_ID));
     await db.update(schema.user).set({ name: "Renamed" }).where(eq(schema.user.id, DEMO_ADMIN_ID));
 
     await resetDemoWorkspace(db);
@@ -78,6 +78,7 @@ describe("resetDemoWorkspace", () => {
     expect(ws!.anonymousVoting).toBe(true);
     expect(ws!.whoCanPost).toBe("anyone");
     expect(ws!.name).toBe("Acme");
+    expect(ws!.widgetSettings).toBeNull();
     expect((await db.select().from(schema.user).where(eq(schema.user.id, DEMO_ADMIN_ID)))[0]!.name).toBe("Demo admin");
     expect(
       await db.select().from(schema.membership).where(and(eq(schema.membership.workspaceId, DEMO_WORKSPACE_ID), eq(schema.membership.userId, DEMO_ADMIN_ID))),

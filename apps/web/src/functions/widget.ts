@@ -68,6 +68,7 @@ export const saveWidgetSettings = createServerFn({ method: "POST" })
   .validator((d: unknown) => widgetSettingsSchema.parse(d))
   .handler(async ({ data, context }) => {
     requireAdmin(context.user);
+    assertNotDemo(context.workspace);
     await createDb().update(workspace).set({ widgetSettings: data }).where(eq(workspace.id, context.workspace.id));
     void invalidate(`workspace:${context.workspace.id}`);
     await purgeWorkspaceCache(new URL(getRequest().url).origin);
