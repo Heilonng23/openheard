@@ -145,7 +145,7 @@ function Groups({ data, onEditCollection }: { data: Data; onEditCollection: (c: 
           <div className="flex h-11 shrink-0 items-center gap-3 border-b bg-card/40 px-5">
             <span className="w-4" />
             <span className="text-[13px] font-semibold text-muted-foreground">Not in a collection</span>
-            <span className="font-mono text-[12px] text-faint">{loose.length}</span>
+            <span className="text-[12px] text-faint tabular-nums">{loose.length}</span>
           </div>
           {loose.map((a) => (
             <ArticleRow key={a.id} article={a} />
@@ -165,7 +165,7 @@ function CollectionGroup({ collection, articles, onEdit }: { collection: Collect
         <DotsSixVerticalIcon className="size-4 shrink-0 text-faint opacity-40 group-hover/c:opacity-100" />
         <HelpIcon name={collection.icon} className="size-4 shrink-0 text-muted-foreground" />
         <span className="min-w-0 truncate text-[14px] font-semibold">{collection.title}</span>
-        <span className="font-mono text-[12px] text-faint">{articles.length}</span>
+        <span className="text-[12px] text-faint tabular-nums">{articles.length}</span>
         {collection.description ? <span className="hidden min-w-0 truncate text-[12px] text-faint lg:inline">{collection.description}</span> : null}
         <span className="flex-1" />
         <button type="button" onPointerDown={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()} onClick={() => navigate({ search: { article: "new", collection: collection.id } })} className="inline-flex size-7 items-center justify-center rounded-md text-faint hover:bg-accent hover:text-foreground" title="New article in this collection">
@@ -188,7 +188,7 @@ function ArticleRow({ article: a }: { article: Article }) {
       {a.status === "published" ? <CheckCircleIcon weight="fill" className="size-[18px] shrink-0 text-status-shipped" /> : <CircleDashedIcon className="size-[18px] shrink-0 text-status-planned" />}
       <span className="min-w-0 truncate text-[15px] font-medium">{a.title}</span>
       {a.status === "draft" ? <span className="shrink-0 rounded-md bg-status-planned/15 px-2 py-0.5 text-[12px] font-medium text-status-planned">Draft</span> : null}
-      <span className="hidden shrink-0 font-mono text-[12px] text-faint md:inline">/help/{a.slug}</span>
+      <span className="hidden shrink-0 text-[12px] text-faint md:inline">/help/{a.slug}</span>
       <span className="flex-1" />
       {votes ? (
         <span className="shrink-0 text-[12px] text-faint tabular-nums" title={`${a.helpfulCount} helpful, ${a.unhelpfulCount} not helpful`}>
@@ -316,7 +316,7 @@ function Editor({ article, collections, defaultCollection, onClose }: { article:
                   <DropdownMenuItem onClick={() => setCollectionId(null)}>No collection</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              <label className={cn("flex h-7 items-center rounded-md border border-transparent pl-2 font-mono text-[12px] text-faint focus-within:border-ring/60 hover:border-input", !slugOk && "border-destructive/60")}>
+              <label className={cn("flex h-7 items-center rounded-md border border-transparent pl-2 text-[12px] text-faint focus-within:border-ring/60 hover:border-input", !slugOk && "border-destructive/60")}>
                 /help/
                 <input
                   value={slug}
@@ -370,7 +370,7 @@ function Editor({ article, collections, defaultCollection, onClose }: { article:
                   }}
                   placeholder={"Write the answer in markdown.\n\n## A heading for each step\n\n1. Numbered steps\n2. Read well\n\n> A quote becomes a callout."}
                   aria-label="Article body"
-                  className="min-h-[360px] w-full resize-none bg-transparent font-mono text-[14px] leading-[1.7] text-foreground/90 outline-none field-sizing-content placeholder:text-faint"
+                  className="min-h-[360px] w-full resize-none bg-transparent text-[14px] leading-[1.7] text-foreground/90 outline-none field-sizing-content placeholder:text-faint"
                 />
               )}
             </div>

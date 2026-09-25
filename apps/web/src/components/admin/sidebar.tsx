@@ -297,7 +297,7 @@ export function AdminRail({ onExpand, onNewPost }: { onExpand?: () => void; onNe
         </Tip>
         <DropdownMenuContent align="start" side="right" className="min-w-52">
           <DropdownMenuGroup>
-            <DropdownMenuLabel className="text-[11px] tracking-[0.06em] text-faint uppercase">Workspaces</DropdownMenuLabel>
+            <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">Workspaces</DropdownMenuLabel>
             <WorkspaceItems />
           </DropdownMenuGroup>
         </DropdownMenuContent>

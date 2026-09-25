@@ -54,7 +54,7 @@ export function SectionHeader({ title, sub, eyebrow, className }: { title: React
 }
 
 export function Eyebrow({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn("font-mono text-[12px] tracking-[0.1em] text-link uppercase", className)}>{children}</div>;
+  return <div className={cn("text-[13px] font-medium text-link", className)}>{children}</div>;
 }
 
 // Product screenshot in a hairline frame. Crops from the top-left so the

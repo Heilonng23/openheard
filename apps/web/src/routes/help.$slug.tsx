@@ -67,9 +67,9 @@ function ArticlePage() {
       }
     >
       <article className="flex flex-col">
-        <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[13px] text-faint lowercase">
+        <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-faint">
           <Link to="/help" className="hover:text-muted-foreground">
-            help
+            Help
           </Link>
           <span aria-hidden>/</span>
           {collection ? (
@@ -86,7 +86,7 @@ function ArticlePage() {
         </nav>
 
         {article.status === "draft" ? (
-          <p className="mt-5 self-start rounded-md border border-dashed border-input px-2 py-0.5 font-mono text-[12px] text-faint">draft · only the team can see this</p>
+          <p className="mt-5 self-start rounded-md border border-dashed border-input px-2 py-0.5 text-[12px] text-faint">Draft · only the team can see this</p>
         ) : null}
 
         <h1 className="mt-4 text-[28px] leading-[1.2] font-semibold tracking-[-0.025em] md:text-[32px]">{article.title}</h1>
@@ -98,8 +98,8 @@ function ArticlePage() {
               {article.author.name}
             </span>
           ) : null}
-          <span className="font-mono text-[12px] text-faint">updated {longDate(article.updatedAt).toLowerCase()}</span>
-          <span className="font-mono text-[12px] text-faint">{readingMinutes(article.body)} min read</span>
+          <span className="text-[12px] text-faint tabular-nums">Updated {longDate(article.updatedAt)}</span>
+          <span className="text-[12px] text-faint tabular-nums">{readingMinutes(article.body)} min read</span>
         </div>
 
         {blocks.length ? <Markdown blocks={blocks} className="mt-8" /> : <p className="mt-8 text-muted-foreground">This article has no body yet.</p>}
@@ -114,7 +114,7 @@ function ArticlePage() {
                 <li key={r.slug}>
                   <Link to="/help/$slug" params={{ slug: r.slug }} className="group/r flex h-12 items-center justify-between gap-4 border-b text-[15px] text-foreground/90 hover:text-foreground">
                     <span className="truncate">{r.title}</span>
-                    {r.collection ? <span className="shrink-0 font-mono text-[12px] text-faint lowercase group-hover/r:text-muted-foreground">{r.collection}</span> : null}
+                    {r.collection ? <span className="shrink-0 text-[12px] text-faint group-hover/r:text-muted-foreground">{r.collection}</span> : null}
                   </Link>
                 </li>
               ))}

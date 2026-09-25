@@ -8,10 +8,10 @@ import UserMenu from "./user-menu";
 import { cn } from "@openheard/ui/lib/utils";
 
 const links = [
-  { to: "/", label: "board" },
-  { to: "/roadmap", label: "roadmap" },
-  { to: "/changelog", label: "changelog" },
-  { to: "/help", label: "help" },
+  { to: "/", label: "Board" },
+  { to: "/roadmap", label: "Roadmap" },
+  { to: "/changelog", label: "Changelog" },
+  { to: "/help", label: "Help" },
 ] as const;
 
 export default function Header() {
@@ -52,7 +52,7 @@ export default function Header() {
                       key={to}
                       to={to}
                       className={cn(
-                        "group/nav inline-flex h-8 items-center gap-[7px] rounded-md px-2.5 font-mono text-[13px] font-medium transition-colors duration-150 hover:bg-accent/60",
+                        "group/nav inline-flex h-8 items-center gap-[7px] rounded-md px-2.5 text-[13px] font-medium transition-colors duration-150 hover:bg-accent/60",
                         active ? "text-foreground" : "text-faint hover:text-muted-foreground",
                       )}
                     >
@@ -98,7 +98,7 @@ export default function Header() {
                   to={to}
                   onClick={() => setMenuOpen(false)}
                   className={cn(
-                    "flex h-11 items-center gap-[7px] rounded-md px-2.5 font-mono text-[14px] font-medium transition-colors duration-150",
+                    "flex h-11 items-center gap-[7px] rounded-md px-2.5 text-[14px] font-medium transition-colors duration-150",
                     active ? "text-foreground" : "text-muted-foreground hover:text-foreground",
                   )}
                 >

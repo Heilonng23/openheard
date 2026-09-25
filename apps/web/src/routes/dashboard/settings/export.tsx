@@ -105,7 +105,7 @@ function Export() {
           <div className="flex max-h-48 flex-col overflow-auto rounded-md border bg-background">
             {preview.slice(0, 12).map((r, i) => (
               <div key={i} className="flex items-center gap-3 border-b px-3 py-1.5 text-xs last:border-b-0">
-                <span className="w-8 font-mono text-faint tabular-nums">{r.votes}</span>
+                <span className="w-8 text-faint tabular-nums">{r.votes}</span>
                 <span className="min-w-0 flex-1 truncate">{r.title}</span>
                 <span className="text-faint">{r.status ?? "—"}</span>
                 <span className="text-faint">{r.authorName ?? ""}</span>

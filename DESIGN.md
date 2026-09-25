@@ -8,7 +8,7 @@ and the frames disagree, ask.
 ## Direction
 
 Near-black, white type, blue only where something is active. Familiar
-feedback-board structure, our own details: lowercase mono nav,
+feedback-board structure, our own details: a quiet sentence-case nav,
 ranked rows, hairline lists instead of boxed cards, a status timeline on every
 post. It should feel like a tool people are happy to vote and comment in, not
 an admin panel.
@@ -28,17 +28,23 @@ an admin panel.
 
 ## Type
 
-- Geist for everything. Geist Mono for the nav, counts, ranks, dates, version
-  tags, keyboard hints, section labels (11px, tracked, uppercase).
+- Geist for everything, including the nav, counts, ranks, dates, versions and
+  section labels. Numbers (counts, votes, ranks, dates, versions, times) get
+  `tabular-nums` so they line up.
+- Geist Mono only for code: code blocks, inline code, API keys and tokens,
+  and keyboard hints (`kbd`, `⌘K`, `/`, `j k`). Nothing else is mono.
+- Section labels ("Boards", "On this page", "Popular") are small Geist in
+  sentence case: `text-xs font-medium text-muted-foreground`. No uppercase,
+  no letter-spacing.
 - Scale: 11 12 13 14 15 18 20 24. Weights 400 500 600.
 - Headings get `letter-spacing: -0.02em`.
-- Nav labels are lowercase: `board roadmap changelog`.
+- Nav labels are sentence case: `Board Roadmap Changelog Help`.
 
 ## Layout
 
 - One 1008px column, centered, on every page. Header content sits on the same
   column as the page.
-- Header: mark + wordmark, hairline divider, mono nav with a 5px blue dot
+- Header: mark + wordmark, hairline divider, Geist nav with a 5px blue dot
   before the active item. Right: search (220px, `/` hint), avatar.
 - Board: feed (720) + rail (240). Rail holds only: "Post idea" button, boards
   with counts, roadmap counts. No filter sidebar, no tags panel.
@@ -47,13 +53,13 @@ an admin panel.
 - Post: feed + rail. Rail holds: voters stack, details, copy link.
 - Changelog: date and version rail on the left of each entry, "shipped from"
   chips linking back to posts, subscribe box in the rail.
-- Footer: keyboard hints centered, "powered by openheard" beside them.
+- Footer: keyboard hints centered, "Powered by openheard" beside them.
 
 ## Components
 
-- Vote pill: 48x56, vertical, caret + mono count, on the RIGHT of the row.
+- Vote pill: 48x56, vertical, caret + tabular count, on the RIGHT of the row.
   Voted: blue fill, near-black text, soft blue glow. This is the signature.
-- Post row: mono rank (`01`) at left on Trending, title 15/600, one-line
+- Post row: tabular rank (`01`) at left on Trending, title 15/600, one-line
   excerpt, meta row (status dot + label, comment count, author, age).
 - Status chip: dot + label, tinted background of the status colour at 10%.
 - Timeline: four steps with a hairline between them, current step has a glow.

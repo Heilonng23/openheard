@@ -15,7 +15,7 @@ export function Shell({ children, rail, className }: { children: ReactNode; rail
 }
 
 export function RailLabel({ children }: { children: ReactNode }) {
-  return <div className="px-2.5 pb-2 font-mono text-[11px] tracking-[0.06em] text-faint uppercase">{children}</div>;
+  return <div className="px-2.5 pb-2 text-xs font-medium text-muted-foreground">{children}</div>;
 }
 
 export function RailItem({ active, onClick, label, count, color, to, search }: { active?: boolean; onClick?: () => void; label: ReactNode; count?: number | string; color?: string; to?: string; search?: Record<string, unknown> }) {
@@ -30,7 +30,7 @@ export function RailItem({ active, onClick, label, count, color, to, search }: {
         {color ? <span className="size-[7px] rounded-full" style={{ background: color }} /> : null}
         {label}
       </span>
-      {count !== undefined ? <span className="font-mono text-xs text-faint">{count}</span> : null}
+      {count !== undefined ? <span className="text-xs text-faint tabular-nums">{count}</span> : null}
     </>
   );
   if (to) {

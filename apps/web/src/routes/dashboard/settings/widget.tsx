@@ -378,7 +378,7 @@ function AllowedSites({ current, locked }: { current: string | null; locked: boo
           placeholder="Any site"
           spellCheck={false}
           aria-invalid={invalid.length > 0 || undefined}
-          className="font-mono text-[12px]"
+          className="text-[12px]"
         />
         <div className="flex items-center justify-between gap-3">
           <span className="text-xs text-faint">{locked ? "Fixed in the demo." : invalid.length ? `Not an origin: ${invalid[0]}` : ""}</span>

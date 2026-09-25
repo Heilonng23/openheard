@@ -109,7 +109,7 @@
     ".lg.o .l{background:#fff;color:#141416;box-shadow:0 0 0 1px rgba(0,0,0,.08),0 6px 20px rgba(0,0,0,.12)}" +
     ".o .l .c{opacity:0;transform:rotate(-45deg) scale(.8)}.o .l .x{opacity:1;transform:none}" +
     ".b{position:absolute;top:-3px;right:-5px;height:18px;padding:0 6px;border-radius:999px;background:#0d0d0f;color:#ededf0;" +
-    "font:600 11px/18px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.02em;box-shadow:0 0 0 2px var(--a);display:none}" +
+    "font:600 11px/18px system-ui,-apple-system,'Segoe UI',sans-serif;font-variant-numeric:tabular-nums;box-shadow:0 0 0 2px var(--a);display:none}" +
     ".lt .b{right:auto;left:-5px}" +
     ".n .b{display:block}.o .b{display:none}" +
     // One shell: the panel grows out of the launcher's centre and shrinks back into it.

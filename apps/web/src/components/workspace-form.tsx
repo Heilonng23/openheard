@@ -104,9 +104,9 @@ export function WorkspaceForm({
                     }}
                     onBlur={() => setSlugBlurred(true)}
                     placeholder="acme"
-                    className="min-w-0 flex-1 bg-transparent font-mono text-sm text-foreground outline-none placeholder:text-faint"
+                    className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-faint"
                   />
-                  <span className="font-mono text-sm text-faint">.{domainSuffix}</span>
+                  <span className="text-sm text-faint">.{domainSuffix}</span>
                 </FieldBox>
                 {slugValid && finalSlug ? <CheckCircleIcon weight="fill" className="size-5 shrink-0 text-emerald-500" /> : slugTooShort && slugBlurred ? <WarningCircleIcon weight="fill" className="size-5 shrink-0 text-red-500" /> : null}
               </div>

@@ -29,7 +29,7 @@ export function RoadmapTab() {
         const items = (posts ?? []).filter((p) => p.status === meta.key);
         return (
           <section key={meta.key} className="flex flex-col">
-            <header className="flex h-10 items-center gap-2 px-5 pt-2 font-mono text-xs lowercase" style={{ color: meta.color }}>
+            <header className="flex h-10 items-center gap-2 px-5 pt-2 text-xs" style={{ color: meta.color }}>
               <span className="size-1.5 rounded-full" style={{ background: meta.color }} />
               {meta.label}
               <span className="ml-auto text-faint">{items.length}</span>
@@ -50,7 +50,7 @@ export function RoadmapTab() {
                       {boardName(p.boardId) || p.eta ? (
                         <span className="text-[12px] text-faint">
                           {boardName(p.boardId)}
-                          {p.eta ? <span className="font-mono">{boardName(p.boardId) ? " · " : ""}{p.eta}</span> : null}
+                          {p.eta ? <span className="tabular-nums">{boardName(p.boardId) ? " · " : ""}{p.eta}</span> : null}
                         </span>
                       ) : null}
                     </div>
@@ -114,13 +114,13 @@ function ChangelogRow({ entry: e, fresh, onPost }: { entry: ChangelogEntry; fres
         onKeyDown={(ev) => long && ev.key === "Enter" && setOpen((o) => !o)}
         className={cn("flex flex-col gap-1.5 rounded-xl px-2.5 py-3.5 outline-none", long && "cursor-pointer hover:bg-card focus-visible:bg-card")}
       >
-        <div className="flex items-center gap-2 font-mono text-xs">
+        <div className="flex items-center gap-2 text-xs tabular-nums">
           <span className="text-faint">{shortDate(e.publishedAt ?? e.createdAt)}</span>
           {e.version ? <span className="text-muted-foreground">{e.version}</span> : null}
           {fresh ? (
             <span className="inline-flex items-center gap-1.5 text-link">
               <span className="size-1.5 rounded-full bg-link" />
-              new
+              New
             </span>
           ) : null}
         </div>
@@ -128,7 +128,7 @@ function ChangelogRow({ entry: e, fresh, onPost }: { entry: ChangelogEntry; fres
         {e.body ? <p className={cn("text-[13px]/5 whitespace-pre-wrap text-muted-foreground", !open && "line-clamp-2")}>{e.body}</p> : null}
         {open && e.posts.length ? (
           <div className="flex flex-wrap items-center gap-1.5 pt-1.5">
-            <span className="mr-1 font-mono text-[11px] tracking-[0.06em] text-faint uppercase">Shipped from</span>
+            <span className="mr-1 text-xs font-medium text-muted-foreground">Shipped from</span>
             {e.posts.map((p) => (
               <button
                 key={p.id}

@@ -38,7 +38,7 @@ function SettingsLayout() {
         </Link>
         {groups.map((g) => (
           <div key={g.group} className="flex flex-row gap-0.5 md:flex-col md:pt-3.5">
-            <div className="hidden px-2 pb-1.5 font-mono text-[11px] tracking-[0.06em] text-faint uppercase md:block">{g.group}</div>
+            <div className="hidden px-2 pb-1.5 text-xs font-medium text-muted-foreground md:block">{g.group}</div>
             {g.items.map(([slug, label]) => {
               const to = `/dashboard/settings/${slug}`;
               const on = pathname === to;

@@ -294,7 +294,7 @@ function Lightbox({ items, index, onIndex }: { items: AttachmentView[]; index: n
           </div>
         ) : null}
         <div className="flex items-center justify-between gap-4 border-t bg-background px-3.5 py-2 text-xs text-faint">
-          <span className="font-mono tabular-nums">
+          <span className="tabular-nums">
             {many && index !== null ? `${index + 1} / ${items.length}` : a?.width && a.height ? `${a.width} × ${a.height}` : "image"}
           </span>
           <div className="flex items-center gap-1">

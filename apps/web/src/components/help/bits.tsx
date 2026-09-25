@@ -36,7 +36,7 @@ export function HelpIconBox({ name, className }: { name: string | null | undefin
 }
 
 export function HelpLabel({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn("font-mono text-[11px] tracking-[0.08em] text-faint uppercase", className)}>{children}</div>;
+  return <div className={cn("text-xs font-medium text-muted-foreground", className)}>{children}</div>;
 }
 
 // Everything the help center cannot answer goes to the board's composer.
@@ -140,7 +140,7 @@ export function Markdown({ blocks, className }: { blocks: Block[]; className?: s
               <ol key={i} className="flex flex-col gap-2.5" start={b.start}>
                 {b.items.map((item, j) => (
                   <li key={j} className="flex gap-3.5">
-                    <span className="w-5 shrink-0 pt-[3px] font-mono text-[12px] text-faint tabular-nums" aria-hidden>
+                    <span className="w-5 shrink-0 pt-[3px] text-[12px] text-faint tabular-nums" aria-hidden>
                       {String((b.start ?? 1) + j).padStart(2, "0")}
                     </span>
                     <span className="min-w-0 text-foreground/85">

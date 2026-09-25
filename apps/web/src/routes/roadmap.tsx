@@ -74,7 +74,7 @@ function RoadmapPage() {
               <header className="flex items-center gap-2 px-1 pb-3 text-[13px] font-semibold">
                 <span className="size-2 rounded-full" style={{ background: meta.color }} />
                 {meta.label}
-                <span className="ml-auto font-mono text-xs font-normal text-faint">{items.length}</span>
+                <span className="ml-auto text-xs font-normal text-faint tabular-nums">{items.length}</span>
               </header>
               {items.length === 0 ? <p className="px-1 py-4 text-xs text-faint">Nothing here yet</p> : null}
               {items.map((p) => (
@@ -88,7 +88,7 @@ function RoadmapPage() {
                     <span className="text-[13px]/5 font-semibold text-foreground/90 group-hover/card:text-foreground">{p.title}</span>
                     <span className="text-[12px] text-faint">
                       {boardName(p.boardId)}
-                      {p.eta ? <span className="font-mono"> · {p.eta}</span> : null}
+                      {p.eta ? <span className="tabular-nums"> · {p.eta}</span> : null}
                     </span>
                     {meta.kind === "progress" ? <Ticks value={progressFor(p.statusChangedAt)} color={meta.color} /> : null}
                   </div>

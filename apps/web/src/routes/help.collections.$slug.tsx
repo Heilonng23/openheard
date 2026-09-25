@@ -37,9 +37,9 @@ function CollectionPage() {
   const n = collection.articles.length;
   return (
     <HelpLayout nav={<CollectionNav nav={nav} collection={collection.slug} />} mobileNav={nav.length ? <MobileNav nav={nav} value={`c:${collection.slug}`} /> : null} rail={<StillStuck />}>
-      <nav aria-label="Breadcrumb" className="flex items-center gap-2 font-mono text-[13px] text-faint lowercase">
+      <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-[13px] text-faint">
         <Link to="/help" className="hover:text-muted-foreground">
-          help
+          Help
         </Link>
         <span aria-hidden>/</span>
         <span className="text-muted-foreground" aria-current="page">
@@ -51,7 +51,7 @@ function CollectionPage() {
         <div className="flex min-w-0 flex-col">
           <h1 className="text-[28px] leading-[1.2] font-semibold tracking-[-0.025em]">{collection.title}</h1>
           {collection.description ? <p className="mt-2 text-[16px] text-muted-foreground">{collection.description}</p> : null}
-          <span className="mt-3 font-mono text-[12px] text-faint">
+          <span className="mt-3 text-[12px] text-faint tabular-nums">
             {n} {n === 1 ? "article" : "articles"}
           </span>
         </div>

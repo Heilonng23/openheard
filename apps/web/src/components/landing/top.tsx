@@ -156,7 +156,7 @@ export function Hero() {
                 </a>
               </div>
               <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
-                <span className="font-mono text-[11px] tracking-[0.1em] text-faint uppercase">Works with</span>
+                <span className="text-xs font-medium text-muted-foreground">Works with</span>
                 {agents.map(([name, mark]) => (
                   <span key={name} className="inline-flex items-center gap-2 text-[13px] text-muted-foreground">
                     <span aria-hidden className="size-3.5 shrink-0 bg-current [mask-position:center] [mask-repeat:no-repeat] [mask-size:contain]" style={{ maskImage: `url(/landing/logos/${mark}.svg)` }} />
@@ -174,7 +174,7 @@ export function Hero() {
             <span className="size-2.5 rounded-full bg-[#2a2a30]" />
             <span className="size-2.5 rounded-full bg-[#2a2a30]" />
             <span className="size-2.5 rounded-full bg-[#2a2a30]" />
-            <span className="mx-auto rounded-md bg-background px-3 py-0.5 font-mono text-[11px] text-faint">feedback.acme.com</span>
+            <span className="mx-auto rounded-md bg-background px-3 py-0.5 text-[11px] text-faint">feedback.acme.com</span>
           </div>
           <picture>
             <source srcSet="/landing/board.webp" type="image/webp" />

@@ -98,7 +98,7 @@ export function VoteButton({
       initial={false}
       animate={{ scale: reduced ? 1 : flash.flashing ? 1.05 : 1 }}
       transition={reduced ? INSTANT : flash.flashing ? FLASH_LIFT : FLASH_SETTLE}
-      className={cn("relative grid overflow-hidden font-mono leading-none font-semibold tabular-nums", cls)}
+      className={cn("relative grid overflow-hidden leading-none font-semibold tabular-nums", cls)}
     >
       {flash.flashing && flash.direction ? (
         <motion.span
@@ -168,7 +168,7 @@ export function VoteButton({
         transition={CELL}
         style={{ touchAction: "manipulation" }}
         className={cn(
-          "relative inline-flex h-6 shrink-0 items-center gap-1 overflow-visible rounded-md border px-1.5 pr-2 font-mono text-[12px] transition-colors duration-150 before:absolute before:-inset-[10px] before:content-['']",
+          "relative inline-flex h-6 shrink-0 items-center gap-1 overflow-visible rounded-md border px-1.5 pr-2 text-[12px] tabular-nums transition-colors duration-150 before:absolute before:-inset-[10px] before:content-['']",
           on ? "border-link bg-link text-[#0d0d0f]" : "border-input bg-secondary text-foreground hover:border-foreground/30",
           className,
         )}

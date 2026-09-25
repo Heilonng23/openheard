@@ -36,7 +36,7 @@ export function MergeDialog({ open, onOpenChange, postId, onMerged }: { open: bo
               >
                 <span className="size-[7px] shrink-0 rounded-full" style={{ background: findStatus(statuses, r.status).color }} />
                 <span className="flex-1 truncate">{r.title}</span>
-                <span className="font-mono text-xs text-muted-foreground">{r.voteCount}</span>
+                <span className="text-xs text-muted-foreground tabular-nums">{r.voteCount}</span>
               </button>
             ))
           )}

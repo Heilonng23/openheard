@@ -70,7 +70,7 @@ function PostRow({ title, meta, votes, hot }: (typeof inboxRows)[number]) {
         <div className="truncate text-[15px] font-medium">{title}</div>
         <div className="mt-1 text-[12px] text-faint">{meta}</div>
       </div>
-      <div className={cn("flex w-12 shrink-0 flex-col items-center rounded-lg py-1.5 font-mono text-[14px] font-medium", hot ? "bg-link text-white" : "border border-input bg-accent text-foreground")}>
+      <div className={cn("flex w-12 shrink-0 flex-col items-center rounded-lg py-1.5 text-[14px] font-medium tabular-nums", hot ? "bg-link text-white" : "border border-input bg-accent text-foreground")}>
         <CaretUpIcon weight="bold" className="size-3" />
         {hot ? <NumberTicker value={votes} startValue={votes - 9} /> : votes}
       </div>
@@ -118,7 +118,7 @@ export function Bento() {
                 </span>
               ))}
             </div>
-            <div className="mt-4 flex items-center gap-2 border-t border-border pt-3 font-mono text-[12px] text-status-shipped">
+            <div className="mt-4 flex items-center gap-2 border-t border-border pt-3 text-[12px] text-status-shipped">
               <PaperPlaneTiltIcon className="size-3.5" />
               Published · 128 voters notified
             </div>
@@ -135,7 +135,7 @@ export function Bento() {
                 {cards.map((c) => (
                   <div key={c} className={cn("rounded-lg border bg-card p-2 text-[12px] font-medium md:p-3 md:text-[13px]", name === "Shipped" ? "border-status-shipped/60" : "border-border")}>
                     {c}
-                    <div className="mt-1 font-mono text-[10px] font-normal text-faint md:mt-1.5 md:text-[11px]">▲ {c.length * 7}</div>
+                    <div className="mt-1 text-[10px] font-normal text-faint tabular-nums md:mt-1.5 md:text-[11px]">▲ {c.length * 7}</div>
                   </div>
                 ))}
               </div>
@@ -193,7 +193,7 @@ export function Loop() {
         <div className="flex flex-col p-6" role="list">
           {moments.map(([n, t, d], i) => (
             <div key={n} role="listitem" className={cn("flex gap-5 py-5 first:pt-0 last:pb-0", i < moments.length - 1 && "border-b border-border")}>
-              <span className="pt-0.5 font-mono text-[13px] text-link">{n}</span>
+              <span className="pt-0.5 text-[13px] text-link tabular-nums">{n}</span>
               <div>
                 <p className="text-[16px] font-medium">{t}</p>
                 <p className="mt-1 text-[14px] leading-relaxed text-muted-foreground">{d}</p>
@@ -429,7 +429,7 @@ export function Footer() {
             openheard
           </Link>
           <p className="font-medium tracking-tight text-muted-foreground">Open source feedback board. Post, vote, roadmap, changelog. Self-host or cloud.</p>
-          <p className="font-mono text-[12px] text-muted-foreground">AGPL-3.0 · © {new Date().getFullYear()} openheard</p>
+          <p className="text-[12px] text-muted-foreground">AGPL-3.0 · © {new Date().getFullYear()} openheard</p>
         </div>
         <div className="pt-5 md:w-1/2">
           <div className="flex flex-col items-start justify-start gap-y-5 md:flex-row md:items-start md:justify-between lg:pl-10">

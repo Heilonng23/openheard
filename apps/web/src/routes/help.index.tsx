@@ -85,7 +85,7 @@ function HelpHome() {
   return (
     <div className="mx-auto flex w-full max-w-[1072px] flex-1 flex-col px-4 md:px-8">
       <section className="mx-auto flex w-full max-w-[560px] flex-col items-center pt-14 pb-12 text-center md:pt-20">
-        <HelpLabel className="tracking-[0.14em]">Help center</HelpLabel>
+        <HelpLabel>Help center</HelpLabel>
         <h1 className="mt-3 text-[30px] leading-[1.15] font-semibold tracking-[-0.03em] md:text-[36px]">How can we help?</h1>
         <p className="mt-3 text-[15px] text-muted-foreground">Guides and answers from the {root.workspace.name} team.</p>
 
@@ -122,7 +122,7 @@ function HelpHome() {
                   <Link to="/help/collections/$slug" params={{ slug: c.slug }} className="text-[16px] font-semibold tracking-[-0.01em] hover:underline hover:decoration-foreground/30 hover:underline-offset-4">
                     {c.title}
                   </Link>
-                  <span className="shrink-0 font-mono text-[12px] text-faint">
+                  <span className="shrink-0 text-[12px] text-faint tabular-nums">
                     {c.articles.length} {c.articles.length === 1 ? "article" : "articles"}
                   </span>
                 </div>
@@ -151,7 +151,7 @@ function HelpHome() {
               <div className="flex min-w-0 flex-1 flex-col">
                 <div className="flex items-baseline justify-between gap-3">
                   <span className="text-[16px] font-semibold tracking-[-0.01em]">More articles</span>
-                  <span className="shrink-0 font-mono text-[12px] text-faint">{data.uncategorised.length}</span>
+                  <span className="shrink-0 text-[12px] text-faint tabular-nums">{data.uncategorised.length}</span>
                 </div>
                 <ul className="mt-4 flex flex-col">
                   {data.uncategorised.map((a) => (
@@ -307,7 +307,7 @@ function Results({ q, hits, searching, failed }: { q: string; hits: Hit[] | null
             <span className="truncate text-[15px] text-foreground">{h.title}</span>
             {h.excerpt ? <span className="truncate text-[13px] text-muted-foreground">{h.excerpt}</span> : null}
           </span>
-          {h.collection ? <span className="mt-[3px] hidden shrink-0 font-mono text-[12px] text-faint lowercase sm:inline">{h.collection.title}</span> : null}
+          {h.collection ? <span className="mt-[3px] hidden shrink-0 text-[12px] text-faint sm:inline">{h.collection.title}</span> : null}
         </Link>
       ))}
     </div>
@@ -319,7 +319,7 @@ function ArticleRow({ slug, title, collection }: { slug: string; title: string; 
     <Link to="/help/$slug" params={{ slug }} className="group/row flex h-[46px] items-center gap-3 border-b px-0.5 transition-colors hover:border-input">
       <FileTextIcon className="size-4 shrink-0 text-faint group-hover/row:text-muted-foreground" />
       <span className="min-w-0 flex-1 truncate text-[15px] text-foreground/90 group-hover/row:text-foreground">{title}</span>
-      {collection ? <span className="shrink-0 font-mono text-[12px] text-faint lowercase">{collection}</span> : null}
+      {collection ? <span className="shrink-0 text-[12px] text-faint">{collection}</span> : null}
     </Link>
   );
 }

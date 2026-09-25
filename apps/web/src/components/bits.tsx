@@ -70,5 +70,5 @@ export function TeamBadge() {
 }
 
 export function Mono({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <span className={cn("font-mono text-xs tracking-[0.01em] text-muted-foreground", className)}>{children}</span>;
+  return <span className={cn("text-xs text-muted-foreground tabular-nums", className)}>{children}</span>;
 }

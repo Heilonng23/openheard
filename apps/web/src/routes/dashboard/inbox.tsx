@@ -94,7 +94,7 @@ function Inbox() {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="min-w-48">
               <DropdownMenuGroup>
-              <DropdownMenuLabel className="text-[11px] tracking-[0.06em] text-faint uppercase">Status</DropdownMenuLabel>
+              <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">Status</DropdownMenuLabel>
               {statuses.map((s) => (
                 <DropdownMenuItem key={s.key} onClick={() => navigate({ search: (p) => ({ ...p, status: p.status === s.key ? undefined : s.key, post: undefined }) })}>
                   <span className="size-[7px] rounded-full" style={{ background: s.color }} />
@@ -105,7 +105,7 @@ function Inbox() {
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
               <DropdownMenuGroup>
-              <DropdownMenuLabel className="text-[11px] tracking-[0.06em] text-faint uppercase">Board</DropdownMenuLabel>
+              <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">Board</DropdownMenuLabel>
               {root.boards.map((b) => (
                 <DropdownMenuItem key={b.id} onClick={() => navigate({ search: (p) => ({ ...p, board: p.board === b.id ? undefined : b.id, post: undefined }) })}>
                   <span className="flex-1">{b.name}</span>
@@ -116,7 +116,7 @@ function Inbox() {
               {root.tags.length ? (
                 <DropdownMenuGroup>
                   <DropdownMenuSeparator />
-                  <DropdownMenuLabel className="text-[11px] tracking-[0.06em] text-faint uppercase">Tag</DropdownMenuLabel>
+                  <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">Tag</DropdownMenuLabel>
                   {root.tags.map((t) => (
                     <DropdownMenuItem key={t.id} onClick={() => navigate({ search: (p) => ({ ...p, tag: p.tag === t.id ? undefined : t.id, post: undefined }) })}>
                       <span className="flex-1">{t.name}</span>
@@ -427,7 +427,7 @@ function Detail({ post: p, onClose, nav }: { post: PostData; onClose: () => void
             {(["comments", "activity"] as const).map((t) => (
               <button key={t} type="button" onClick={() => setTab(t)} className={cn("-mb-px flex items-center gap-1.5 border-b-2 pb-2 text-[13px] capitalize", tab === t ? "border-foreground font-semibold text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}>
                 {t}
-                <span className="rounded-full bg-secondary px-1.5 font-mono text-[10.5px] text-faint">{t === "comments" ? comments.length : activity.length}</span>
+                <span className="rounded-full bg-secondary px-1.5 text-[10.5px] text-faint tabular-nums">{t === "comments" ? comments.length : activity.length}</span>
               </button>
             ))}
           </div>
@@ -499,7 +499,7 @@ function Detail({ post: p, onClose, nav }: { post: PostData; onClose: () => void
           <div className="flex flex-col gap-3 text-[13px]">
             <div className="flex h-8 items-center gap-3">
               <span className="w-[60px] shrink-0 text-faint">Votes</span>
-              <span className="inline-flex h-7 items-center gap-1.5 rounded-md border border-input px-2 font-mono text-[12px] tabular-nums">
+              <span className="inline-flex h-7 items-center gap-1.5 rounded-md border border-input px-2 text-[12px] tabular-nums">
                 <CaretUpIcon weight="bold" className="size-[9px] text-muted-foreground" /> {p.voteCount}
               </span>
               <span className="flex">
@@ -591,7 +591,7 @@ function Detail({ post: p, onClose, nav }: { post: PostData; onClose: () => void
                 onBlur={() => eta !== (p.eta ?? "") && run(() => setEtaFn({ data: { postId: p.id, eta } }), "ETA saved")}
                 placeholder="none"
                 aria-label="ETA"
-                className="h-6 w-20 rounded-md border border-transparent bg-transparent px-1.5 font-mono text-[12px] text-foreground outline-none placeholder:text-faint hover:border-input focus:border-ring/60"
+                className="h-6 w-20 rounded-md border border-transparent bg-transparent px-1.5 text-[12px] text-foreground tabular-nums outline-none placeholder:text-faint hover:border-input focus:border-ring/60"
               />
             </div>
           </div>
@@ -620,14 +620,14 @@ function Detail({ post: p, onClose, nav }: { post: PostData; onClose: () => void
 
 function VoteChip({ n }: { n: number }) {
   return (
-    <span className="inline-flex h-7 w-[52px] shrink-0 items-center justify-center gap-1 rounded-md border border-input font-mono text-[12px] tabular-nums">
+    <span className="inline-flex h-7 w-[52px] shrink-0 items-center justify-center gap-1 rounded-md border border-input text-[12px] tabular-nums">
       <CaretUpIcon weight="bold" className="size-[9px] text-muted-foreground" /> {n}
     </span>
   );
 }
 
 function Trending() {
-  return <span className="inline-flex h-5 items-center rounded-md bg-status-shipped/15 px-1.5 font-mono text-[10.5px] font-semibold tracking-[0.04em] text-status-shipped uppercase">Trending</span>;
+  return <span className="inline-flex h-5 items-center rounded-md bg-status-shipped/15 px-1.5 text-[11px] font-semibold text-status-shipped">Trending</span>;
 }
 
 function Reactions({ reactions, onToggle }: { commentId: number; reactions: { emoji: string; count: number; mine: boolean }[]; onToggle: (e: (typeof REACTIONS)[number]) => void }) {
@@ -635,7 +635,7 @@ function Reactions({ reactions, onToggle }: { commentId: number; reactions: { em
     <div className="flex flex-wrap items-center gap-1">
       {reactions.map((r) => (
         <button key={r.emoji} type="button" onClick={() => onToggle(r.emoji as (typeof REACTIONS)[number])} className={cn("inline-flex h-6 items-center gap-1 rounded-full border px-2 text-[12px] animate-in zoom-in-95 fade-in-0 duration-150 active:scale-95 motion-reduce:animate-none", r.mine ? "border-link/50 bg-link/10" : "border-input bg-secondary hover:bg-accent")}>
-          {r.emoji} <span className="font-mono text-[11px] text-muted-foreground">{r.count}</span>
+          {r.emoji} <span className="text-[11px] text-muted-foreground tabular-nums">{r.count}</span>
         </button>
       ))}
       <DropdownMenu>

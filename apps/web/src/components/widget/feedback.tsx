@@ -15,12 +15,12 @@ import { ago } from "@/lib/time";
 
 import { rowKeyDown, toParent, useLoad, useWidget, type SentPost } from "./context";
 
-// Status as the widget shows it: dot plus lowercase mono label in the status colour.
+// Status as the widget shows it: dot plus label in the status colour.
 export function MonoStatus({ status }: { status: string }) {
   const root = useLoaderData({ from: "__root__" });
   const s = findStatus(root.statuses, status);
   return (
-    <span className="inline-flex items-center gap-1.5 font-mono text-xs lowercase" style={{ color: s.color }}>
+    <span className="inline-flex items-center gap-1.5 text-xs" style={{ color: s.color }}>
       <span className="size-1.5 rounded-full" style={{ background: s.color }} />
       {s.label}
     </span>
@@ -84,7 +84,7 @@ export function FeedbackList() {
                   {p.excerpt ? <p className="truncate text-[13px]/5 text-muted-foreground">{p.excerpt}</p> : null}
                   <div className="flex items-center gap-3.5 pt-0.5">
                     <MonoStatus status={p.status} />
-                    <span className="inline-flex items-center gap-1 font-mono text-xs text-faint">
+                    <span className="inline-flex items-center gap-1 text-xs text-faint tabular-nums">
                       <ChatCircleIcon className="size-[13px]" />
                       {p.commentCount}
                     </span>
@@ -155,7 +155,7 @@ export function PostDetail({ id }: { id: number }) {
             {post.body ? <p className="text-[14px]/[1.6] whitespace-pre-wrap text-muted-foreground">{post.body}</p> : null}
           </article>
           <section className="flex flex-col border-t">
-            <span className="px-5 pt-4 pb-1 font-mono text-[11px] tracking-[0.06em] text-faint uppercase">
+            <span className="px-5 pt-4 pb-1 text-xs font-medium text-muted-foreground tabular-nums">
               {comments.length} {comments.length === 1 ? "comment" : "comments"}
             </span>
             {comments.length === 0 ? (
@@ -313,7 +313,7 @@ export function Composer() {
       </div>
       {similar.length ? (
         <div className="flex flex-col gap-1 px-5 pb-2">
-          <div className="flex items-center gap-1.5 pt-1 pb-1.5 font-mono text-[11px] tracking-[0.06em] text-faint uppercase">
+          <div className="flex items-center gap-1.5 pt-1 pb-1.5 text-xs font-medium text-muted-foreground">
             <LightningIcon weight="fill" className="size-3 text-status-planned" /> Looks similar · vote instead?
           </div>
           {similar.slice(0, 3).map((s) => (
@@ -323,7 +323,7 @@ export function Composer() {
               onClick={() => openPost(s.id)}
               className="flex min-h-10 items-center gap-2.5 rounded-lg bg-secondary px-2 py-2 text-left text-[13px] transition-colors hover:bg-accent"
             >
-              <span className="inline-flex h-[22px] shrink-0 items-center rounded-md border border-input px-1.5 font-mono text-[11px] text-muted-foreground">{s.voteCount}</span>
+              <span className="inline-flex h-[22px] shrink-0 items-center rounded-md border border-input px-1.5 text-[11px] text-muted-foreground tabular-nums">{s.voteCount}</span>
               <span className="flex-1 truncate">{s.title}</span>
             </button>
           ))}

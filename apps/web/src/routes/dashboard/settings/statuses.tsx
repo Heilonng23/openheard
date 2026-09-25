@@ -130,7 +130,7 @@ function StatusRow({
               </button>
             ))}
           </span>
-          <input value={color} onChange={(e) => setColor(e.target.value)} className="h-8 w-24 rounded-lg border border-input bg-card px-2.5 font-mono text-[12px] outline-none focus:border-ring/60" />
+          <input value={color} onChange={(e) => setColor(e.target.value)} className="h-8 w-24 rounded-lg border border-input bg-card px-2.5 text-[12px] tabular-nums outline-none focus:border-ring/60" />
         </div>
         <div className="flex items-center gap-3">
           <DropdownMenu>
@@ -173,7 +173,7 @@ function StatusRow({
       </span>
       <span className="size-2.5 rounded-full" style={{ background: status.color }} />
       <span className="w-40 text-[13px] font-semibold">{status.label}</span>
-      <span className="font-mono text-[11px] text-faint">{status.kind}</span>
+      <span className="text-[11px] text-faint">{status.kind}</span>
       {status.onRoadmap ? <span className="rounded-md bg-secondary px-1.5 py-0.5 text-[11px] text-faint">roadmap</span> : null}
       <span className="flex-1" />
       <span className="text-xs text-faint tabular-nums">

@@ -245,7 +245,7 @@ function Widget() {
         </header>
 
         {tabs.length > 1 ? (
-          <nav className="flex h-11 shrink-0 items-stretch border-b px-2 font-mono text-[13px]" aria-label="Sections">
+          <nav className="flex h-11 shrink-0 items-stretch border-b px-2 text-[13px]" aria-label="Sections">
             {tabs.map((t) => (
               <button
                 key={t}
@@ -256,7 +256,7 @@ function Widget() {
                 }}
                 aria-current={tab === t ? "page" : undefined}
                 className={cn(
-                  "relative inline-flex items-center gap-2 px-3 outline-none focus-visible:text-foreground",
+                  "relative inline-flex items-center gap-2 px-3 capitalize outline-none focus-visible:text-foreground",
                   tab === t ? "text-foreground" : "text-faint hover:text-muted-foreground",
                 )}
               >
@@ -298,10 +298,10 @@ function Widget() {
         </div>
 
         {ws.poweredBy || token ? (
-          <footer className="relative flex h-11 shrink-0 items-center justify-center border-t px-4 font-mono text-xs text-faint">
+          <footer className="relative flex h-11 shrink-0 items-center justify-center border-t px-4 text-xs text-faint">
             {ws.poweredBy ? (
               <a href="https://openheard.com" target="_blank" rel="noopener" className="transition-colors hover:text-muted-foreground">
-                powered by <span className="text-foreground">openheard</span>
+                Powered by <span className="text-foreground">openheard</span>
               </a>
             ) : null}
             {token && me ? (

@@ -172,7 +172,7 @@ function BoardPage() {
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-3 font-mono text-xs text-faint">
+        <div className="flex items-center gap-3 text-xs text-faint tabular-nums">
           {search.q ? (
             <button type="button" onClick={() => set({ q: undefined })} className="rounded-md border border-dashed border-input px-2 py-0.5 text-muted-foreground hover:text-foreground">
               “{search.q}” ×
@@ -206,7 +206,7 @@ function BoardPage() {
                   onMouseEnter={() => setFocused(i)}
                   className={cn("group/row flex items-start gap-6 py-6 first:pt-2", isOptimistic && "opacity-60")}
                 >
-                  <span className="hidden w-8 shrink-0 pt-1 font-mono text-xs text-faint tabular-nums md:block">{sort === "trending" ? String(i + 1).padStart(2, "0") : ""}</span>
+                  <span className="hidden w-8 shrink-0 pt-1 text-xs text-faint tabular-nums md:block">{sort === "trending" ? String(i + 1).padStart(2, "0") : ""}</span>
                   <div className="flex min-w-0 flex-1 flex-col gap-2">
                     <div className="flex items-center gap-2 text-[14px] font-semibold tracking-[-0.01em] text-foreground/90 group-hover/row:text-foreground group-data-focused/row:text-foreground">
                       {p.pinned ? <PushPinIcon weight="fill" className="size-3.5 shrink-0 text-muted-foreground" /> : null}
@@ -217,7 +217,7 @@ function BoardPage() {
                       {showStatus ? <StatusLabel status={p.status} /> : null}
                       <span className="inline-flex items-center gap-1.5">
                         <ChatCircleIcon className="size-[13px] shrink-0 text-faint" />
-                        <span className="font-mono tabular-nums">{p.commentCount}</span>
+                        <span className="tabular-nums">{p.commentCount}</span>
                       </span>
                       <span className="inline-flex items-center gap-1.5 text-faint">
                         <Avatar name={p.author?.name ?? "?"} image={p.author?.image} size={16} />

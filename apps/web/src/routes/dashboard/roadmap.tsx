@@ -240,7 +240,7 @@ function Roadmap() {
               <CaretDownIcon className="size-2.5 text-faint" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="min-w-48">
-              <DropdownMenuLabel className="text-[11px] tracking-[0.06em] text-faint uppercase">Board</DropdownMenuLabel>
+              <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">Board</DropdownMenuLabel>
               {root.boards.map((b) => (
                 <DropdownMenuItem key={b.id} onClick={() => navigate({ search: (p) => ({ ...p, board: p.board === b.id ? undefined : b.id }) })}>
                   <span className="flex-1">{b.name}</span>
@@ -391,7 +391,7 @@ function Card({ post, overlay }: { post: PostItem; overlay?: boolean }) {
           </span>
         ) : null}
         <span className="flex-1" />
-        <span className="inline-flex items-center gap-1 font-mono text-faint tabular-nums">
+        <span className="inline-flex items-center gap-1 text-faint tabular-nums">
           <CaretUpIcon weight="bold" className="size-[9px]" /> {post.voteCount}
         </span>
       </div>

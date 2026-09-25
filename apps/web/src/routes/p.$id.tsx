@@ -212,8 +212,8 @@ function PostPage() {
           <ArrowLeftIcon className="size-3.5 text-faint" /> {p.board.name}
         </Link>
         {admin ? (
-          <Link to="/dashboard/inbox" search={{ status: p.status, post: p.id }} className="font-mono text-xs text-faint hover:text-foreground">
-            manage in dashboard →
+          <Link to="/dashboard/inbox" search={{ status: p.status, post: p.id }} className="text-xs text-faint hover:text-foreground">
+            Manage in dashboard →
           </Link>
         ) : null}
       </div>
@@ -270,7 +270,7 @@ function PostPage() {
 
       <section className="flex flex-col gap-5 border-t pt-5">
         <h2 className="flex items-center gap-2 text-[14px] font-semibold">
-          Comments <span className="font-mono text-xs font-normal text-faint">{comments}</span>
+          Comments <span className="text-xs font-normal text-faint tabular-nums">{comments}</span>
         </h2>
 
         <form onSubmit={submitReply} onPaste={images.onPaste} {...images.dropProps} className="relative flex flex-col gap-3 rounded-lg border bg-card px-3.5 py-3 transition-colors focus-within:border-input">

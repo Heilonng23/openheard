@@ -67,7 +67,7 @@ function ChangelogPage() {
             >
               {e.publishedAt ? <CheckCircleIcon weight="fill" className="size-5 shrink-0 text-status-shipped" /> : <CircleDashedIcon className="size-5 shrink-0 text-status-planned" />}
               <span className="min-w-0 truncate text-[16px] font-medium">{e.title}</span>
-              {e.version ? <span className="shrink-0 rounded-md bg-secondary px-2 py-0.5 font-mono text-[12px] text-muted-foreground">{e.version}</span> : null}
+              {e.version ? <span className="shrink-0 rounded-md bg-secondary px-2 py-0.5 text-[12px] text-muted-foreground tabular-nums">{e.version}</span> : null}
               {!e.publishedAt ? <span className="shrink-0 rounded-md bg-status-planned/15 px-2 py-0.5 text-[12px] font-medium text-status-planned">Draft</span> : null}
               {e.posts.length ? (
                 <span className="shrink-0 text-[12px] text-faint">
@@ -176,7 +176,7 @@ function Editor({ entry, onClose }: { entry: Entry | null; onClose: () => void }
                 onChange={(e) => setVersion(e.target.value)}
                 placeholder="v1.0"
                 aria-label="Version"
-                className="h-7 w-24 rounded-md border border-transparent bg-transparent px-2 font-mono text-[12px] text-muted-foreground outline-none placeholder:text-faint hover:border-input focus:border-ring/60"
+                className="h-7 w-24 rounded-md border border-transparent bg-transparent px-2 text-[12px] text-muted-foreground tabular-nums outline-none placeholder:text-faint hover:border-input focus:border-ring/60"
               />
               <button type="button" onClick={() => toast("Covers land with image support")} className="inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-[12px] text-faint hover:bg-accent hover:text-foreground">
                 <ImageIcon className="size-3.5" /> Add cover
@@ -206,7 +206,7 @@ function Editor({ entry, onClose }: { entry: Entry | null; onClose: () => void }
             />
 
             <div className="flex flex-col gap-3 border-t pt-6">
-              <div className="text-[11px] font-semibold tracking-[0.06em] text-faint uppercase">Ships these posts</div>
+              <div className="text-xs font-medium text-muted-foreground">Ships these posts</div>
               <div className="flex flex-wrap items-center gap-1.5">
                 {posts.map((p) => (
                   <span key={p.id} className="inline-flex h-7 items-center gap-1.5 rounded-full border border-input pr-1.5 pl-2.5 text-[13px] text-muted-foreground">

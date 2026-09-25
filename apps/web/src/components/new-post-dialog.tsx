@@ -203,7 +203,7 @@ export function NewPostDialog({
 
         {similar.length ? (
           <div className="flex flex-col gap-1 px-4 pb-3 sm:px-5">
-            <div className="flex items-center gap-1.5 pt-1 pb-1.5 font-mono text-[11px] tracking-[0.06em] text-faint uppercase">
+            <div className="flex items-center gap-1.5 pt-1 pb-1.5 text-xs font-medium text-muted-foreground">
               <LightningIcon weight="fill" className="size-3 text-status-planned" /> Looks similar · vote instead?
             </div>
             {similar.slice(0, 3).map((s) => (
@@ -214,7 +214,7 @@ export function NewPostDialog({
                 onClick={() => onOpenChange(false)}
                 className="flex min-h-11 items-center gap-2.5 rounded-lg bg-secondary px-2 py-2 text-[13px] transition-colors hover:bg-accent"
               >
-                <span className="inline-flex h-[22px] items-center gap-1 rounded-md border border-input px-1.5 font-mono text-[11px] text-muted-foreground">
+                <span className="inline-flex h-[22px] items-center gap-1 rounded-md border border-input px-1.5 text-[11px] text-muted-foreground tabular-nums">
                   <svg width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M1.5 7 5 3l3.5 4" />
                   </svg>
@@ -234,12 +234,12 @@ export function NewPostDialog({
 
         {articles.length ? (
           <div className="flex flex-col gap-1 px-4 pb-3 sm:px-5">
-            <div className="pt-1 pb-1.5 font-mono text-[11px] tracking-[0.06em] text-faint uppercase">From the help center</div>
+            <div className="pt-1 pb-1.5 text-xs font-medium text-muted-foreground">From the help center</div>
             {articles.map((a) => (
               <Link key={a.id} to="/help/$slug" params={{ slug: a.slug }} onClick={() => onOpenChange(false)} className="flex min-h-11 items-center gap-2.5 rounded-lg bg-secondary px-2.5 py-2 text-[13px] transition-colors hover:bg-accent">
                 <FileTextIcon className="size-4 shrink-0 text-faint" />
                 <span className="flex-1 truncate">{a.title}</span>
-                {a.collection ? <span className="hidden shrink-0 font-mono text-[11px] text-faint lowercase sm:inline">{a.collection.title}</span> : null}
+                {a.collection ? <span className="hidden shrink-0 text-[11px] text-faint sm:inline">{a.collection.title}</span> : null}
               </Link>
             ))}
           </div>
