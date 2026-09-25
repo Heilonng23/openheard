@@ -57,6 +57,9 @@ function WidgetSettings() {
   const saved = useMemo(() => readWidgetSettings(ws.widgetSettings), [ws.widgetSettings]);
   const [draft, setDraft] = useState<WidgetSettings>(saved);
   const [saving, setSaving] = useState(false);
+  // Remounts the appearance form so a half-typed hex goes on Discard too.
+  const [discards, setDiscards] = useState(0);
+  const locked = isDemo(ws);
   const brand = ws.accent ?? DEFAULT_ACCENT;
   const dirty = JSON.stringify(draft) !== JSON.stringify(saved);
   // Self-hosted installs serve the board at the dashboard's own origin.
@@ -99,19 +102,19 @@ function WidgetSettings() {
       </nav>
 
       {page === "install" ? (
-        <Install src={src} locked={isDemo(ws)} origins={ws.widgetOrigins} />
+        <Install src={src} locked={locked} origins={ws.widgetOrigins} />
       ) : (
         <div className="grid items-start gap-8 xl:grid-cols-[minmax(0,1fr)_520px]">
           <div className="min-w-0">
-            {page === "appearance" ? <Appearance draft={draft} set={set} brand={brand} /> : <Content draft={draft} set={set} ws={ws} />}
+            {page === "appearance" ? <Appearance key={discards} draft={draft} set={set} brand={brand} /> : <Content draft={draft} set={set} ws={ws} />}
             <div className="flex items-center justify-end gap-3 border-t pt-4">
-              <span className="text-xs text-faint">{dirty ? "Unsaved changes" : "Saved"}</span>
+              <span className="text-xs text-faint">{locked ? "The demo's widget stays as it is" : dirty ? "Unsaved changes" : "Saved"}</span>
               {dirty ? (
-                <Button size="sm" variant="secondary" onClick={() => setDraft(saved)} disabled={saving}>
+                <Button size="sm" variant="secondary" onClick={() => (setDraft(saved), setDiscards((n) => n + 1))} disabled={saving}>
                   Discard
                 </Button>
               ) : null}
-              <Button arrow size="sm" disabled={!dirty || saving} onClick={save}>
+              <Button arrow size="sm" disabled={!dirty || saving || locked} onClick={save}>
                 Save
               </Button>
             </div>
