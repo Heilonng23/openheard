@@ -1,6 +1,7 @@
 import { ChatCircleIcon, PushPinIcon } from "@phosphor-icons/react";
 import { Link, createFileRoute, redirect, useLoaderData, useNavigate, useRouter } from "@tanstack/react-router";
 import { Suspense, lazy, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 
 import { Button } from "@openheard/ui/components/button";
 import { Avatar, StatusLabel } from "@/components/bits";
@@ -86,8 +87,10 @@ function BoardPage() {
     setLoadingMore(true);
     listPosts({ data: { ...search, sort: search.sort ?? "trending", limit: 30, offset: posts.length } })
       .then((d) => {
-        if (page.current === asked) setMore((prev) => [...prev, ...d.posts]);
+        // Offsets can shift between pages, so a post may come back twice.
+        if (page.current === asked) setMore((prev) => [...prev, ...d.posts.filter((p) => !prev.some((q) => q.id === p.id))]);
       })
+      .catch(() => toast.error("Could not load more posts"))
       .finally(() => {
         if (page.current === asked) setLoadingMore(false);
       });
