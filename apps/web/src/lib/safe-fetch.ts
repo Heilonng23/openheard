@@ -73,9 +73,10 @@ export function isPrivateAddress(ip: string): boolean {
   const g = v6Groups(ip);
   if (!g) return true;
   const embeddedV4 = () => `${g[6] >> 8}.${g[6] & 255}.${g[7] >> 8}.${g[7] & 255}`;
-  if (g.slice(0, 7).every((x) => x === 0)) return true; // :: and ::1
+  if (g.slice(0, 6).every((x) => x === 0)) return true; // ::, ::1 and IPv4-compatible
   if (g.slice(0, 5).every((x) => x === 0) && g[5] === 0xffff) return v4Private(embeddedV4()); // v4-mapped
   if (g[0] === 0x64 && g[1] === 0xff9b) return v4Private(embeddedV4()); // NAT64
+  if (g[0] === 0x2002) return v4Private(`${g[1] >> 8}.${g[1] & 255}.${g[2] >> 8}.${g[2] & 255}`); // 6to4
   return (g[0] & 0xfe00) === 0xfc00 || (g[0] & 0xffc0) === 0xfe80 || (g[0] & 0xff00) === 0xff00 || (g[0] === 0x2001 && g[1] === 0x0db8) || g[0] === 0x100;
 }
 
