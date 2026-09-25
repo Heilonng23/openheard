@@ -46,11 +46,13 @@ function HelpHome() {
   const [q, setQ] = useState(initial ?? "");
   const [hits, setHits] = useState<Hit[] | null>(null);
   const [searching, setSearching] = useState(false);
+  const [failed, setFailed] = useState<string | null>(null);
   const searchingFor = q.trim();
 
   useEffect(() => {
     if (!searchingFor) {
       setHits(null);
+      setFailed(null);
       return;
     }
     setSearching(true);
@@ -58,8 +60,17 @@ function HelpHome() {
     const t = setTimeout(
       () =>
         searchHelp({ data: { q: searchingFor } })
-          .then((r) => live && setHits(r))
-          .catch(() => live && setHits([]))
+          .then((r) => {
+            if (!live) return;
+            setHits(r);
+            setFailed(null);
+          })
+          .catch((err) => {
+            if (!live) return;
+            // Say so, rather than showing a failed search as no matches.
+            setHits([]);
+            setFailed(err instanceof Error ? err.message : "Search failed. Try again.");
+          })
           .finally(() => live && setSearching(false)),
       120,
     );
@@ -82,7 +93,7 @@ function HelpHome() {
 
         <div className="mt-8 w-full text-left">
           {searchingFor ? (
-            <Results q={searchingFor} hits={hits} searching={searching} />
+            <Results q={searchingFor} hits={hits} searching={searching} failed={failed} />
           ) : data.popular.length ? (
             <>
               <HelpLabel className="pb-2 pl-0.5">Popular</HelpLabel>
@@ -244,7 +255,15 @@ function SearchBox({ value, onChange, hits, disabled }: { value: string; onChang
   );
 }
 
-function Results({ q, hits, searching }: { q: string; hits: Hit[] | null; searching: boolean }) {
+function Results({ q, hits, searching, failed }: { q: string; hits: Hit[] | null; searching: boolean; failed: string | null }) {
+  if (failed) {
+    return (
+      <div className="border-y py-8 text-center" role="alert">
+        <p className="text-[14px] font-semibold">Search did not go through</p>
+        <p className="mt-1 text-sm text-muted-foreground">{failed}</p>
+      </div>
+    );
+  }
   if (!hits) {
     return (
       <div className="flex flex-col" aria-busy>
