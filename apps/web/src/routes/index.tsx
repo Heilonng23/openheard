@@ -1,6 +1,6 @@
 import { ChatCircleIcon, PushPinIcon } from "@phosphor-icons/react";
 import { Link, createFileRoute, redirect, useLoaderData, useNavigate, useRouter } from "@tanstack/react-router";
-import { Suspense, lazy, useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useRef, useState } from "react";
 
 import { Button } from "@openheard/ui/components/button";
 import { Avatar, StatusLabel } from "@/components/bits";
@@ -72,14 +72,25 @@ function BoardPage() {
   const [optimisticPost, setOptimisticPost] = useState<OptimisticPost | null>(null);
   const [more, setMore] = useState<typeof firstPage>([]);
   const [loadingMore, setLoadingMore] = useState(false);
-  useEffect(() => setMore([]), [firstPage]);
+  // A page asked for under one filter must not land under the next one.
+  const page = useRef(firstPage);
+  page.current = firstPage;
+  useEffect(() => {
+    setMore([]);
+    setLoadingMore(false);
+  }, [firstPage]);
   const posts = more.length ? [...firstPage, ...more.filter((p) => !firstPage.some((f) => f.id === p.id))] : firstPage;
 
   function loadMore() {
+    const asked = firstPage;
     setLoadingMore(true);
     listPosts({ data: { ...search, sort: search.sort ?? "trending", limit: 30, offset: posts.length } })
-      .then((d) => setMore((prev) => [...prev, ...d.posts]))
-      .finally(() => setLoadingMore(false));
+      .then((d) => {
+        if (page.current === asked) setMore((prev) => [...prev, ...d.posts]);
+      })
+      .finally(() => {
+        if (page.current === asked) setLoadingMore(false);
+      });
   }
 
   useEffect(() => {
