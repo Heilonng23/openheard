@@ -78,11 +78,16 @@ export function NewPostDialog({
   useEffect(() => {
     const q = title.trim();
     if (q.length < 6) return setSimilar([]), setArticles([]);
+    // Answers for an older title can land after newer ones; only the latest counts.
+    let live = true;
     const t = setTimeout(() => {
-      searchPosts({ data: { q } }).then(setSimilar).catch(() => setSimilar([]));
-      searchHelp({ data: { q, suggest: true } }).then(setArticles).catch(() => setArticles([]));
+      searchPosts({ data: { q } }).then((r) => live && setSimilar(r)).catch(() => live && setSimilar([]));
+      searchHelp({ data: { q, suggest: true } }).then((r) => live && setArticles(r)).catch(() => live && setArticles([]));
     }, 200);
-    return () => clearTimeout(t);
+    return () => {
+      live = false;
+      clearTimeout(t);
+    };
   }, [title]);
 
   function submit() {
