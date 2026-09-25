@@ -66,6 +66,10 @@ const arrowBox = cva(
   },
 );
 
+// A full-width arrow button centres its label on the button, not on the space
+// left of the arrow, so the label gets the arrow's width on its left too.
+const FULL_ARROW_PAD = { sm: "pl-[22px]", default: "pl-[24px]", lg: "pl-[26px]" } as const;
+
 type ButtonProps = ButtonPrimitive.Props & VariantProps<typeof buttonVariants> & { full?: boolean };
 
 function Button({ className, variant = "primary", size = "default", arrow = false, full, children, ...props }: ButtonProps) {
@@ -74,7 +78,7 @@ function Button({ className, variant = "primary", size = "default", arrow = fals
     <ButtonPrimitive data-slot="button" className={cn(buttonVariants({ variant, size, arrow: withArrow }), full && "w-full", withArrow && "justify-start", className)} {...props}>
       {withArrow ? (
         <>
-          <span className={cn(full && "flex-1 text-left")}>{children}</span>
+          <span className={cn(full && "flex-1 text-center", full && FULL_ARROW_PAD[size as keyof typeof FULL_ARROW_PAD])}>{children}</span>
           <i aria-hidden className={arrowBox({ variant, size })}>
             <ArrowRightIcon weight="bold" className="size-[13px]" />
           </i>
