@@ -98,9 +98,13 @@ function Billing() {
               highlight
               features={[`${PLANS.pro.workspaces} workspaces`, "Everything in Free", "Priority support"]}
               action={
-                <Button size="sm" full disabled={busy || !b.configured} onClick={() => go(() => startCheckout({ data: { interval } }))}>
-                  {b.configured ? "Upgrade" : "Billing not configured"}
-                </Button>
+                b.configured ? (
+                  <Button size="sm" full disabled={busy} onClick={() => go(() => startCheckout({ data: { interval } }))}>
+                    Upgrade
+                  </Button>
+                ) : (
+                  <p className="text-center text-xs text-faint">Pro is coming soon.</p>
+                )
               }
             />
           </div>

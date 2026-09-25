@@ -85,7 +85,7 @@ function ApiKeys() {
           </Button>
         </div>
       ))}
-      <p className="pt-6 text-xs text-faint">The HTTP API itself is next on the list. Keys created now will work with it.</p>
+      <p className="pt-6 text-xs text-faint">Send a key as a Bearer token to call the HTTP API.</p>
     </>
   );
 }

@@ -14,7 +14,11 @@ export function findStatus(list: StatusInfo[], key: string): StatusInfo {
   return list.find((s) => s.key === key) ?? { key, label: key, color: "#7a7a85", kind: "open", position: 99, onRoadmap: false };
 }
 
-export const roadmapStatuses = (list: StatusInfo[]) => list.filter((s) => s.onRoadmap);
+// Roadmap order follows the kind first, so a custom status sits among its
+// peers (a second "planned" status never lands after Shipped).
+const KIND_ORDER: Record<StatusKind, number> = { open: 0, review: 1, planned: 2, progress: 3, done: 4, closed: 5 };
+export const roadmapStatuses = (list: StatusInfo[]) =>
+  list.filter((s) => s.onRoadmap).sort((a, b) => KIND_ORDER[a.kind] - KIND_ORDER[b.kind] || a.position - b.position);
 
 // Dashboard glyph per kind, used in the sidebar and the inbox.
 export const KIND_ICON: Record<StatusKind, "circle-dashed" | "circle" | "circle-half" | "spinner-gap" | "check-circle" | "x-circle"> = {

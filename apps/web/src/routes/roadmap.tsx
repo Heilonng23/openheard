@@ -55,6 +55,16 @@ function RoadmapPage() {
         </div>
       ) : null}
 
+      {posts.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          Nothing planned yet.{" "}
+          <Link to="/" className="text-link hover:underline">
+            Post an idea and vote
+          </Link>{" "}
+          on the ones you want.
+        </p>
+      ) : null}
+
       <div className="grid grid-cols-1 gap-x-7 gap-y-8 md:grid-cols-2 xl:grid-cols-(--cols)" style={{ "--cols": `repeat(${roadmapStatuses(root.statuses).length}, minmax(0, 1fr))` } as React.CSSProperties}>
         {roadmapStatuses(root.statuses).map((meta) => {
           const status = meta.key;

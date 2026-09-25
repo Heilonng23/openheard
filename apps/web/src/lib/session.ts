@@ -42,7 +42,27 @@ async function localDev(): Promise<boolean> {
 
 const SLUG = /^[a-z0-9][a-z0-9-]{0,31}$/;
 
+async function workspaceExists(slug: string): Promise<boolean> {
+  const { createDb, workspace } = await import("@openheard/db");
+  const [row] = await createDb().select({ id: workspace.id }).from(workspace).where(eq(workspace.id, slug)).limit(1);
+  return !!row;
+}
+
+// An unknown slug (old link, stale cookie) falls back to the default
+// workspace and drops the cookie, instead of breaking every page.
 async function localWorkspaceOverride(request: Request): Promise<string | null> {
+  const picked = await pickLocalWorkspace(request);
+  if (!picked || picked === "default" || (await workspaceExists(picked))) return picked;
+  try {
+    const { deleteCookie } = await import("@tanstack/react-start/server");
+    deleteCookie("ws", { path: "/" });
+  } catch {
+    // Outside a request context there is no response to clear it on.
+  }
+  return null;
+}
+
+async function pickLocalWorkspace(request: Request): Promise<string | null> {
   const fromQuery = new URL(request.url).searchParams.get("ws");
   if (fromQuery && SLUG.test(fromQuery)) {
     // Remember it, so the next server-function POST (no query string) agrees.

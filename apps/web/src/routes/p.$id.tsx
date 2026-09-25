@@ -248,20 +248,20 @@ function PostPage() {
       <AttachmentGallery items={p.attachments} className="max-w-[640px]" />
 
       {stepIndex >= 0 ? (
-        <ol className="flex items-center overflow-x-auto pt-2">
+        <ol className="flex flex-col items-start gap-2.5 pt-2 sm:flex-row sm:items-center sm:gap-0">
           {timeline.map((meta, i) => {
             const reached = i <= stepIndex;
             const isCurrent = i === stepIndex;
             return (
-              <li key={meta.key} className={cn("flex items-center", i < timeline.length - 1 && "flex-1")}>
+              <li key={meta.key} className={cn("flex items-center", i < timeline.length - 1 && "sm:flex-1")}>
                 <span className="flex items-center gap-2">
                   <span
                     className={cn("rounded-full transition-all", isCurrent ? "size-2.5" : "size-2", !reached && "border-[1.5px] border-input")}
                     style={reached ? { background: meta.color, boxShadow: isCurrent ? `0 0 8px ${meta.color}` : undefined } : undefined}
                   />
-                  <span className={cn("text-xs", isCurrent ? "font-semibold text-foreground" : reached ? "text-muted-foreground" : "text-faint")}>{meta.label}</span>
+                  <span className={cn("text-xs whitespace-nowrap", isCurrent ? "font-semibold text-foreground" : reached ? "text-muted-foreground" : "text-faint")}>{meta.label}</span>
                 </span>
-                {i < timeline.length - 1 ? <span className={cn("mx-3 h-px flex-1", !(reached && i < stepIndex) && "bg-border")} style={reached && i < stepIndex ? { background: meta.color, opacity: 0.5 } : undefined} /> : null}
+                {i < timeline.length - 1 ? <span className={cn("mx-3 hidden h-px flex-1 sm:block", !(reached && i < stepIndex) && "bg-border")} style={reached && i < stepIndex ? { background: meta.color, opacity: 0.5 } : undefined} /> : null}
               </li>
             );
           })}

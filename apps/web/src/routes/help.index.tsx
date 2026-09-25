@@ -113,9 +113,9 @@ function HelpHome() {
           <p className="mt-1 text-sm text-muted-foreground">{root.user?.role === "admin" ? "Write the first one from the dashboard." : "The team has not published anything here yet. Ask on the board instead."}</p>
         </div>
       ) : (
-        <section className={cn("grid grid-cols-1 border-t md:grid-cols-2", searchingFor && "opacity-60 transition-opacity duration-150")} aria-label="Collections">
-          {data.collections.map((c, i) => (
-            <div key={c.id} className={cn("flex gap-4 border-b py-7 md:py-8", i % 2 === 0 ? "md:border-r md:pr-10" : "md:pl-10")}>
+        <section className={cn("grid grid-cols-1 border-t", data.collections.length + (data.uncategorised.length ? 1 : 0) > 1 && "md:grid-cols-2 md:[&>div:nth-child(odd)]:border-r md:[&>div:nth-child(odd)]:pr-10 md:[&>div:nth-child(even)]:pl-10", searchingFor && "opacity-60 transition-opacity duration-150")} aria-label="Collections">
+          {data.collections.map((c) => (
+            <div key={c.id} className="flex gap-4 border-b py-7 md:py-8">
               <HelpIconBox name={c.icon} />
               <div className="flex min-w-0 flex-1 flex-col">
                 <div className="flex items-baseline justify-between gap-3">
@@ -146,7 +146,7 @@ function HelpHome() {
             </div>
           ))}
           {data.uncategorised.length ? (
-            <div className={cn("flex gap-4 border-b py-7 md:py-8", data.collections.length % 2 === 0 ? "md:border-r md:pr-10" : "md:pl-10")}>
+            <div className="flex gap-4 border-b py-7 md:py-8">
               <HelpIconBox name="book" />
               <div className="flex min-w-0 flex-1 flex-col">
                 <div className="flex items-baseline justify-between gap-3">

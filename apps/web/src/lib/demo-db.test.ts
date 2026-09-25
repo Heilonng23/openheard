@@ -11,7 +11,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import { DEMO_ADMIN_ID, DEMO_WORKSPACE_ID } from "./demo";
 import { ensureDemoWorkspace, resetDemoWorkspace } from "./demo-db";
-import { seedUserId } from "./demo-seed";
+import { seedDemoContent, seedUserId } from "./demo-seed";
 
 const MIGRATIONS = new URL("../../../../packages/db/migrations/", import.meta.url).pathname;
 
@@ -115,5 +115,18 @@ describe("resetDemoWorkspace", () => {
 
     await expect(resetDemoWorkspace(db)).rejects.toThrow(/cross-workspace/i);
     expect(await db.select().from(schema.post).where(eq(schema.post.workspaceId, "acme"))).toHaveLength(2);
+  });
+});
+
+describe("seedDemoContent", () => {
+  it("does not duplicate posts or releases when run twice", async () => {
+    const db = await freshDb();
+    await ensureDemoWorkspace(db);
+    await resetDemoWorkspace(db);
+    await seedDemoContent(db, DEMO_WORKSPACE_ID, DEMO_ADMIN_ID);
+    const titles = (await db.select({ title: schema.post.title }).from(schema.post).where(eq(schema.post.workspaceId, DEMO_WORKSPACE_ID))).map((r) => r.title);
+    const versions = (await db.select({ version: schema.changelogEntry.version }).from(schema.changelogEntry).where(eq(schema.changelogEntry.workspaceId, DEMO_WORKSPACE_ID))).map((r) => r.version);
+    expect(new Set(titles).size).toBe(titles.length);
+    expect(new Set(versions).size).toBe(versions.length);
   });
 });

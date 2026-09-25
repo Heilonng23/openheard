@@ -32,7 +32,7 @@ function PublicBoard() {
     <>
       <PageHead title="Public board" sub="How the board behaves for visitors." />
       <SectionHead title="Appearance" />
-      <Row label="Theme" help="Auto follows the visitor's system setting.">
+      <Row label="Theme" help="Dark or light for every visitor.">
         <DropdownMenu>
           <DropdownMenuTrigger className="inline-flex h-[30px] items-center gap-2 rounded-md border border-input bg-card pr-2 pl-2.5 text-[13px] capitalize outline-none hover:bg-accent">
             {theme} <CaretDownIcon className="size-2.5 text-faint" />

@@ -149,8 +149,17 @@ export async function seedDemoContent(db: Db, workspaceId: string, adminId: stri
     .values(TAGS.map((t) => ({ id: scoped(t.toLowerCase()), workspaceId: ws, name: t })))
     .onConflictDoNothing();
 
+  // Seeding twice must not duplicate the board: skip posts and releases that
+  // are already there, matched by title and version.
+  const existingTitles = new Set((await db.select({ title: schema.post.title }).from(schema.post).where(eq(schema.post.workspaceId, ws))).map((r) => r.title));
+  const existingVersions = new Set((await db.select({ version: schema.changelogEntry.version }).from(schema.changelogEntry).where(eq(schema.changelogEntry.workspaceId, ws))).map((r) => r.version));
+
   let i = 0;
   for (const p of POSTS) {
+    if (existingTitles.has(p.title)) {
+      i++;
+      continue;
+    }
     const author = members[i % members.length]!;
     const [row] = await db
       .insert(schema.post)
@@ -179,6 +188,7 @@ export async function seedDemoContent(db: Db, workspaceId: string, adminId: stri
   }
 
   for (const e of ENTRIES) {
+    if (existingVersions.has(e.version)) continue;
     const [row] = await db
       .insert(schema.changelogEntry)
       .values({ workspaceId: ws, title: e.title, version: e.version, body: e.body, authorId: adminId, publishedAt: at(e.days), createdAt: at(e.days) })
