@@ -11,6 +11,7 @@ import { SkeletonSwap } from "@/components/interior/skeleton-swap";
 import { RailLabel, Shell } from "@/components/shell";
 import { ChangelogSkeleton, ErrorState } from "@/components/states";
 import { deleteChangelog, listChangelog, saveChangelog } from "@/functions/changelog";
+import { subscribeChangelog } from "@/functions/notifications";
 import { searchPosts } from "@/functions/posts";
 import { cn } from "@openheard/ui/lib/utils";
 
@@ -32,7 +33,7 @@ export const Route = createFileRoute("/changelog")({
 type Entry = Awaited<ReturnType<typeof listChangelog>>[number];
 
 function shortDate(d: Date | string | number) {
-  return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric" }).toUpperCase();
+  return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 function ChangelogPage() {
@@ -60,18 +61,7 @@ function ChangelogPage() {
       <section className="flex flex-col gap-2.5 px-2.5">
         <RailLabel>Get updates</RailLabel>
         <p className="-mt-1 text-[13px] leading-[1.5] text-muted-foreground">One email when something ships. No digest, no marketing.</p>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            toast("Email updates are on the roadmap. RSS works today.");
-          }}
-          className="flex h-[34px] items-center gap-1.5 rounded-lg border border-input bg-card pr-1 pl-2.5 focus-within:border-ring/60"
-        >
-          <input type="email" placeholder="you@company.com" aria-label="Email address" className="min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-faint" />
-          <button type="submit" className="inline-flex size-[26px] items-center justify-center rounded-md bg-accent text-foreground hover:bg-input" aria-label="Subscribe">
-            <ArrowRightIcon weight="bold" className="size-3" />
-          </button>
-        </form>
+        <SubscribeBox />
         <a href="/changelog.rss" className="inline-flex items-center gap-1.5 text-xs text-faint hover:text-muted-foreground">
           <RssIcon className="size-3.5" /> RSS feed
         </a>
@@ -85,7 +75,7 @@ function ChangelogPage() {
     <Shell rail={rail}>
       <div className="flex items-end justify-between">
         <h1 className="text-xl font-semibold tracking-[-0.02em]">What shipped</h1>
-        <span className="font-mono text-xs text-faint">
+        <span className="text-xs text-faint tabular-nums">
           {published} {published === 1 ? "release" : "releases"}
         </span>
       </div>
@@ -100,9 +90,9 @@ function ChangelogPage() {
           {entries.map((e) => (
             <article key={e.id} className="flex flex-col gap-4 border-b py-7 first:pt-2 md:flex-row md:gap-8">
               <div className="flex shrink-0 items-center gap-2.5 md:w-24 md:flex-col md:items-start md:pt-1">
-                <span className="font-mono text-[12px] tracking-[0.04em] text-faint">{shortDate(e.publishedAt ?? e.createdAt)}</span>
-                {e.version ? <span className="inline-flex h-5 items-center rounded-md border border-input bg-secondary px-1.5 font-mono text-[12px] text-foreground">{e.version}</span> : null}
-                {!e.publishedAt ? <span className="inline-flex h-5 items-center rounded-md border border-dashed border-input px-1.5 font-mono text-[11px] text-faint">draft</span> : null}
+                <span className="text-[12px] text-faint tabular-nums">{shortDate(e.publishedAt ?? e.createdAt)}</span>
+                {e.version ? <span className="inline-flex h-5 items-center rounded-md border border-input bg-secondary px-1.5 text-[12px] text-foreground tabular-nums">{e.version}</span> : null}
+                {!e.publishedAt ? <span className="inline-flex h-5 items-center rounded-md border border-dashed border-input px-1.5 text-[11px] text-faint">Draft</span> : null}
               </div>
               <div className="flex min-w-0 flex-1 flex-col gap-3">
                 <div className="flex items-start justify-between gap-3">
@@ -126,7 +116,7 @@ function ChangelogPage() {
                 {e.body ? <div className="whitespace-pre-wrap text-[14px] leading-[1.6] text-muted-foreground">{e.body}</div> : null}
                 {e.posts.length ? (
                   <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                    <span className="mr-1 font-mono text-[11px] tracking-[0.06em] text-faint uppercase">Shipped from</span>
+                    <span className="mr-1 text-xs text-faint">Shipped from</span>
                     {e.posts.map((p) => (
                       <Link
                         key={p.id}
@@ -149,6 +139,51 @@ function ChangelogPage() {
       {admin ? <EntryDialog entry={editing} onClose={() => setEditing(null)} /> : null}
     </Shell>
     </SkeletonSwap>
+  );
+}
+
+function SubscribeBox() {
+  const [email, setEmail] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (sent) return <p className="text-[13px] leading-[1.5] text-foreground" aria-live="polite">Check your inbox for a link to confirm.</p>;
+  return (
+    <>
+      <form
+        onSubmit={async (e) => {
+          e.preventDefault();
+          setBusy(true);
+          setError(null);
+          try {
+            await subscribeChangelog({ data: { email } });
+            setSent(true);
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : "";
+            setError(msg.includes("valid email") ? "Enter a valid email" : msg || "Could not subscribe");
+          } finally {
+            setBusy(false);
+          }
+        }}
+        className="flex h-[34px] items-center gap-1.5 rounded-lg border border-input bg-card pr-1 pl-2.5 focus-within:border-ring/60"
+      >
+        <input
+          type="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="you@company.com"
+          aria-label="Email address"
+          aria-invalid={error ? true : undefined}
+          className="min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-faint"
+        />
+        <button type="submit" disabled={busy} className="inline-flex size-[26px] items-center justify-center rounded-md bg-accent text-foreground hover:bg-input disabled:opacity-50" aria-label="Subscribe">
+          <ArrowRightIcon weight="bold" className="size-3" />
+        </button>
+      </form>
+      {error ? <p className="-mt-1 text-xs text-destructive" role="alert">{error}</p> : null}
+    </>
   );
 }
 
@@ -200,7 +235,7 @@ function EntryDialog({ entry, onClose }: { entry: Entry | null | "new"; onClose:
         </DialogHeader>
         <div className="grid grid-cols-[minmax(0,1fr)_120px] gap-2">
           <Input placeholder="What shipped" value={title} onChange={(ev) => setTitle(ev.target.value)} aria-label="Entry title" className="h-10 text-[14px] font-semibold" />
-          <Input placeholder="v0.4.0" value={version} onChange={(ev) => setVersion(ev.target.value)} aria-label="Version" className="h-10 font-mono" />
+          <Input placeholder="v0.4.0" value={version} onChange={(ev) => setVersion(ev.target.value)} aria-label="Version" className="h-10 tabular-nums" />
         </div>
         <Textarea placeholder="Why it matters, in a few sentences." value={body} onChange={(ev) => setBody(ev.target.value)} aria-label="Entry body" className="min-h-36" />
         <div className="flex flex-col gap-2">

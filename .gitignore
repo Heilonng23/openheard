@@ -64,3 +64,4 @@ temp
 
 # Images uploaded in local dev (packages/env/src/local.ts)
 apps/web/.local-uploads
+apps/web/.local-emails

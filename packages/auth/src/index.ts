@@ -79,6 +79,20 @@ export function createAuth(opts?: { demo?: boolean }) {
     ...(googleId && googleSecret
       ? { socialProviders: { google: { clientId: googleId, clientSecret: googleSecret } } }
       : {}),
+    // Password sign-ups get a verify link. Until it is clicked the address
+    // is unproven, so workspace emails (status, changelog) skip it.
+    emailVerification: {
+      sendOnSignUp: true,
+      autoSignInAfterVerification: true,
+      sendVerificationEmail: async ({ user, url }) => {
+        await authSendEmail(
+          user.email,
+          "Verify your email",
+          `<p>Click to verify your email address.</p><p><a href="${url}">${url}</a></p>`,
+          `Verify your email: ${url}`,
+        );
+      },
+    },
     emailAndPassword: {
       enabled: true,
       sendResetPassword: async ({ user, url }) => {
