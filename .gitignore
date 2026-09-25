@@ -12,6 +12,10 @@ build
 apps/web/src/routeTree.gen.ts
 apps/web/local.db
 apps/web/local.db-*
+# Local databases hold real accounts; never commit one.
+*.db
+*.db-*
+*.sqlite
 
 # Environment variables
 .env
