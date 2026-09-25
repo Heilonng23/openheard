@@ -1,5 +1,5 @@
-import { DndContext, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
-import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Button } from "@openheard/ui/components/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@openheard/ui/components/dialog";
@@ -109,7 +109,8 @@ function Groups({ data, onEditCollection }: { data: Data; onEditCollection: (c: 
     setPrev(data.collections);
     setOrder(data.collections.map((c) => c.id));
   }
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  // Space on a focused collection header picks it up; arrows move it.
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
   const [liveRegion, setLiveRegion] = useState<HTMLElement | null>(null);
   const byId = new Map(data.collections.map((c) => [c.id, c]));
   const loose = data.articles.filter((a) => a.collectionId === null || !byId.has(a.collectionId));
@@ -167,10 +168,10 @@ function CollectionGroup({ collection, articles, onEdit }: { collection: Collect
         <span className="font-mono text-[12px] text-faint">{articles.length}</span>
         {collection.description ? <span className="hidden min-w-0 truncate text-[12px] text-faint lg:inline">{collection.description}</span> : null}
         <span className="flex-1" />
-        <button type="button" onPointerDown={(e) => e.stopPropagation()} onClick={() => navigate({ search: { article: "new", collection: collection.id } })} className="inline-flex size-7 items-center justify-center rounded-md text-faint hover:bg-accent hover:text-foreground" title="New article in this collection">
+        <button type="button" onPointerDown={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()} onClick={() => navigate({ search: { article: "new", collection: collection.id } })} className="inline-flex size-7 items-center justify-center rounded-md text-faint hover:bg-accent hover:text-foreground" title="New article in this collection">
           <PlusIcon className="size-3.5" />
         </button>
-        <button type="button" onPointerDown={(e) => e.stopPropagation()} onClick={onEdit} className="inline-flex size-7 items-center justify-center rounded-md text-faint hover:bg-accent hover:text-foreground" title="Edit collection">
+        <button type="button" onPointerDown={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()} onClick={onEdit} className="inline-flex size-7 items-center justify-center rounded-md text-faint hover:bg-accent hover:text-foreground" title="Edit collection">
           <PencilSimpleIcon className="size-3.5" />
         </button>
       </div>
