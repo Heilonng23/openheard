@@ -63,6 +63,7 @@ export function statusChangeEmail(input: {
       <p style="${TEXT} font-size: 13px; color: #999; line-height: 1.6; margin: 0;">You are getting this because you voted on, commented on or posted this idea.</p>
     `,
     footer(unsubs),
+    escapeHtml(workspaceName),
   );
   const text = [
     `An update from ${workspaceName} on a post you follow`,
@@ -110,6 +111,7 @@ export function changelogEmail(input: {
       <p style="${TEXT} font-size: 13px; color: #999; line-height: 1.6; margin: 0;">${escapeHtml(why)}</p>
     `,
     footer(unsubs),
+    escapeHtml(workspaceName),
   );
   const text = [
     `New in ${workspaceName}${version ? ` · ${version}` : ""}`,
@@ -135,7 +137,7 @@ export function confirmSubscriptionEmail(input: { workspaceName: string; confirm
       <p style="${TEXT} font-size: 15px; color: #555; line-height: 1.7; margin: 0 0 4px;">Confirm to get one email from ${escapeHtml(workspaceName)} each time something ships. This link expires in 7 days.</p>
       ${emailButton(confirmUrl, "Confirm")}
       <p style="${TEXT} font-size: 13px; color: #999; line-height: 1.6; margin: 0;">If you did not ask for this, ignore this email and nothing will be sent.</p>
-    `),
+    `, "", escapeHtml(workspaceName)),
     text: `Confirm changelog emails from ${workspaceName}\n\nConfirm here: ${confirmUrl}\n\nThis link expires in 7 days. If you did not ask for this, ignore this email.`,
   };
 }

@@ -1,7 +1,15 @@
-const FROM = { email: "hello@openheard.com", name: "openheard" };
+const DEFAULT_FROM = { email: "hello@openheard.com", name: "openheard" };
+
+// Self-hosters send from their own Email Sending domain via EMAIL_FROM / EMAIL_FROM_NAME.
+function sender(vars: { EMAIL_FROM?: string; EMAIL_FROM_NAME?: string }) {
+  return vars.EMAIL_FROM
+    ? { email: vars.EMAIL_FROM, name: vars.EMAIL_FROM_NAME || DEFAULT_FROM.name }
+    : DEFAULT_FROM;
+}
 const TEXT_STYLE = "font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;";
 
-export function emailLayout(content: string, footer = "") {
+// `brand` is the workspace name, already HTML-escaped; it heads the email.
+export function emailLayout(content: string, footer = "", brand?: string) {
   return `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /></head>
@@ -9,12 +17,12 @@ export function emailLayout(content: string, footer = "") {
   <div style="max-width: 520px; margin: 0 auto; padding: 48px 20px;">
     <div style="background: #ffffff; border-radius: 12px; padding: 40px 36px; border: 1px solid #eee;">
       <div style="margin-bottom: 28px;">
-        <span style="${TEXT_STYLE} font-size: 16px; font-weight: 700; color: #111; letter-spacing: -0.3px;">openheard</span>
+        <span style="${TEXT_STYLE} font-size: 16px; font-weight: 700; color: #111; letter-spacing: -0.3px;">${brand ?? "openheard"}</span>
       </div>
       ${content}
     </div>
     <p style="${TEXT_STYLE} font-size: 11px; color: #aaa; text-align: center; margin-top: 24px; line-height: 1.6;">
-      openheard &middot; open source feedback board
+      ${brand ? `${brand} &middot; feedback board` : "openheard &middot; open source feedback board"}
     </p>${footer}
   </div>
 </body>
@@ -37,7 +45,7 @@ export async function sendEmail(to: string, subject: string, html: string, text:
       console.log(`[email] No EMAIL binding — logging instead\n  To: ${to}\n  Subject: ${subject}\n  ${text.replace(/\n/g, "\n  ")}`);
       return { ok: true };
     }
-    const result = await (env as any).EMAIL.send({ to, from: FROM, subject, html, text, ...(opts?.headers ? { headers: opts.headers } : {}) });
+    const result = await (env as any).EMAIL.send({ to, from: sender(env as any), subject, html, text, ...(opts?.headers ? { headers: opts.headers } : {}) });
     console.log(`[email] sent: ${subject}`, result?.messageId ?? "");
     return { ok: true };
   } catch (err: any) {
@@ -81,11 +89,11 @@ export async function sendInviteEmail(to: string, inviterName: string, workspace
     emailLayout(`
       <h1 style="${TEXT_STYLE} font-size: 20px; font-weight: 700; color: #111; margin: 0 0 12px;">You've been invited</h1>
       <p style="${TEXT_STYLE} font-size: 15px; color: #555; line-height: 1.7; margin: 0 0 4px;">
-        ${inviterName} invited you to join <strong>${workspaceName}</strong> on openheard.
+        ${inviterName} invited you to join <strong>${workspaceName}</strong>.
       </p>
       ${emailButton(joinUrl, "Accept Invite")}
       <p style="${TEXT_STYLE} font-size: 13px; color: #999; line-height: 1.6; margin: 0;">This invite link expires in 7 days.</p>
-    `),
+    `, "", workspaceName),
     `${inviterName} invited you to ${workspaceName}\n\nJoin here: ${joinUrl}\n\nThis invite link expires in 7 days.`,
   );
 }
