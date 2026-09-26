@@ -1,7 +1,7 @@
 import { createFileRoute, redirect, useLoaderData, useRouter } from "@tanstack/react-router";
 
 import { AuthForm } from "@/components/auth-form";
-import Logo from "@/components/logo";
+import { WorkspaceLogo } from "@/components/logo";
 import { myWorkspaces } from "@/functions/admin";
 import { getUser } from "@/functions/get-user";
 import { getWorkspace } from "@/functions/workspace";
@@ -77,7 +77,7 @@ function LoginPage() {
   return (
     <main className="flex flex-1 items-center justify-center px-5 py-16">
       <div className="flex w-full max-w-[380px] flex-col items-center gap-6">
-        <Logo size={32} />
+        <WorkspaceLogo size={32} />
         <AuthForm
           wsName={wsName}
           hasGoogle={hasGoogle}

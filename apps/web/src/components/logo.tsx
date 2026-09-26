@@ -1,3 +1,5 @@
+import { useLoaderData } from "@tanstack/react-router";
+
 import { MARK_D } from "@/components/mark-path";
 
 // The character alone, no box. Sized by height so it sits level with text next to it.
@@ -13,4 +15,11 @@ export default function Logo({ size = 24 }: { size?: number }) {
       </svg>
     </span>
   );
+}
+
+// Visitor-facing pages show the workspace's own logo once it has one.
+export function WorkspaceLogo({ size = 24 }: { size?: number }) {
+  const logo = useLoaderData({ from: "__root__" })?.workspace.logoUrl;
+  if (!logo) return <Logo size={size} />;
+  return <img src={logo} alt="" width={size} height={size} className="shrink-0 rounded-md object-cover" style={{ width: size, height: size }} />;
 }
