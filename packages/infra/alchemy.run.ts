@@ -43,6 +43,7 @@ export const web = Cloudflare.Website.Vite("web", {
     ROOT_DOMAIN: Config.string("ROOT_DOMAIN").pipe(Config.withDefault("")),
     EMAIL_FROM: Config.string("EMAIL_FROM").pipe(Config.withDefault("")),
     EMAIL_FROM_NAME: Config.string("EMAIL_FROM_NAME").pipe(Config.withDefault("")),
+    EMAIL_REPLY_TO: Config.string("EMAIL_REPLY_TO").pipe(Config.withDefault("")),
     GOOGLE_CLIENT_ID: Config.string("GOOGLE_CLIENT_ID").pipe(Config.withDefault("")),
     GOOGLE_CLIENT_SECRET: Config.string("GOOGLE_CLIENT_SECRET").pipe(Config.withDefault("")),
     CF_ACCESS_TEAM_DOMAIN: Config.string("CF_ACCESS_TEAM_DOMAIN").pipe(Config.withDefault("")),

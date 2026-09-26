@@ -22,7 +22,8 @@ function authFrom() {
 async function authSendEmail(to: string, subject: string, html: string, text: string) {
   try {
     if ((env as any).EMAIL) {
-      const result = await (env as any).EMAIL.send({ to, from: authFrom(), subject, html, text });
+      const replyTo = (env as unknown as { EMAIL_REPLY_TO?: string }).EMAIL_REPLY_TO;
+      const result = await (env as any).EMAIL.send({ to, from: authFrom(), subject, html, text, ...(replyTo ? { replyTo } : {}) });
       console.log(`[auth] email sent: ${subject} → ${to}`, result?.messageId ?? "");
     } else {
       console.log(`[auth] ${subject} → ${to}\n  ${text.replace(/\n/g, "\n  ")}`);
