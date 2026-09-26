@@ -49,6 +49,25 @@ async function googleSignIn() {
   return !!(env as unknown as { GOOGLE_CLIENT_ID?: string }).GOOGLE_CLIENT_ID;
 }
 
+// Footer links. Self-hosters can point them at their own pages and fork.
+async function siteLinks() {
+  const { env } = await import("@openheard/env/server");
+  const vars = env as unknown as { LEGAL_TERMS_URL?: string; LEGAL_PRIVACY_URL?: string; SOURCE_URL?: string };
+  return {
+    terms: vars.LEGAL_TERMS_URL || "/terms",
+    privacy: vars.LEGAL_PRIVACY_URL || "/privacy",
+    source: vars.SOURCE_URL || "https://github.com/Heilonng23/openheard",
+  };
+}
+
+// /terms and /privacy send visitors to the self-hoster's own page when one is set.
+export const getLegalUrl = createServerFn({ method: "GET" })
+  .validator((page: "terms" | "privacy") => page)
+  .handler(async ({ data }) => {
+    const url = (await siteLinks())[data];
+    return url.startsWith("/") ? null : url;
+  });
+
 export const getWorkspace = createServerFn({ method: "GET" })
   .middleware([sessionMiddleware])
   .handler(async ({ context }) => {
@@ -77,6 +96,7 @@ export const getWorkspace = createServerFn({ method: "GET" })
         user: context.user,
         ownWorkspaces,
         googleSignIn: await googleSignIn(),
+        links: await siteLinks(),
       };
     }
 
@@ -88,5 +108,6 @@ export const getWorkspace = createServerFn({ method: "GET" })
       ...data,
       user: context.user,
       googleSignIn: await googleSignIn(),
+      links: await siteLinks(),
     };
   });
