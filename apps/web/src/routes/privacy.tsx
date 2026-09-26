@@ -1,6 +1,12 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
+
+import { getLegalUrl } from "../functions/workspace";
 
 export const Route = createFileRoute("/privacy")({
+  loader: async () => {
+    const url = await getLegalUrl({ data: "privacy" });
+    if (url) throw redirect({ href: url });
+  },
   head: () => ({
     meta: [
       { title: "Privacy Policy" },

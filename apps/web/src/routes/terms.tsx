@@ -1,6 +1,12 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
+
+import { getLegalUrl } from "../functions/workspace";
 
 export const Route = createFileRoute("/terms")({
+  loader: async () => {
+    const url = await getLegalUrl({ data: "terms" });
+    if (url) throw redirect({ href: url });
+  },
   head: () => ({
     meta: [
       { title: "Terms of Service" },
