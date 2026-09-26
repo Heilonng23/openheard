@@ -1,4 +1,11 @@
-const FROM = { email: "hello@openheard.com", name: "openheard" };
+const DEFAULT_FROM = { email: "hello@openheard.com", name: "openheard" };
+
+// Self-hosters send from their own Email Sending domain via EMAIL_FROM / EMAIL_FROM_NAME.
+function sender(vars: { EMAIL_FROM?: string; EMAIL_FROM_NAME?: string }) {
+  return vars.EMAIL_FROM
+    ? { email: vars.EMAIL_FROM, name: vars.EMAIL_FROM_NAME || DEFAULT_FROM.name }
+    : DEFAULT_FROM;
+}
 const TEXT_STYLE = "font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;";
 
 export function emailLayout(content: string, footer = "") {
@@ -37,7 +44,8 @@ export async function sendEmail(to: string, subject: string, html: string, text:
       console.log(`[email] No EMAIL binding — logging instead\n  To: ${to}\n  Subject: ${subject}\n  ${text.replace(/\n/g, "\n  ")}`);
       return { ok: true };
     }
-    const result = await (env as any).EMAIL.send({ to, from: FROM, subject, html, text, ...(opts?.headers ? { headers: opts.headers } : {}) });
+    const replyTo = (env as unknown as { EMAIL_REPLY_TO?: string }).EMAIL_REPLY_TO;
+    const result = await (env as any).EMAIL.send({ to, from: sender(env as any), subject, html, text, ...(replyTo ? { replyTo } : {}), ...(opts?.headers ? { headers: opts.headers } : {}) });
     console.log(`[email] sent: ${subject}`, result?.messageId ?? "");
     return { ok: true };
   } catch (err: any) {
