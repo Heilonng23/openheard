@@ -27,6 +27,9 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
     const embedded = matches.some((m) => (m.routeId as string) === "/widget");
     const title = loaderData ? `${loaderData.workspace.name} · feedback` : "openheard";
     const description = loaderData?.workspace.tagline ?? "Open source feedback board.";
+    // A self-hoster's own share image; its size is theirs to know, so no hints.
+    const ogImage = loaderData?.ogImage;
+    const logo = loaderData?.workspace.logoUrl;
     return {
       meta: [
         { charSet: "utf-8" },
@@ -34,21 +37,26 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
         { title },
         { name: "description", content: description },
         { property: "og:type", content: "website" },
-        { property: "og:site_name", content: "openheard" },
+        { property: "og:site_name", content: loaderData?.workspace.name ?? "openheard" },
         { property: "og:title", content: title },
         { property: "og:description", content: description },
-        { property: "og:image", content: "https://openheard.com/og.jpg" },
-        { property: "og:image:width", content: "1200" },
-        { property: "og:image:height", content: "630" },
+        ...(ogImage
+          ? [{ property: "og:image", content: ogImage }]
+          : [
+              { property: "og:image", content: "https://openheard.com/og.jpg" },
+              { property: "og:image:width", content: "1200" },
+              { property: "og:image:height", content: "630" },
+            ]),
         { name: "twitter:card", content: "summary_large_image" },
         { name: "twitter:title", content: title },
         { name: "twitter:description", content: description },
-        { name: "twitter:image", content: "https://openheard.com/og.jpg" },
+        { name: "twitter:image", content: ogImage || "https://openheard.com/og.jpg" },
       ],
       links: [
       { rel: "preload", href: geistLatinFont, as: "font", type: "font/woff2", crossOrigin: "anonymous" },
       { rel: "stylesheet", href: appCss },
-      { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
+      // The workspace logo is the tab icon once one is set.
+      logo ? { rel: "icon", href: logo } : { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
       { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
     ],
     // Analytics only when a client id is set at build time, so self-hosters send nothing by default.
