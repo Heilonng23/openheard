@@ -192,7 +192,7 @@ export function Hero() {
 const bullets = [
   ["Ask in plain English", "“What are the five most-voted requests that are still open?”"],
   ["Act, not just read", "Move a post to Planned, merge duplicates, reply to a voter."],
-  ["Draft the changelog", "Closed posts become a ready-to-edit entry. Voters get told on publish."],
+  ["Draft the changelog", "Closed posts become a ready-to-edit entry. Followers get an email on publish."],
   ["Your keys, your scope", "One key reaches every workspace you administer, or limit it to one. Hashed, shown once, revoke any time."],
 ];
 
@@ -216,8 +216,8 @@ export function Agents() {
             <AnimatedSpan delay={3000} className="pl-4 text-link">└ openheard.list_posts status=shipped sort=new → 4 posts</AnimatedSpan>
             <AnimatedSpan delay={3500} className="pl-4 text-link">└ openheard.draft_changelog → draft ready, 3 linked posts</AnimatedSpan>
             <AnimatedSpan delay={4100} className="text-muted-foreground">● Draft: “Dark mode for the widget, merge without losing votes, Slack status alerts.”</AnimatedSpan>
-            <TypingAnimation delay={4800}>› Looks good. Publish and notify voters.</TypingAnimation>
-            <AnimatedSpan delay={6400} className="pl-4 text-status-shipped">└ openheard.publish_changelog → published, 128 voters notified</AnimatedSpan>
+            <TypingAnimation delay={4800}>› Looks good. Publish and email the followers.</TypingAnimation>
+            <AnimatedSpan delay={6400} className="pl-4 text-status-shipped">└ openheard.publish_changelog → published, 128 followers emailed</AnimatedSpan>
             <AnimatedSpan delay={7000} className="text-muted-foreground">● Done. Live at acme.openheard.com/changelog/this-week</AnimatedSpan>
           </Terminal>
         </div>
