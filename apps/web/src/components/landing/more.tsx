@@ -27,7 +27,7 @@ export function Surfaces() {
         </div>
         <div className="overflow-hidden p-4 md:p-6">
           <BlurFade inView>
-            <Shot src="/landing/widget.png" alt="openheard widget open over a web app, showing the Feedback tab with posts ranked by votes" className="aspect-[3/2]" />
+            <Shot src="/landing/widget.png" width={1920} height={1280} alt="openheard widget open over a web app, showing the Feedback tab with posts ranked by votes" className="aspect-[3/2]" />
           </BlurFade>
         </div>
       </div>

@@ -1,5 +1,6 @@
 import { CaretDownIcon, CaretUpIcon, CheckIcon, PaperPlaneTiltIcon } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
+import { useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Button } from "@openheard/ui/components/button";
@@ -209,8 +210,8 @@ export function Loop() {
 /* ------------------------------------------------------------------- own */
 
 const own = [
-  ["Two commands on Cloudflare", "A Worker and a D1 database on the free tier. Point a domain at it and you have a board."],
-  ["SQLite or D1, nothing else", "No Postgres, no Redis, no queue. One Worker, one database, your domain."],
+  ["Two commands on Cloudflare", "A Worker, D1, KV and an R2 bucket, all on the free tier. Point a domain at it and you have a board."],
+  ["Cloudflare and nothing else", "No Postgres, no Redis, no queue. One Worker and its storage, on your domain."],
   ["AGPL-3, fork it", "Read every line. Change what you want. Running it for your own users is always free."],
   ["Cloud when you want it", "Same code, we host it. Move between the two with a CSV."],
 ];
@@ -223,6 +224,7 @@ export function Own() {
   const [progress, setProgress] = useState(0);
   const startRef = useRef(Date.now());
   const rafRef = useRef<number>(0);
+  const reduce = useReducedMotion();
 
   const advance = useCallback(() => {
     setActive((i) => (i + 1) % own.length);
@@ -230,8 +232,9 @@ export function Own() {
     startRef.current = Date.now();
   }, []);
 
+  // No auto-advance under reduced motion; the tabs still work on click.
   useEffect(() => {
-    if (paused) {
+    if (paused || reduce) {
       cancelAnimationFrame(rafRef.current);
       return;
     }
@@ -250,7 +253,7 @@ export function Own() {
     };
     rafRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [paused, active, advance, progress]);
+  }, [paused, reduce, active, advance, progress]);
 
   const select = (i: number) => {
     setActive(i);
@@ -265,7 +268,7 @@ export function Own() {
         <div className="flex flex-col">
           {own.map(([t, d], i) => (
             <button key={t} type="button" onClick={() => select(i)} className={cn("relative flex flex-col gap-1 overflow-hidden rounded-lg px-4 py-3 text-left transition-colors md:px-5 md:py-4", active === i ? "bg-secondary/60" : "hover:bg-accent/40")}>
-              {active === i && (
+              {active === i && !reduce && (
                 <div className="absolute inset-y-0 left-0 w-0.5 rounded-full bg-link" style={{ height: `${progress * 100}%`, transition: paused ? "none" : undefined }} />
               )}
               <span className={cn("text-[15px] font-medium", active === i ? "text-foreground" : "text-muted-foreground")}>{t}</span>
@@ -276,7 +279,7 @@ export function Own() {
           ))}
         </div>
         <Terminal title="zsh — ~/openheard" className="min-h-[280px] md:min-h-[320px]">
-          <TypingAnimation delay={200}>$ bunx alchemy login --configure</TypingAnimation>
+          <TypingAnimation delay={200}>$ cd packages/infra && bunx alchemy login --configure</TypingAnimation>
           <TypingAnimation delay={2600}>$ bun run deploy</TypingAnimation>
           <AnimatedSpan delay={4200} className="pl-4 text-status-shipped">✓ Worker, KV and R2 bucket created</AnimatedSpan>
           <AnimatedSpan delay={4700} className="pl-4 text-status-shipped">✓ D1 database migrated (28 tables)</AnimatedSpan>
@@ -353,7 +356,7 @@ export function Pricing() {
 const faq = [
   ["Is it really free to self-host?", "Yes. AGPL-3 means the code is free to use, modify and deploy. Running it on your own infrastructure for your own users is always free. The licence only asks that you publish changes if you distribute a modified version."],
   ["Can I import my existing board?", "Yes. Export a CSV from your current tool and drop it into Settings. Posts, votes, authors and statuses come across in one step."],
-  ["What is the stack?", "TanStack Start, Drizzle, SQLite locally and D1 on Cloudflare, Better Auth. One Worker, one database. No Postgres, no Redis, no queue."],
+  ["What is the stack?", "TanStack Start, Drizzle, SQLite locally and D1 on Cloudflare, Better Auth. One Worker with D1, KV and R2. No Postgres, no Redis, no queue."],
   ["Is there a managed cloud?", "Yes, with a free tier. Same code as self-host. Start in the cloud and move to your own account later with a CSV, or the other way round."],
   ["What does AGPL-3 mean for me?", "Use it, change it, run it. If you distribute a modified version or offer it as a service to others, you publish your changes. Using it for your own product is not that."],
   ["How do I contribute?", "Read CONTRIBUTING.md in the repo. Local setup is one command and takes about two minutes."],

@@ -16,7 +16,7 @@ export function Connect() {
         <Cell title="Alerts in Slack and Discord" desc="New posts, comments, status changes and changelog entries, filtered by board. Or a signed webhook to anything else.">
           <Alert />
         </Cell>
-        <Cell title="Emails when an idea moves" desc="Everyone who voted, commented or posted hears about status changes and the release. Every email has a one-click unsubscribe.">
+        <Cell title="Emails when an idea moves" desc="Verified accounts that voted, commented or posted hear when the idea changes status and when it ships. Every email has a one-click unsubscribe.">
           <Email />
         </Cell>
         <Cell title="Your brand, from your website" desc="Paste your homepage. openheard reads its logo, name, colours and font, and applies the ones you tick.">

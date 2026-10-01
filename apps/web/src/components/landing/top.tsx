@@ -1,6 +1,6 @@
 import { ListIcon, XIcon } from "@phosphor-icons/react";
 import { Link, useLoaderData } from "@tanstack/react-router";
-import { AnimatePresence, motion, useScroll } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion, useScroll } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@openheard/ui/components/button";
@@ -27,6 +27,7 @@ export function Nav() {
   const { scrollY } = useScroll();
   const [scrolled, setScrolled] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const reduce = useReducedMotion();
   useEffect(() => scrollY.on("change", (v) => setScrolled(v > 10)), [scrollY]);
   const root = useLoaderData({ from: "__root__" });
   const own = (root as { ownWorkspaces?: { id: string; name: string }[] }).ownWorkspaces;
@@ -45,7 +46,7 @@ export function Nav() {
 
   return (
     <header className={cn("sticky z-50 mx-4 flex justify-center transition-all duration-300 md:mx-0", scrolled ? "top-6" : "top-4 mx-0")}>
-      <motion.div initial={{ width: "70rem" }} animate={{ width: scrolled ? "800px" : "70rem" }} transition={{ duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }} className="max-w-full motion-reduce:!transition-none">
+      <motion.div initial={{ width: "70rem" }} animate={{ width: scrolled ? "800px" : "70rem" }} transition={reduce ? { duration: 0 } : { duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }} className="max-w-full">
         <div className={cn("mx-auto max-w-7xl rounded-2xl transition-all duration-300 xl:px-0", scrolled ? "border border-border bg-background/75 px-2 backdrop-blur-lg" : "px-7 shadow-none")}>
           <div className="flex h-[56px] items-center justify-between p-4">
             <Link to="/" className="flex items-center gap-2.5 text-[15px] font-semibold tracking-[-0.01em] text-foreground">
@@ -74,8 +75,8 @@ export function Nav() {
       <AnimatePresence>
         {drawerOpen && (
           <>
-            <motion.div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} onClick={() => setDrawerOpen(false)} />
-            <motion.div className="fixed inset-x-0 bottom-3 z-50 mx-auto w-[95%] rounded-xl border border-border bg-background p-4 shadow-lg" initial={{ opacity: 0, y: 100 }} animate={{ opacity: 1, y: 0, transition: { type: "spring", damping: 15, stiffness: 200 } }} exit={{ opacity: 0, y: 100, transition: { duration: 0.1 } }}>
+            <motion.div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: reduce ? 0 : 0.2 }} onClick={() => setDrawerOpen(false)} />
+            <motion.div className="fixed inset-x-0 bottom-3 z-50 mx-auto w-[95%] rounded-xl border border-border bg-background p-4 shadow-lg" initial={reduce ? { opacity: 0 } : { opacity: 0, y: 100 }} animate={{ opacity: 1, y: 0, transition: reduce ? { duration: 0 } : { type: "spring", damping: 15, stiffness: 200 } }} exit={reduce ? { opacity: 0, transition: { duration: 0 } } : { opacity: 0, y: 100, transition: { duration: 0.1 } }}>
               <div className="flex flex-col gap-4">
                 <div className="flex items-center justify-between">
                   <Link to="/" className="flex items-center gap-2.5 text-[15px] font-semibold">
@@ -89,7 +90,7 @@ export function Nav() {
                 <ul className="flex flex-col rounded-md border border-border text-sm">
                   {links.map((n) => (
                     <li key={n.label} className="border-b border-border p-2.5 last:border-b-0">
-                      <a href={n.href} onClick={(e) => { e.preventDefault(); document.getElementById(n.href.substring(1))?.scrollIntoView({ behavior: "smooth" }); setDrawerOpen(false); }} className="text-muted-foreground transition-colors hover:text-foreground">
+                      <a href={n.href} onClick={(e) => { setDrawerOpen(false); if (!n.href.startsWith("#")) return; e.preventDefault(); document.getElementById(n.href.substring(1))?.scrollIntoView({ behavior: reduce ? "auto" : "smooth" }); }} className="text-muted-foreground transition-colors hover:text-foreground">
                         {n.label}
                       </a>
                     </li>
