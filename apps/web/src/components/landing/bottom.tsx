@@ -59,8 +59,8 @@ export function Products() {
 const inboxRows = [
   { title: "Dark mode for the embedded widget", meta: "In progress · Mara Lindqvist · 2d", votes: 128, hot: true },
   { title: "Merge duplicate posts without losing votes", meta: "Planned · Tomás Ferreira · 5d", votes: 86 },
-  { title: "Slack notifications when a post changes status", meta: "Under review · Aiko Tanaka · 1w", votes: 54 },
-  { title: "Public API for creating posts from our app", meta: "Devraj Patel · 1w", votes: 41 },
+  { title: "Sync planned posts with GitHub issues", meta: "Under review · Aiko Tanaka · 1w", votes: 47 },
+  { title: "Custom fields on the post form", meta: "Devraj Patel · 1w", votes: 41 },
 ];
 
 function PostRow({ title, meta, votes, hot }: (typeof inboxRows)[number]) {
@@ -79,7 +79,7 @@ function PostRow({ title, meta, votes, hot }: (typeof inboxRows)[number]) {
 }
 
 const columns = [
-  ["Planned", "bg-status-planned", ["Slack notifications", "CSV export"]],
+  ["Planned", "bg-status-planned", ["GitHub sync", "SAML sign-in"]],
   ["In progress", "bg-status-progress", ["Merge duplicates"]],
   ["Shipped", "bg-status-shipped", ["Dark mode widget"]],
 ] as const;
@@ -144,11 +144,11 @@ export function Bento() {
         </Cell>
         <Cell title="Ask it from Claude or Cursor" desc="API keys, an HTTP API and an MCP server. Your agent reads the top requests before you plan a sprint.">
           <Terminal title="claude" className="max-w-[440px]">
-            <TypingAnimation delay={200}>› What are the top requests from paying users?</TypingAnimation>
-            <AnimatedSpan delay={1800} className="pl-4 text-link">└ openheard.listPosts sort=top segment=paying</AnimatedSpan>
+            <TypingAnimation delay={200}>› What are the top open requests?</TypingAnimation>
+            <AnimatedSpan delay={1800} className="pl-4 text-link">└ openheard.list_posts sort=top status=open</AnimatedSpan>
             <AnimatedSpan delay={2300} className="text-muted-foreground">● 1. Dark mode for the widget · 128</AnimatedSpan>
             <AnimatedSpan delay={2600} className="text-muted-foreground">● 2. Merge duplicates · 86</AnimatedSpan>
-            <AnimatedSpan delay={2900} className="text-muted-foreground">● 3. Slack status alerts · 54</AnimatedSpan>
+            <AnimatedSpan delay={2900} className="text-muted-foreground">● 3. GitHub issue sync · 47</AnimatedSpan>
           </Terminal>
         </Cell>
       </div>
@@ -209,7 +209,7 @@ export function Loop() {
 /* ------------------------------------------------------------------- own */
 
 const own = [
-  ["One command on Cloudflare", "A Worker and a D1 database on the free tier. Point a domain at it and you have a board."],
+  ["Two commands on Cloudflare", "A Worker and a D1 database on the free tier. Point a domain at it and you have a board."],
   ["SQLite or D1, nothing else", "No Postgres, no Redis, no queue. One Worker, one database, your domain."],
   ["AGPL-3, fork it", "Read every line. Change what you want. Running it for your own users is always free."],
   ["Cloud when you want it", "Same code, we host it. Move between the two with a CSV."],
@@ -276,11 +276,12 @@ export function Own() {
           ))}
         </div>
         <Terminal title="zsh — ~/openheard" className="min-h-[280px] md:min-h-[320px]">
-          <TypingAnimation delay={200}>$ bunx openheard deploy</TypingAnimation>
-          <AnimatedSpan delay={1600} className="pl-4 text-status-shipped">✓ Worker openheard-acme created</AnimatedSpan>
-          <AnimatedSpan delay={2100} className="pl-4 text-status-shipped">✓ D1 database migrated (7 tables)</AnimatedSpan>
-          <AnimatedSpan delay={2600} className="pl-4 text-status-shipped">✓ First sign-up becomes admin</AnimatedSpan>
-          <AnimatedSpan delay={3200} className="pl-4 text-link">→ https://feedback.acme.com</AnimatedSpan>
+          <TypingAnimation delay={200}>$ bunx alchemy login --configure</TypingAnimation>
+          <TypingAnimation delay={2600}>$ bun run deploy</TypingAnimation>
+          <AnimatedSpan delay={4200} className="pl-4 text-status-shipped">✓ Worker, KV and R2 bucket created</AnimatedSpan>
+          <AnimatedSpan delay={4700} className="pl-4 text-status-shipped">✓ D1 database migrated (28 tables)</AnimatedSpan>
+          <AnimatedSpan delay={5300} className="pl-4 text-link">→ https://openheard.acme.workers.dev</AnimatedSpan>
+          <AnimatedSpan delay={5900} className="text-muted-foreground"># The first account to sign up becomes the admin.</AnimatedSpan>
         </Terminal>
       </div>
     </section>
@@ -290,8 +291,8 @@ export function Own() {
 /* --------------------------------------------------------------- pricing */
 
 const plans = [
-  { name: "Free", price: "$0", per: "/month", desc: "Everything you need to start collecting feedback.", cta: "Start for free", lead: "Included", items: ["Unlimited users and votes", "2 boards, public roadmap and changelog", "3 admins", "openheard.com subdomain", "CSV import and export"] },
-  { name: "Pro", price: "$19", per: "/month", desc: "For teams that ship every week.", cta: "Start free trial", primary: true, lead: "Everything in Free, plus", items: ["Unlimited boards and admins", "Custom domain", "Email notifications to voters", "API keys and MCP server", "Image uploads", "Priority support"] },
+  { name: "Free", price: "$0", per: "/month", desc: "Everything you need to start collecting feedback.", cta: "Start for free", lead: "Included", items: ["Unlimited users and votes", "2 workspaces, public roadmap and changelog", "3 admins", "openheard.com subdomain", "CSV import and export"] },
+  { name: "Pro", price: "$19", per: "/month", desc: "For teams that ship every week.", cta: "Start free trial", primary: true, lead: "Everything in Free, plus", items: ["5 workspaces, unlimited admins", "Custom domain", "Email notifications to voters", "API keys and MCP server", "Image uploads", "Priority support"] },
 ];
 
 // Template pricing: plain section gap-10 pb-10, SectionHeader, cards in a

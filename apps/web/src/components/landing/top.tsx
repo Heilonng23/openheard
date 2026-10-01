@@ -141,7 +141,7 @@ export function Hero() {
               <h1 className="text-center text-[28px] font-medium tracking-tighter text-balance sm:text-4xl md:text-5xl lg:text-6xl xl:text-[68px] xl:leading-[1.02]">The open source Canny alternative</h1>
             </BlurFade>
             <BlurFade delay={0.08}>
-              <p className="max-w-[54ch] text-center text-base leading-relaxed font-medium tracking-tight text-balance text-muted-foreground md:text-lg">Users post and vote. Your agents read the top requests, move the roadmap and draft the changelog. Self-host in one command, or use the cloud.</p>
+              <p className="max-w-[54ch] text-center text-base leading-relaxed font-medium tracking-tight text-balance text-muted-foreground md:text-lg">Users post and vote. Your agents read the top requests, move the roadmap and draft the changelog. Self-host on your own Cloudflare account, or use the cloud.</p>
             </BlurFade>
           </div>
           <BlurFade delay={0.16}>
@@ -189,16 +189,16 @@ export function Hero() {
 }
 
 const bullets = [
-  ["Ask in plain English", "“What are the top five requests from paying users this month?”"],
+  ["Ask in plain English", "“What are the five most-voted requests that are still open?”"],
   ["Act, not just read", "Move a post to Planned, merge duplicates, reply to a voter."],
   ["Draft the changelog", "Closed posts become a ready-to-edit entry. Voters get told on publish."],
-  ["Your keys, your scope", "API keys are per workspace, hashed, shown once. Revoke any time."],
+  ["Your keys, your scope", "One key reaches every workspace you administer, or limit it to one. Hashed, shown once, revoke any time."],
 ];
 
 export function Agents() {
   return (
     <Framed id="agents">
-      <SectionHeader title="Run it through the agent you already use." sub="An MCP server and an HTTP API ship with it. Claude, Cursor or any agent can triage feedback, update the roadmap and draft the changelog from wherever you already work." />
+      <SectionHeader title="Run it through the agent you already use." sub="An MCP server and an HTTP API ship with it. Connect Claude Code, Cursor or Codex from the API keys page, then triage feedback, update the roadmap and draft the changelog from where you already work." />
       <div className="grid md:grid-cols-[380px_1fr]">
         <dl className="flex flex-col gap-6 border-b border-border p-6 md:border-r md:border-b-0">
           {bullets.map(([t, d]) => (
@@ -212,11 +212,11 @@ export function Agents() {
           <Terminal title="claude — openheard-mcp" className="min-h-[320px] md:min-h-[400px]">
             <TypingAnimation delay={300}>› Publish a changelog for what shipped this week. Keep it concise.</TypingAnimation>
             <AnimatedSpan delay={2400} className="text-muted-foreground">● I&apos;ll pull this week&apos;s shipped posts, draft an entry and show it before publishing.</AnimatedSpan>
-            <AnimatedSpan delay={3000} className="pl-4 text-link">└ openheard.listPosts status=shipped since=7d → 4 posts</AnimatedSpan>
-            <AnimatedSpan delay={3500} className="pl-4 text-link">└ openheard.createChangelog draft ready, 3 linked posts</AnimatedSpan>
+            <AnimatedSpan delay={3000} className="pl-4 text-link">└ openheard.list_posts status=shipped sort=new → 4 posts</AnimatedSpan>
+            <AnimatedSpan delay={3500} className="pl-4 text-link">└ openheard.draft_changelog → draft ready, 3 linked posts</AnimatedSpan>
             <AnimatedSpan delay={4100} className="text-muted-foreground">● Draft: “Dark mode for the widget, merge without losing votes, Slack status alerts.”</AnimatedSpan>
             <TypingAnimation delay={4800}>› Looks good. Publish and notify voters.</TypingAnimation>
-            <AnimatedSpan delay={6400} className="pl-4 text-status-shipped">└ openheard.publishChangelog → published, 128 voters notified</AnimatedSpan>
+            <AnimatedSpan delay={6400} className="pl-4 text-status-shipped">└ openheard.publish_changelog → published, 128 voters notified</AnimatedSpan>
             <AnimatedSpan delay={7000} className="text-muted-foreground">● Done. Live at acme.openheard.com/changelog/this-week</AnimatedSpan>
           </Terminal>
         </div>
