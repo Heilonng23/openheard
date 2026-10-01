@@ -9,9 +9,10 @@ import {
 } from "@openheard/db";
 import type { Db } from "@openheard/db";
 import { user } from "@openheard/db/schema/auth";
-import { and, desc, eq, isNotNull, like, or, sql, asc } from "drizzle-orm";
+import { and, desc, eq, isNotNull, or, sql, asc } from "drizzle-orm";
 import { ApiError } from "./api-auth";
 import { toAttachmentView } from "./attachments";
+import { escapeLike } from "./help";
 import { notifyIntegrations } from "./integration-db";
 import { changelogById, saveChangelog } from "./ops/content";
 import type { OpCtx } from "./ops/context";
@@ -28,13 +29,14 @@ export async function queryListPosts(
 ) {
   const limit = Math.min(Math.max(opts.limit ?? 30, 1), 100);
   const offset = Math.max(opts.offset ?? 0, 0);
+  const query = opts.q ? `%${escapeLike(opts.q)}%` : undefined;
 
   const where = and(
     eq(post.workspaceId, workspaceId),
     sql`${post.mergedIntoId} is null`,
     opts.board ? eq(post.boardId, opts.board) : undefined,
     opts.status ? eq(post.status, opts.status) : undefined,
-    opts.q ? or(like(post.title, `%${opts.q}%`), like(post.body, `%${opts.q}%`)) : undefined,
+    query ? or(sql`${post.title} like ${query} escape '\\'`, sql`${post.body} like ${query} escape '\\'`) : undefined,
   );
 
   const ageDays = sql`(julianday('now') - julianday(${post.createdAt} / 1000, 'unixepoch'))`;
