@@ -1,4 +1,4 @@
-import { ArrowRightIcon, ListIcon, XIcon } from "@phosphor-icons/react";
+import { ListIcon, XIcon } from "@phosphor-icons/react";
 import { Link, useLoaderData } from "@tanstack/react-router";
 import { AnimatePresence, motion, useScroll } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
@@ -18,6 +18,7 @@ export const GITHUB = "https://github.com/Heilonng23/openheard";
 const links = [
   { href: "#product", label: "Product" },
   { href: "#agents", label: "Agents" },
+  { href: "#own", label: "Self-host" },
   { href: "#pricing", label: "Pricing" },
   { href: GITHUB, label: "GitHub" },
 ];
@@ -117,14 +118,16 @@ const agents = [
 // Template hero: px-6, radial wash 600/800px tall with rounded-b-xl, pt-32,
 // max-w-3xl, gap-10. Then the product shot in px-6 mt-10 rounded-2xl.
 // The demo board lives on its own subdomain, so it needs an absolute URL.
-function DemoLink() {
+// Signs the visitor in as the demo admin. Needs the demo subdomain, so it
+// hides on installs without a root domain.
+function DemoButton() {
   const root = useLoaderData({ from: "__root__" });
-  const href = workspaceUrl(DEMO_WORKSPACE_ID, root?.rootDomain ?? null, "/");
-  if (href === "/") return null;
+  const href = workspaceUrl(DEMO_WORKSPACE_ID, root?.rootDomain ?? null, "/demo");
+  if (href === "/demo") return null;
   return (
-    <a href={href} className="inline-flex items-center gap-1.5 text-[14px] text-muted-foreground hover:text-foreground">
-      Try the demo <ArrowRightIcon className="size-3.5" />
-    </a>
+    <Button size="lg" variant="secondary" nativeButton={false} render={<a href={href} />}>
+      Try the demo
+    </Button>
   );
 }
 
@@ -146,14 +149,11 @@ export function Hero() {
           </div>
           <BlurFade delay={0.16}>
             <div className="flex flex-col items-center gap-6">
-              <div className="flex flex-wrap items-center justify-center gap-5">
+              <div className="flex items-center justify-center gap-3">
                 <Button size="lg" arrow nativeButton={false} render={<Link to="/start" />}>
-                  Start for free
+                  Get started
                 </Button>
-                <DemoLink />
-                <a href="#own" className="inline-flex items-center gap-1.5 text-[14px] text-muted-foreground hover:text-foreground">
-                  Self-host <ArrowRightIcon className="size-3.5" />
-                </a>
+                <DemoButton />
               </div>
               <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
                 <span className="text-xs font-medium text-muted-foreground">Works with</span>
