@@ -290,7 +290,7 @@ export function NewPostDialog({
               <Kbd>⌘ ↵</Kbd> to post
             </span>
           </div>
-          <LoadingButton onAction={submit} pendingLabel="Posting" onError={(err) => toast.error(err instanceof Error ? err.message : "Could not post")}>
+          <LoadingButton className="brand-cta" onAction={submit} pendingLabel="Posting" onError={(err) => toast.error(err instanceof Error ? err.message : "Could not post")}>
             Post idea
           </LoadingButton>
         </div>
