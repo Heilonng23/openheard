@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { Kbd } from "./bits";
 import Logo from "./logo";
+import { ThemeSwitch } from "./theme-switch";
 import UserMenu from "./user-menu";
 import { cn } from "@openheard/ui/lib/utils";
 
@@ -73,6 +74,7 @@ export default function Header() {
                 <MagnifyingGlassIcon className="size-[18px]" />
               </button>
               <Search />
+              {data ? <ThemeSwitch workspaceId={data.workspace.id} fallback={data.workspace.theme === "light" ? "light" : "dark"} /> : null}
               <UserMenu />
               <button
                 type="button"

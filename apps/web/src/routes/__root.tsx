@@ -10,6 +10,7 @@ import { SignInDialog } from "../components/sign-in-dialog";
 import { getWorkspace } from "../functions/workspace";
 import { officialWidgetSrc } from "../lib/official-widget";
 import type { MissingWorkspace } from "../lib/session";
+import { brandForeground, themeScript, useVisitorTheme } from "../lib/visitor-theme";
 import appCss from "../index.css?url";
 import geistLatinFont from "@fontsource-variable/geist/files/geist-latin-wght-normal.woff2?url";
 
@@ -136,9 +137,17 @@ function RootDocument() {
   // against the visitor's system; dark when it does not say.
   const widget = pathname.startsWith("/widget");
   const widgetTheme = useRouterState({ select: (s) => ((s.resolvedLocation ?? s.location).search as { theme?: string }).theme });
-  const theme = widget ? (pathname === "/widget" && widgetTheme === "light" ? "" : "dark") : data?.workspace.theme === "light" && !admin && !marketing ? "" : "dark";
+  // Public pages follow the visitor's saved light / dark / auto choice, or
+  // the workspace theme when they have not picked one.
+  const visitorPage = !widget && !admin && !marketing;
+  const workspaceTheme = data?.workspace.theme === "light" ? "light" : "dark";
+  const visitor = useVisitorTheme(data?.workspace.id ?? "", workspaceTheme, visitorPage && !!data);
+  const theme = widget ? (pathname === "/widget" && widgetTheme === "light" ? "" : "dark") : visitorPage ? (visitor.dark ? "dark" : "") : "dark";
   // Workspace accent applies to the public board only; the dashboard keeps ours.
-  const accent = !admin && data?.workspace.accent ? ({ "--link": data.workspace.accent, "--ring": data.workspace.accent } as React.CSSProperties) : undefined;
+  const accentColor = !admin ? data?.workspace.accent : null;
+  const accent = accentColor
+    ? ({ "--link": accentColor, "--ring": accentColor, "--link-foreground": brandForeground(accentColor) } as React.CSSProperties)
+    : undefined;
   // No loader data means the root loader found no workspace for this host;
   // the outlet holds the not-found page and nothing else has a workspace to read.
   if (!data) {
@@ -157,8 +166,11 @@ function RootDocument() {
     );
   }
   return (
-    <html lang="en" className={theme} style={accent}>
+    // The head script may change the class before hydration, so React is
+    // told not to flag the difference on <html>.
+    <html lang="en" className={theme} style={accent} data-brand={accentColor && visitorPage ? "" : undefined} suppressHydrationWarning>
       <head>
+        {visitorPage ? <script dangerouslySetInnerHTML={{ __html: themeScript(data.workspace.id, workspaceTheme) }} /> : null}
         <HeadContent />
       </head>
       <body>

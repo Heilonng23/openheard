@@ -139,7 +139,7 @@ function BoardPage() {
 
   const rail = (
     <>
-      <Button full arrow size="lg" onClick={tryCompose}>
+      <Button full arrow size="lg" onClick={tryCompose} className="brand-cta">
         Post idea
       </Button>
       <div className="flex flex-col gap-0.5">
@@ -185,7 +185,7 @@ function BoardPage() {
             {total} {total === 1 ? "post" : "posts"}
           </span>
           {/* Below lg the rail drops under the feed, so posting needs its own button up here. */}
-          <Button size="sm" arrow onClick={tryCompose} className="font-sans lg:hidden">
+          <Button size="sm" arrow onClick={tryCompose} className="brand-cta font-sans lg:hidden">
             Post idea
           </Button>
         </div>
@@ -270,7 +270,9 @@ function EmptyBoard({ filtered, onNew, onClear }: { filtered: boolean; onNew: ()
             Clear filters
           </Button>
         ) : null}
-        <Button arrow onClick={onNew}>Post idea</Button>
+        <Button arrow onClick={onNew} className="brand-cta">
+          Post idea
+        </Button>
       </div>
     </div>
   );

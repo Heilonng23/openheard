@@ -169,7 +169,7 @@ export function VoteButton({
         style={{ touchAction: "manipulation" }}
         className={cn(
           "relative inline-flex h-6 shrink-0 items-center gap-1 overflow-visible rounded-md border px-1.5 pr-2 text-[12px] tabular-nums transition-colors duration-150 before:absolute before:-inset-[10px] before:content-['']",
-          on ? "border-link bg-link text-[#0d0d0f]" : "border-input bg-secondary text-foreground hover:border-foreground/30",
+          on ? "border-link bg-link text-[var(--link-foreground,#0d0d0f)]" : "border-input bg-secondary text-foreground hover:border-foreground/30",
           className,
         )}
       >
@@ -196,7 +196,7 @@ export function VoteButton({
         "relative flex shrink-0 flex-col items-center justify-center gap-0.5 rounded-lg border select-none transition-[background-color,border-color,box-shadow,color] duration-200 ease-out focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none motion-reduce:transition-none",
         lg ? "h-16 w-14 rounded-xl" : "h-14 w-12",
         on
-          ? "border-link bg-link text-[#0d0d0f] shadow-[inset_0_1px_0_rgba(255,255,255,.25),0_2px_10px_rgba(110,139,255,.28)]"
+          ? "border-link bg-link text-[var(--link-foreground,#0d0d0f)] shadow-[inset_0_1px_0_rgba(255,255,255,.25),0_2px_10px_color-mix(in_oklch,var(--link)_28%,transparent)]"
           : "border-border bg-card text-muted-foreground shadow-[inset_0_1px_0_rgba(255,255,255,.03)] hover:border-input hover:text-foreground",
         className,
       )}
@@ -205,7 +205,7 @@ export function VoteButton({
         <CaretUpIcon weight="bold" className={lg ? "size-[15px]" : "size-3.5"} />
         {sparks}
       </motion.span>
-      {countCell(cn(lg ? "text-sm" : "text-[13px]", on ? "text-[#0d0d0f]" : "text-foreground"))}
+      {countCell(cn(lg ? "text-sm" : "text-[13px]", on ? "text-[var(--link-foreground,#0d0d0f)]" : "text-foreground"))}
       <span role="status" aria-live="polite" className="sr-only">
         {`${shown} votes, ${on ? "voted" : "not voted"}`}
       </span>

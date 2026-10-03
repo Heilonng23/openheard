@@ -9,6 +9,9 @@ export type PageInfo = {
   themeColors: string[];
   colorScheme: string | null;
   darkClass: boolean;
+  // Classes on <body> then <html>: utility classes like bg-black set the
+  // page colour there, ahead of any element rule in the stylesheet.
+  rootClasses: string[];
   tileColor: string | null;
   inlineCss: string;
   stylesheets: string[];
@@ -76,6 +79,8 @@ export function parsePage(html: string, url: string): PageInfo {
   const fontHints: string[] = [];
   let tileColor: string | null = null;
   let darkClass = false;
+  const bodyClasses: string[] = [];
+  const htmlClasses: string[] = [];
 
   for (const m of doc.matchAll(/<(meta|link|img|html|body)\b([^>]*)>/gi)) {
     const tag = m[1].toLowerCase();
@@ -104,6 +109,7 @@ export function parsePage(html: string, url: string): PageInfo {
     } else {
       const hay = `${a.class ?? ""} ${a["data-theme"] ?? ""} ${a["data-color-mode"] ?? ""}`.toLowerCase();
       if (/\bdark\b/.test(hay)) darkClass = true;
+      (tag === "body" ? bodyClasses : htmlClasses).push(...(a.class ?? "").split(/\s+/).filter(Boolean));
     }
   }
   tileColor ??= meta["msapplication-tilecolor"]?.[0] ?? null;
@@ -125,6 +131,7 @@ export function parsePage(html: string, url: string): PageInfo {
     themeColors: meta["theme-color"] ?? [],
     colorScheme: meta["color-scheme"]?.[0] ?? null,
     darkClass,
+    rootClasses: [...bodyClasses, ...htmlClasses],
     tileColor,
     inlineCss,
     stylesheets,
@@ -257,6 +264,29 @@ const colorIn = (value: string): Rgb | null => {
   return m ? parseColor(m[0]) : null;
 };
 
+const GREY_SCALES = /^bg-(?:slate|gray|zinc|neutral|stone)-(\d+)$/;
+
+// A background utility class on <body> or <html>: its rule in the fetched
+// CSS when there is one, else what the class name says (bg-black, bg-zinc-950,
+// bg-[#0b0b10]) so a page whose stylesheet was not fetched still reads right.
+function classBackground(classes: string[], rules: Rule[], vars: Map<string, string>): Rgb | null {
+  for (const cls of classes) {
+    if (!cls.startsWith("bg-")) continue;
+    const selector = `.${cls.replace(/[^\w-]/g, (c) => `\\${c}`)}`;
+    const value = rules.find((r) => r.selector === selector)?.decls;
+    const fromCss = value ? colorIn(resolveVars(value["background-color"] ?? value.background ?? "", vars)) : null;
+    if (fromCss) return fromCss;
+    if (cls === "bg-black") return { r: 0, g: 0, b: 0 };
+    if (cls === "bg-white") return { r: 255, g: 255, b: 255 };
+    const arbitrary = cls.match(/^bg-\[(#[0-9a-f]{3,8})\]$/i);
+    if (arbitrary) return parseColor(arbitrary[1]);
+    const shade = Number(cls.match(GREY_SCALES)?.[1]);
+    if (shade >= 700) return { r: 20, g: 20, b: 22 };
+    if (shade && shade <= 200) return { r: 245, g: 245, b: 245 };
+  }
+  return null;
+}
+
 const BODY = /(^|[\s,])(html|body|:root)(?=$|[\s,:.[{])/;
 const BUTTON = /(button|\.btn\b|\.cta\b|primary)/i;
 
@@ -306,7 +336,7 @@ export function suggestBrand(page: PageInfo, css: string[] = []): BrandSuggestio
   const top = ranked[0] && ranked[0].score >= 2 ? ranked[0].best.rgb : null;
   const readable = top ? readableOnDark(top) : null;
 
-  const themeHint = background ?? page.themeColors.map(parseColor).find((c): c is Rgb => !!c) ?? null;
+  const themeHint = classBackground(page.rootClasses, rules, vars) ?? background ?? page.themeColors.map(parseColor).find((c): c is Rgb => !!c) ?? null;
   const theme: BrandSuggestion["theme"] = themeHint ? (isDark(themeHint) ? "dark" : "light") : page.darkClass || /^\s*dark\s*$/i.test(page.colorScheme ?? "") ? "dark" : null;
 
   return {

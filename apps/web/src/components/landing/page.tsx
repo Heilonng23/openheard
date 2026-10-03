@@ -1,4 +1,6 @@
 import { Bento, Closing, Faq, Footer, Loop, Own, Pricing, Products } from "./bottom";
+import { Connect } from "./connect";
+import { Surfaces } from "./more";
 import { Page } from "./shared";
 import { Agents, Hero, Nav } from "./top";
 
@@ -13,8 +15,10 @@ export function Landing() {
           <Hero />
           <Agents />
           <Products />
+          <Surfaces />
           <Bento />
           <Loop />
+          <Connect />
           <Own />
           <Pricing />
           <Faq />

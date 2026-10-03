@@ -3,7 +3,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@openheard/ui/components/button";
-import Logo from "@/components/logo";
+import { WorkspaceLogo } from "@/components/logo";
 import { getUser } from "@/functions/get-user";
 import { acceptInvite } from "@/functions/invites";
 
@@ -41,7 +41,7 @@ function JoinPage() {
   return (
     <main className="flex flex-1 items-center justify-center px-5 py-16">
       <div className="flex w-full max-w-[380px] flex-col items-center gap-6">
-        <Logo size={32} />
+        <WorkspaceLogo size={32} />
         {done ? (
           <div className="flex flex-col items-center gap-2 text-center">
             <h1 className="text-[22px] font-semibold tracking-[-0.02em]">You're in!</h1>
