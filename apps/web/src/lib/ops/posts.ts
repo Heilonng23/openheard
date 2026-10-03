@@ -1,5 +1,5 @@
 import { activity, attachment, board, changelogPost, comment, post, postTag, tag, vote } from "@openheard/db";
-import { and, desc, eq, inArray, like, notInArray, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, notInArray, or, sql } from "drizzle-orm";
 
 import { claimQuery, reserveAttachments } from "@/lib/attachment-db";
 import { AttachmentGoneError } from "@/lib/attachment-db";
@@ -282,7 +282,7 @@ export async function similarPosts(ctx: OpCtx, text: string, opts: { excludeId?:
         eq(post.workspaceId, ctx.workspace.id),
         opts.excludeId ? sql`${post.id} != ${opts.excludeId}` : undefined,
         sql`${post.mergedIntoId} is null`,
-        or(...escaped.map((w) => like(post.title, `%${w}%`))),
+        or(...escaped.map((w) => sql`${post.title} like ${`%${w}%`} escape '\\'`)),
       ),
     )
     .orderBy(desc(hits), desc(post.voteCount))

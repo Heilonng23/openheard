@@ -50,6 +50,15 @@ describe("brand extraction from saved pages", () => {
     expect(b.logoCandidates).toContain("https://riseandshine.example/wp-content/uploads/2024/01/logo.png");
   });
 
+  it("utility-class site: bg-black on body beats a light body rule in the stylesheet", () => {
+    expect(brandOf("tailwind-dark.html", "https://nightowl.example/", ["tailwind-dark.css"])).toMatchObject({ theme: "dark", accentOriginal: "#8b5cf6" });
+    // Without the stylesheet the class name alone still says dark.
+    expect(brandOf("tailwind-dark.html", "https://nightowl.example/").theme).toBe("dark");
+    // A light body class keeps a light site light.
+    const light = fixture("tailwind-dark.html").replace("bg-black", "bg-white");
+    expect(suggestBrand(parsePage(light, "https://nightowl.example/"), [fixture("tailwind-dark.css")]).theme).toBe("light");
+  });
+
   it("plain page with only greys: no accent, so the default stays", () => {
     const b = brandOf("plain.html", "https://hello.example/");
     expect(b).toMatchObject({ name: "Hello", accent: null, colors: [], theme: "light", font: "Georgia", logoCandidates: [] });

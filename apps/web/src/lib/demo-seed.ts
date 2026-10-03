@@ -30,31 +30,39 @@ const BOARDS = [
 
 const TAGS = ["Migration", "Integrations", "API", "Widget", "Theming", "Auth", "Changelog", "Moderation", "UX", "Hosting"] as const;
 
-type Seed = { board: string; title: string; body: string; status: schema.Status; votes: number; tags: string[]; days: number; pinned?: boolean; eta?: string };
+type Seed = { board: string; title: string; body: string; status: schema.Status; votes: number; tags: string[]; days: number; pinned?: boolean; eta?: string; changed?: number };
 
+// Shipped posts match what openheard actually ships; everything still open is
+// something it does not do yet. `changed` is when the status last moved.
 const POSTS: Seed[] = [
-  { board: "features", title: "Import our old feedback board", body: "We have three years of posts in our old tool and switching means losing that history. A one-click import that keeps votes, authors and comments would make the move a no-brainer. Even a CSV path would be fine, as long as the vote counts survive.", status: "progress", votes: 142, tags: ["migration"], days: 2, pinned: true, eta: "v0.4" },
-  { board: "integrations", title: "Slack notification when a post changes status", body: "Post to a channel when something moves to planned or shipped so the team sees it without opening the board.", status: "planned", votes: 89, tags: ["integrations"], days: 5 },
-  { board: "features", title: "Public API for posts and votes", body: "Read posts, create them from our own app, and sync votes. Webhooks for changes would be enough to start.", status: "review", votes: 67, tags: ["api"], days: 7 },
-  { board: "features", title: "Embed widget that matches our dark theme", body: "The floating widget is light only. A dark variant and a way to pass our accent color.", status: "planned", votes: 56, tags: ["widget", "theming"], days: 8 },
-  { board: "features", title: "Vote without creating an account", body: "Email-only voting with a magic link. Sign-up is the biggest drop-off on our board.", status: "review", votes: 45, tags: ["auth"], days: 12 },
-  { board: "features", title: "Changelog RSS feed", body: "So we can pipe releases into our newsletter tool.", status: "done", votes: 34, tags: ["changelog"], days: 21 },
-  { board: "features", title: "Merge duplicate posts and keep both vote counts", body: "Right now merging drops the votes on the merged post. Sum them, and notify voters of the survivor.", status: "progress", votes: 28, tags: ["moderation"], days: 20 },
-  { board: "features", title: "SSO with Okta and SAML", body: "Enterprise customers ask for it before they will even look at a board.", status: "review", votes: 21, tags: ["auth"], days: 30 },
+  { board: "integrations", title: "GitHub issues two-way sync", body: "Create an issue from a post and pull its status back when it closes.", status: "planned", votes: 141, tags: ["integrations"], days: 6, pinned: true, eta: "v0.6" },
+  { board: "features", title: "Import our old feedback board", body: "We have three years of posts in our old tool and switching means losing that history. A one-click import that keeps votes, authors and comments would make the move a no-brainer. Even a CSV path would be fine, as long as the vote counts survive.", status: "done", votes: 118, tags: ["migration"], days: 48, changed: 6 },
+  { board: "integrations", title: "Slack notification when a post changes status", body: "Post to a channel when something moves to planned or shipped so the team sees it without opening the board.", status: "done", votes: 89, tags: ["integrations"], days: 34, changed: 1 },
+  { board: "features", title: "Public API for posts and votes", body: "Read posts, create them from our own app, and sync votes. Webhooks for changes would be enough to start.", status: "done", votes: 67, tags: ["api"], days: 38, changed: 1 },
+  { board: "features", title: "SSO with Okta and SAML", body: "Enterprise customers ask for it before they will even look at a board.", status: "progress", votes: 63, tags: ["auth"], days: 30, eta: "v0.6" },
+  { board: "features", title: "Embed widget that matches our dark theme", body: "A feedback panel inside our app, in dark mode, with our accent color.", status: "done", votes: 56, tags: ["widget", "theming"], days: 29, changed: 1 },
+  { board: "features", title: "Custom fields on posts", body: "Let us ask for plan, company size or platform when someone posts, and filter the inbox by them.", status: "progress", votes: 48, tags: ["ux"], days: 22, eta: "v0.6" },
+  { board: "features", title: "Vote without creating an account", body: "Sign-up is the biggest drop-off on our board. Let visitors vote without one.", status: "done", votes: 45, tags: ["auth"], days: 41, changed: 6 },
+  { board: "features", title: "Weekly digest email for the team", body: "One email on Monday with the week's new posts and the biggest movers, instead of a ping per post.", status: "planned", votes: 37, tags: ["integrations"], days: 15 },
+  { board: "features", title: "Changelog RSS feed", body: "So we can pipe releases into our newsletter tool.", status: "done", votes: 34, tags: ["changelog"], days: 26, changed: 12 },
+  { board: "features", title: "Merge duplicate posts and keep both vote counts", body: "When two posts ask for the same thing, merge them and keep every vote on the one that survives.", status: "done", votes: 28, tags: ["moderation"], days: 44, changed: 6 },
+  { board: "integrations", title: "Linear sync", body: "Same as GitHub issues but for Linear. Status mapping should be configurable.", status: "review", votes: 26, tags: ["integrations"], days: 4 },
+  { board: "features", title: "Translate the board into other languages", body: "Half our users are in Germany and Japan. The board's own buttons and labels should follow their browser language.", status: "review", votes: 23, tags: ["ux"], days: 9 },
   { board: "features", title: "Board-level custom domains", body: "feedback.acme.com for one board, ideas.acme.com for another.", status: "review", votes: 19, tags: ["hosting"], days: 33 },
   { board: "features", title: "Per-board moderators", body: "Let a support lead moderate Bugs without giving them the whole admin.", status: "planned", votes: 17, tags: ["moderation"], days: 25 },
-  { board: "features", title: "Magic link sign-in", body: "No passwords anywhere. Email, click, in.", status: "done", votes: 52, tags: ["auth"], days: 40 },
-  { board: "features", title: "Keyboard navigation on the board", body: "j and k to move, v to vote, enter to open.", status: "done", votes: 22, tags: ["ux"], days: 35 },
+  { board: "features", title: "Magic link sign-in", body: "No passwords anywhere. Email, click, in.", status: "done", votes: 52, tags: ["auth"], days: 40, changed: 12 },
+  { board: "features", title: "Keyboard navigation on the board", body: "j and k to move, v to vote, enter to open.", status: "done", votes: 22, tags: ["ux"], days: 35, changed: 19 },
+  { board: "integrations", title: "Jira issue sync", body: "Link a post to a Jira ticket and close the loop when the ticket is done.", status: "open", votes: 14, tags: ["integrations"], days: 2 },
   { board: "bugs", title: "Vote count flickers after voting on Safari", body: "Tap the vote pill on iOS Safari and the number jumps to the old value for a frame before settling.", status: "open", votes: 6, tags: ["ux"], days: 1 },
   { board: "bugs", title: "Changelog page 404s when there are no entries", body: "Fresh install, click Changelog, get a 404 instead of an empty state.", status: "closed", votes: 3, tags: [], days: 14 },
-  { board: "integrations", title: "GitHub issues two-way sync", body: "Create an issue from a post and pull its status back when it closes.", status: "open", votes: 41, tags: ["integrations"], days: 3 },
-  { board: "integrations", title: "Linear sync", body: "Same as GitHub issues but for Linear. Status mapping should be configurable.", status: "open", votes: 26, tags: ["integrations"], days: 4 },
 ];
 
 const ENTRIES = [
-  { title: "RSS for the changelog, and magic links", version: "v0.3.2", days: 2, body: "You can now follow the changelog from any reader, or pipe it into your newsletter tool. Sign-in also got simpler: enter an email, click the link, you are in. No passwords anywhere in openheard now.", posts: ["Changelog RSS feed", "Magic link sign-in"] },
-  { title: "Keyboard navigation on the board", version: "v0.3.1", days: 9, body: "Move through posts with j and k, vote with v, open with enter. It sounds small, but it is the difference between a board you skim and a board you actually read.", posts: ["Keyboard navigation on the board"] },
-  { title: "Self-host in one command", version: "v0.3.0", days: 16, body: "The whole thing is one Cloudflare Worker with D1 behind it. Point a domain at it and you have a board. Runs on the free tier.", posts: [] },
+  { title: "The widget, Slack alerts and a public API", version: "v0.5.0", days: 1, body: "One script tag now puts the board, the roadmap and the changelog inside your own app, in light or dark, with your accent colour. New posts and status changes can go to a Slack or Discord channel. And everything on the board is reachable over an HTTP API with per-workspace keys.", posts: ["Embed widget that matches our dark theme", "Slack notification when a post changes status", "Public API for posts and votes"] },
+  { title: "Bring your old board, and merges that keep every vote", version: "v0.4.0", days: 6, body: "Drop in a CSV export from your old tool and the posts, votes, authors and statuses come across in one step. Merging a duplicate now moves its votes to the post that survives. Boards can also let visitors vote without an account.", posts: ["Import our old feedback board", "Merge duplicate posts and keep both vote counts", "Vote without creating an account"] },
+  { title: "RSS for the changelog, and magic links", version: "v0.3.2", days: 12, body: "You can now follow the changelog from any reader, or pipe it into your newsletter tool. Sign-in also got simpler: enter an email, click the link, you are in.", posts: ["Changelog RSS feed", "Magic link sign-in"] },
+  { title: "Keyboard navigation on the board", version: "v0.3.1", days: 19, body: "Move through posts with j and k, vote with v, open with enter. It sounds small, but it is the difference between a board you skim and a board you actually read.", posts: ["Keyboard navigation on the board"] },
+  { title: "Self-host on Cloudflare in two commands", version: "v0.3.0", days: 26, body: "Log in to Cloudflare, run deploy, and you have a board: one Worker with D1, KV and an R2 bucket behind it, all on the free tier. Point a domain at it and you are done.", posts: [] },
 ];
 
 // A small help center: two collections, five articles, one of them with
@@ -187,7 +195,7 @@ export async function seedDemoContent(db: Db, workspaceId: string, adminId: stri
     const author = members[i % members.length]!;
     const [row] = await db
       .insert(schema.post)
-      .values({ workspaceId: ws, boardId: scoped(p.board), authorId: author, title: p.title, body: p.body, status: p.status, voteCount: p.votes, pinned: p.pinned ?? false, eta: p.eta, createdAt: at(p.days), statusChangedAt: at(Math.max(0, p.days - 2)) })
+      .values({ workspaceId: ws, boardId: scoped(p.board), authorId: author, title: p.title, body: p.body, status: p.status, voteCount: p.votes, pinned: p.pinned ?? false, eta: p.eta, createdAt: at(p.days), statusChangedAt: at(p.changed ?? Math.max(0, p.days - 2)) })
       .returning({ id: schema.post.id });
     if (p.tags.length) await db.insert(schema.postTag).values(p.tags.map((t) => ({ postId: row.id, tagId: scoped(t) })));
     // Real vote rows for the seeded members, the rest of the count is "history".
@@ -196,7 +204,7 @@ export async function seedDemoContent(db: Db, workspaceId: string, adminId: stri
     if (p.status !== "open") {
       await db.insert(schema.activity).values({ postId: row.id, actorId: adminId, type: "status", fromStatus: "open", toStatus: p.status === "done" || p.status === "progress" ? "review" : p.status, createdAt: at(Math.max(0, p.days - 1)) });
       if (p.status === "progress" || p.status === "done")
-        await db.insert(schema.activity).values({ postId: row.id, actorId: adminId, type: "status", fromStatus: "review", toStatus: p.status, note: p.status === "progress" ? "Started on this. Aiming for the next release." : undefined, createdAt: at(Math.max(0, p.days - 3)) });
+        await db.insert(schema.activity).values({ postId: row.id, actorId: adminId, type: "status", fromStatus: "review", toStatus: p.status, note: p.status === "progress" ? "Started on this. Aiming for the next release." : undefined, createdAt: at(p.changed ?? Math.max(0, p.days - 3)) });
     }
     if (i % 2 === 0) {
       await db.insert(schema.comment).values({ postId: row.id, authorId: members[(i + 1) % members.length]!, body: "Same boat here. We would also want the status mapping to be editable.", createdAt: at(Math.max(0, p.days - 1)) });
