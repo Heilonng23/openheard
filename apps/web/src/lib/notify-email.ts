@@ -1,16 +1,12 @@
 // The emails that close the loop with voters: a post changed status, a
 // changelog entry went out, and the changelog double opt-in. Pure string
 // building; lib/notify.ts decides who gets them.
-import { emailButton, emailLayout } from "./email";
+import { emailButton, emailLayout, escapeHtml } from "./email";
 
 const TEXT = "font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;";
 
 export type Rendered = { subject: string; html: string; text: string };
 export type Unsub = { url: string; label: string };
-
-export function escapeHtml(s: string): string {
-  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
-}
 
 // Subject lines are single-line plain text; a title with a newline in it must
 // not start a new header.

@@ -6,6 +6,10 @@ function sender(vars: { EMAIL_FROM?: string; EMAIL_FROM_NAME?: string }) {
     ? { email: vars.EMAIL_FROM, name: vars.EMAIL_FROM_NAME || DEFAULT_FROM.name }
     : DEFAULT_FROM;
 }
+export function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
+}
+
 const TEXT_STYLE = "font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;";
 
 // `brand` is the workspace name, already HTML-escaped; it heads the email.
@@ -90,11 +94,11 @@ export async function sendInviteEmail(to: string, inviterName: string, workspace
     emailLayout(`
       <h1 style="${TEXT_STYLE} font-size: 20px; font-weight: 700; color: #111; margin: 0 0 12px;">You've been invited</h1>
       <p style="${TEXT_STYLE} font-size: 15px; color: #555; line-height: 1.7; margin: 0 0 4px;">
-        ${inviterName} invited you to join <strong>${workspaceName}</strong>.
+        ${escapeHtml(inviterName)} invited you to join <strong>${escapeHtml(workspaceName)}</strong>.
       </p>
       ${emailButton(joinUrl, "Accept Invite")}
       <p style="${TEXT_STYLE} font-size: 13px; color: #999; line-height: 1.6; margin: 0;">This invite link expires in 7 days.</p>
-    `, "", workspaceName),
+    `, "", escapeHtml(workspaceName)),
     `${inviterName} invited you to ${workspaceName}\n\nJoin here: ${joinUrl}\n\nThis invite link expires in 7 days.`,
   );
 }
