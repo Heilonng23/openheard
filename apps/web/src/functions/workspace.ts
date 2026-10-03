@@ -50,6 +50,12 @@ async function googleSignIn() {
   return !!(env as unknown as { GOOGLE_CLIENT_ID?: string }).GOOGLE_CLIENT_ID;
 }
 
+// Share image for link previews; empty keeps the openheard one.
+async function ogImage() {
+  const { env } = await import("@openheard/env/server");
+  return (env as unknown as { OG_IMAGE_URL?: string }).OG_IMAGE_URL || null;
+}
+
 // Footer links. Self-hosters can point them at their own pages and fork.
 async function siteLinks() {
   const { env } = await import("@openheard/env/server");
@@ -97,6 +103,7 @@ export const getWorkspace = createServerFn({ method: "GET" })
         user: context.user,
         ownWorkspaces,
         googleSignIn: await googleSignIn(),
+        ogImage: await ogImage(),
         links: await siteLinks(),
       };
     }
@@ -109,6 +116,7 @@ export const getWorkspace = createServerFn({ method: "GET" })
       ...data,
       user: context.user,
       googleSignIn: await googleSignIn(),
+      ogImage: await ogImage(),
       links: await siteLinks(),
     };
   });

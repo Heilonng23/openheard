@@ -41,6 +41,7 @@ export const web = Cloudflare.Website.Vite("web", {
     BETTER_AUTH_SECRET: Config.redacted("BETTER_AUTH_SECRET"),
     BETTER_AUTH_URL: Config.string("BETTER_AUTH_URL").pipe(Config.withDefault("")),
     ROOT_DOMAIN: Config.string("ROOT_DOMAIN").pipe(Config.withDefault("")),
+    OG_IMAGE_URL: Config.string("OG_IMAGE_URL").pipe(Config.withDefault("")),
     // Self-hosters point the footer at their own policies and their fork.
     LEGAL_TERMS_URL: Config.string("LEGAL_TERMS_URL").pipe(Config.withDefault("")),
     LEGAL_PRIVACY_URL: Config.string("LEGAL_PRIVACY_URL").pipe(Config.withDefault("")),
