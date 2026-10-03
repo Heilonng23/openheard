@@ -7,6 +7,20 @@
   --faint: #85858f;
 }
 
+/* A public board with a brand colour: the main call to action wears it,
+   with white or near-black text, whichever reads. */
+[data-brand] .brand-cta {
+  background-color: var(--link);
+  color: var(--link-foreground);
+  box-shadow: inset 0 -1px 0 rgb(0 0 0 / 0.14), 0 1px 2px rgb(0 0 0 / 0.25);
+}
+[data-brand] .brand-cta:hover {
+  background-color: color-mix(in oklch, var(--link), var(--link-foreground) 10%);
+}
+[data-brand] .brand-cta:active {
+  background-color: color-mix(in oklch, var(--link), black 10%);
+}
+
 /* Persistent chrome gets its own snapshot so only page content fades on
    navigation. The old snapshot is hidden and the new one shown as is, so the
    sidebar, settings nav and header never dim, slide or show two states. */

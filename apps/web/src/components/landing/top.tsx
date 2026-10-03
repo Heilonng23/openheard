@@ -1,6 +1,6 @@
-import { ArrowRightIcon, ListIcon, XIcon } from "@phosphor-icons/react";
+import { ListIcon, XIcon } from "@phosphor-icons/react";
 import { Link, useLoaderData } from "@tanstack/react-router";
-import { AnimatePresence, motion, useScroll } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion, useScroll } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@openheard/ui/components/button";
@@ -18,6 +18,7 @@ export const GITHUB = "https://github.com/Heilonng23/openheard";
 const links = [
   { href: "#product", label: "Product" },
   { href: "#agents", label: "Agents" },
+  { href: "#own", label: "Self-host" },
   { href: "#pricing", label: "Pricing" },
   { href: GITHUB, label: "GitHub" },
 ];
@@ -26,6 +27,7 @@ export function Nav() {
   const { scrollY } = useScroll();
   const [scrolled, setScrolled] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const reduce = useReducedMotion();
   useEffect(() => scrollY.on("change", (v) => setScrolled(v > 10)), [scrollY]);
   const root = useLoaderData({ from: "__root__" });
   const own = (root as { ownWorkspaces?: { id: string; name: string }[] }).ownWorkspaces;
@@ -44,7 +46,7 @@ export function Nav() {
 
   return (
     <header className={cn("sticky z-50 mx-4 flex justify-center transition-all duration-300 md:mx-0", scrolled ? "top-6" : "top-4 mx-0")}>
-      <motion.div initial={{ width: "70rem" }} animate={{ width: scrolled ? "800px" : "70rem" }} transition={{ duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }} className="max-w-full motion-reduce:!transition-none">
+      <motion.div initial={{ width: "70rem" }} animate={{ width: scrolled ? "800px" : "70rem" }} transition={reduce ? { duration: 0 } : { duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }} className="max-w-full">
         <div className={cn("mx-auto max-w-7xl rounded-2xl transition-all duration-300 xl:px-0", scrolled ? "border border-border bg-background/75 px-2 backdrop-blur-lg" : "px-7 shadow-none")}>
           <div className="flex h-[56px] items-center justify-between p-4">
             <Link to="/" className="flex items-center gap-2.5 text-[15px] font-semibold tracking-[-0.01em] text-foreground">
@@ -73,8 +75,8 @@ export function Nav() {
       <AnimatePresence>
         {drawerOpen && (
           <>
-            <motion.div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} onClick={() => setDrawerOpen(false)} />
-            <motion.div className="fixed inset-x-0 bottom-3 z-50 mx-auto w-[95%] rounded-xl border border-border bg-background p-4 shadow-lg" initial={{ opacity: 0, y: 100 }} animate={{ opacity: 1, y: 0, transition: { type: "spring", damping: 15, stiffness: 200 } }} exit={{ opacity: 0, y: 100, transition: { duration: 0.1 } }}>
+            <motion.div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: reduce ? 0 : 0.2 }} onClick={() => setDrawerOpen(false)} />
+            <motion.div className="fixed inset-x-0 bottom-3 z-50 mx-auto w-[95%] rounded-xl border border-border bg-background p-4 shadow-lg" initial={reduce ? { opacity: 0 } : { opacity: 0, y: 100 }} animate={{ opacity: 1, y: 0, transition: reduce ? { duration: 0 } : { type: "spring", damping: 15, stiffness: 200 } }} exit={reduce ? { opacity: 0, transition: { duration: 0 } } : { opacity: 0, y: 100, transition: { duration: 0.1 } }}>
               <div className="flex flex-col gap-4">
                 <div className="flex items-center justify-between">
                   <Link to="/" className="flex items-center gap-2.5 text-[15px] font-semibold">
@@ -88,7 +90,7 @@ export function Nav() {
                 <ul className="flex flex-col rounded-md border border-border text-sm">
                   {links.map((n) => (
                     <li key={n.label} className="border-b border-border p-2.5 last:border-b-0">
-                      <a href={n.href} onClick={(e) => { e.preventDefault(); document.getElementById(n.href.substring(1))?.scrollIntoView({ behavior: "smooth" }); setDrawerOpen(false); }} className="text-muted-foreground transition-colors hover:text-foreground">
+                      <a href={n.href} onClick={(e) => { setDrawerOpen(false); if (!n.href.startsWith("#")) return; e.preventDefault(); document.getElementById(n.href.substring(1))?.scrollIntoView({ behavior: reduce ? "auto" : "smooth" }); }} className="text-muted-foreground transition-colors hover:text-foreground">
                         {n.label}
                       </a>
                     </li>
@@ -117,14 +119,16 @@ const agents = [
 // Template hero: px-6, radial wash 600/800px tall with rounded-b-xl, pt-32,
 // max-w-3xl, gap-10. Then the product shot in px-6 mt-10 rounded-2xl.
 // The demo board lives on its own subdomain, so it needs an absolute URL.
-function DemoLink() {
+// Signs the visitor in as the demo admin. Needs the demo subdomain, so it
+// hides on installs without a root domain.
+function DemoButton() {
   const root = useLoaderData({ from: "__root__" });
-  const href = workspaceUrl(DEMO_WORKSPACE_ID, root?.rootDomain ?? null, "/");
-  if (href === "/") return null;
+  const href = workspaceUrl(DEMO_WORKSPACE_ID, root?.rootDomain ?? null, "/demo");
+  if (href === "/demo") return null;
   return (
-    <a href={href} className="inline-flex items-center gap-1.5 text-[14px] text-muted-foreground hover:text-foreground">
-      Try the demo <ArrowRightIcon className="size-3.5" />
-    </a>
+    <Button size="lg" variant="secondary" nativeButton={false} render={<a href={href} />}>
+      Try the demo
+    </Button>
   );
 }
 
@@ -141,19 +145,16 @@ export function Hero() {
               <h1 className="text-center text-[28px] font-medium tracking-tighter text-balance sm:text-4xl md:text-5xl lg:text-6xl xl:text-[68px] xl:leading-[1.02]">The open source Canny alternative</h1>
             </BlurFade>
             <BlurFade delay={0.08}>
-              <p className="max-w-[54ch] text-center text-base leading-relaxed font-medium tracking-tight text-balance text-muted-foreground md:text-lg">Users post and vote. Your agents read the top requests, move the roadmap and draft the changelog. Self-host in one command, or use the cloud.</p>
+              <p className="max-w-[54ch] text-center text-base leading-relaxed font-medium tracking-tight text-balance text-muted-foreground md:text-lg">Users post and vote. Your agents read the top requests, move the roadmap and draft the changelog. Self-host on your own Cloudflare account, or use the cloud.</p>
             </BlurFade>
           </div>
           <BlurFade delay={0.16}>
             <div className="flex flex-col items-center gap-6">
-              <div className="flex flex-wrap items-center justify-center gap-5">
+              <div className="flex items-center justify-center gap-3">
                 <Button size="lg" arrow nativeButton={false} render={<Link to="/start" />}>
-                  Start for free
+                  Get started
                 </Button>
-                <DemoLink />
-                <a href="#own" className="inline-flex items-center gap-1.5 text-[14px] text-muted-foreground hover:text-foreground">
-                  Self-host <ArrowRightIcon className="size-3.5" />
-                </a>
+                <DemoButton />
               </div>
               <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
                 <span className="text-xs font-medium text-muted-foreground">Works with</span>
@@ -189,16 +190,16 @@ export function Hero() {
 }
 
 const bullets = [
-  ["Ask in plain English", "“What are the top five requests from paying users this month?”"],
+  ["Ask in plain English", "“What are the five most-voted requests that are still open?”"],
   ["Act, not just read", "Move a post to Planned, merge duplicates, reply to a voter."],
-  ["Draft the changelog", "Closed posts become a ready-to-edit entry. Voters get told on publish."],
-  ["Your keys, your scope", "API keys are per workspace, hashed, shown once. Revoke any time."],
+  ["Draft the changelog", "Closed posts become a ready-to-edit entry. Followers get an email on publish."],
+  ["Your keys, your scope", "One key reaches every workspace you administer, or limit it to one. Hashed, shown once, revoke any time."],
 ];
 
 export function Agents() {
   return (
     <Framed id="agents">
-      <SectionHeader title="Run it through the agent you already use." sub="An MCP server and an HTTP API ship with it. Claude, Cursor or any agent can triage feedback, update the roadmap and draft the changelog from wherever you already work." />
+      <SectionHeader title="Run it through the agent you already use." sub="An MCP server and an HTTP API ship with it. Connect Claude Code, Cursor or Codex from the API keys page, then triage feedback, update the roadmap and draft the changelog from where you already work." />
       <div className="grid md:grid-cols-[380px_1fr]">
         <dl className="flex flex-col gap-6 border-b border-border p-6 md:border-r md:border-b-0">
           {bullets.map(([t, d]) => (
@@ -212,11 +213,11 @@ export function Agents() {
           <Terminal title="claude — openheard-mcp" className="min-h-[320px] md:min-h-[400px]">
             <TypingAnimation delay={300}>› Publish a changelog for what shipped this week. Keep it concise.</TypingAnimation>
             <AnimatedSpan delay={2400} className="text-muted-foreground">● I&apos;ll pull this week&apos;s shipped posts, draft an entry and show it before publishing.</AnimatedSpan>
-            <AnimatedSpan delay={3000} className="pl-4 text-link">└ openheard.listPosts status=shipped since=7d → 4 posts</AnimatedSpan>
-            <AnimatedSpan delay={3500} className="pl-4 text-link">└ openheard.createChangelog draft ready, 3 linked posts</AnimatedSpan>
+            <AnimatedSpan delay={3000} className="pl-4 text-link">└ openheard.list_posts status=shipped sort=new → 4 posts</AnimatedSpan>
+            <AnimatedSpan delay={3500} className="pl-4 text-link">└ openheard.draft_changelog → draft ready, 3 linked posts</AnimatedSpan>
             <AnimatedSpan delay={4100} className="text-muted-foreground">● Draft: “Dark mode for the widget, merge without losing votes, Slack status alerts.”</AnimatedSpan>
-            <TypingAnimation delay={4800}>› Looks good. Publish and notify voters.</TypingAnimation>
-            <AnimatedSpan delay={6400} className="pl-4 text-status-shipped">└ openheard.publishChangelog → published, 128 voters notified</AnimatedSpan>
+            <TypingAnimation delay={4800}>› Looks good. Publish and email the followers.</TypingAnimation>
+            <AnimatedSpan delay={6400} className="pl-4 text-status-shipped">└ openheard.publish_changelog → published, 128 followers emailed</AnimatedSpan>
             <AnimatedSpan delay={7000} className="text-muted-foreground">● Done. Live at acme.openheard.com/changelog/this-week</AnimatedSpan>
           </Terminal>
         </div>

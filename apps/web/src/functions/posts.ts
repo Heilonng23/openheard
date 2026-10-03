@@ -4,7 +4,7 @@ import { purgeWorkspaceCache } from "@/lib/cache";
 import { listStatuses, statusOfKind } from "@/lib/status-db";
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
-import { and, asc, desc, eq, inArray, like, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { AttachmentGoneError, claimQuery, reserveAttachments } from "@/lib/attachment-db";
@@ -75,7 +75,12 @@ export const listPosts = createServerFn({ method: "GET" })
       reviewKeys.length ? sql`${post.status} not in (${sql.join(reviewKeys.map((k) => sql`${k}`), sql`, `)})` : undefined,
       data.board ? eq(post.boardId, data.board) : undefined,
       data.status ? eq(post.status, data.status) : undefined,
-      data.q ? or(like(post.title, `%${escapeLike(data.q)}%`), like(post.body, `%${escapeLike(data.q)}%`)) : undefined,
+      data.q
+        ? or(
+            sql`${post.title} like ${`%${escapeLike(data.q)}%`} escape '\\'`,
+            sql`${post.body} like ${`%${escapeLike(data.q)}%`} escape '\\'`,
+          )
+        : undefined,
       data.tag
         ? inArray(post.id, db.select({ id: postTag.postId }).from(postTag).where(eq(postTag.tagId, data.tag)))
         : undefined,
@@ -398,10 +403,9 @@ export const searchPosts = createServerFn({ method: "GET" })
           eq(post.workspaceId, context.workspace.id),
           sql`${post.mergedIntoId} is null`,
           reviewKeys.length ? sql`${post.status} not in (${sql.join(reviewKeys.map((k) => sql`${k}`), sql`, `)})` : undefined,
-          or(...escaped.map((w) => like(post.title, `%${w}%`))),
+          or(...escaped.map((w) => sql`${post.title} like ${`%${w}%`} escape '\\'`)),
         ),
       )
       .orderBy(desc(hits), desc(post.voteCount))
       .limit(8);
   });
-

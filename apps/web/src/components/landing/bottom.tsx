@@ -1,5 +1,6 @@
 import { CaretDownIcon, CaretUpIcon, CheckIcon, PaperPlaneTiltIcon } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
+import { useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Button } from "@openheard/ui/components/button";
@@ -16,9 +17,9 @@ import { GITHUB } from "./top";
 /* ---------------------------------------------------------------- product */
 
 const products = [
-  { id: "board", eyebrow: "Board", title: "A board users actually use.", sub: "Post, vote, comment. Duplicates merge without losing votes. Keyboard first, one accent colour, no clutter.", points: ["Public or private boards", "One vote per user, anonymous voting optional", "Tags, search, trending and top sorts"], shot: "/landing/board.png", alt: "Public feedback board showing feature requests ranked by votes", center: true },
+  { id: "board", eyebrow: "Board", title: "A board users actually use.", sub: "Post, vote, comment. Duplicates merge without losing votes. Keyboard first, one accent colour, no clutter.", points: ["Several boards, posts held for approval if you want", "One vote per user, anonymous voting optional", "Tags, search, trending and top sorts"], shot: "/landing/board.png", alt: "Public feedback board showing feature requests ranked by votes", center: true },
   { id: "roadmap", eyebrow: "Roadmap", title: "A roadmap that stays honest.", sub: "Statuses are data. Drag a card in the dashboard and the public roadmap, the board and the changelog all agree.", points: ["Columns come from your statuses", "Vote counts on every card", "Hide it until you are ready"], shot: "/landing/dashboard-roadmap.png", alt: "Dashboard roadmap view with kanban columns for Planned, In Progress and Shipped", center: false },
-  { id: "changelog", eyebrow: "Changelog", title: "Close the loop.", sub: "Write what shipped, link the posts, publish. Everyone who voted gets an email. RSS for the rest.", points: ["Entries link back to the requests", "Voters notified on publish", "RSS feed, version tags, drafts"], shot: "/landing/changelog.png", alt: "Changelog page with published entries linked to shipped requests", center: true },
+  { id: "changelog", eyebrow: "Changelog", title: "Close the loop.", sub: "Write what shipped, link the posts, publish. People who voted or commented get an email. RSS for the rest.", points: ["Entries link back to the requests", "Followers emailed on publish", "RSS feed, version tags, drafts"], shot: "/landing/changelog.png", alt: "Changelog page with published entries linked to shipped requests", center: true },
   { id: "dashboard", eyebrow: "Dashboard", title: "An inbox, not a CRM.", sub: "Every post in one list with status, board, tags and votes. Filter, pin, merge, add an internal note, move on.", points: ["Quick filters by status, board and tag", "Internal notes and reactions", "CSV import and export"], shot: "/landing/dashboard-inbox.png", alt: "Dashboard inbox showing all posts with status filters and vote counts", center: false },
 ];
 
@@ -59,8 +60,8 @@ export function Products() {
 const inboxRows = [
   { title: "Dark mode for the embedded widget", meta: "In progress · Mara Lindqvist · 2d", votes: 128, hot: true },
   { title: "Merge duplicate posts without losing votes", meta: "Planned · Tomás Ferreira · 5d", votes: 86 },
-  { title: "Slack notifications when a post changes status", meta: "Under review · Aiko Tanaka · 1w", votes: 54 },
-  { title: "Public API for creating posts from our app", meta: "Devraj Patel · 1w", votes: 41 },
+  { title: "Sync planned posts with GitHub issues", meta: "Under review · Aiko Tanaka · 1w", votes: 47 },
+  { title: "Custom fields on the post form", meta: "Devraj Patel · 1w", votes: 41 },
 ];
 
 function PostRow({ title, meta, votes, hot }: (typeof inboxRows)[number]) {
@@ -79,7 +80,7 @@ function PostRow({ title, meta, votes, hot }: (typeof inboxRows)[number]) {
 }
 
 const columns = [
-  ["Planned", "bg-status-planned", ["Slack notifications", "CSV export"]],
+  ["Planned", "bg-status-planned", ["GitHub sync", "SAML sign-in"]],
   ["In progress", "bg-status-progress", ["Merge duplicates"]],
   ["Shipped", "bg-status-shipped", ["Dark mode widget"]],
 ] as const;
@@ -102,7 +103,7 @@ export function Bento() {
             <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-linear-to-t from-background to-transparent" />
           </div>
         </Cell>
-        <Cell title="Close the loop" desc="Publish what shipped, link the posts, and every voter gets told. That is the whole point.">
+        <Cell title="Close the loop" desc="Publish what shipped, link the posts, and the people who asked get an email. That is the whole point.">
           <div className="w-full max-w-[440px] rounded-xl border border-border bg-card p-5">
             <div className="flex items-center gap-2.5">
               <span className="grid size-5 place-items-center rounded-full bg-status-shipped text-[#0d0d0f]">
@@ -120,7 +121,7 @@ export function Bento() {
             </div>
             <div className="mt-4 flex items-center gap-2 border-t border-border pt-3 text-[12px] text-status-shipped">
               <PaperPlaneTiltIcon className="size-3.5" />
-              Published · 128 voters notified
+              Published · 128 followers emailed
             </div>
           </div>
         </Cell>
@@ -144,11 +145,11 @@ export function Bento() {
         </Cell>
         <Cell title="Ask it from Claude or Cursor" desc="API keys, an HTTP API and an MCP server. Your agent reads the top requests before you plan a sprint.">
           <Terminal title="claude" className="max-w-[440px]">
-            <TypingAnimation delay={200}>› What are the top requests from paying users?</TypingAnimation>
-            <AnimatedSpan delay={1800} className="pl-4 text-link">└ openheard.listPosts sort=top segment=paying</AnimatedSpan>
+            <TypingAnimation delay={200}>› What are the top open requests?</TypingAnimation>
+            <AnimatedSpan delay={1800} className="pl-4 text-link">└ openheard.list_posts sort=top status=open</AnimatedSpan>
             <AnimatedSpan delay={2300} className="text-muted-foreground">● 1. Dark mode for the widget · 128</AnimatedSpan>
             <AnimatedSpan delay={2600} className="text-muted-foreground">● 2. Merge duplicates · 86</AnimatedSpan>
-            <AnimatedSpan delay={2900} className="text-muted-foreground">● 3. Slack status alerts · 54</AnimatedSpan>
+            <AnimatedSpan delay={2900} className="text-muted-foreground">● 3. GitHub issue sync · 47</AnimatedSpan>
           </Terminal>
         </Cell>
       </div>
@@ -171,10 +172,10 @@ function Cell({ title, desc, children }: { title: string; desc: string; children
 /* ------------------------------------------------------------------- loop */
 
 const moments = [
-  ["01", "Post", "Submission acknowledged. The author gets a link to follow."],
-  ["02", "Vote", "Status changes reach every voter, not just the author."],
-  ["03", "Ship", "The changelog entry links the request. Voters are told."],
-  ["04", "Return", "Weekly digest of new ideas brings them back to vote again."],
+  ["01", "Post", "Whoever posts follows the request from the first minute."],
+  ["02", "Vote", "Voting or commenting follows it too. Status changes reach all of them."],
+  ["03", "Ship", "The changelog entry links the request. Followers get the email."],
+  ["04", "Return", "Changelog subscribers and the RSS feed hear about every release."],
 ];
 
 export function Loop() {
@@ -186,8 +187,8 @@ export function Loop() {
           <h2 className="max-w-[20ch] text-3xl font-medium tracking-tighter text-balance md:text-4xl">Feedback tools go quiet after collection.</h2>
           <div className="flex max-w-[60ch] flex-col gap-4 leading-relaxed text-pretty text-muted-foreground">
             <p>A user writes an idea, it lands in a dashboard, and that is the last they hear. openheard treats every post as the start of a loop, not the end of one.</p>
-            <p>When someone votes, they hear about it. When it moves to Planned, they hear about it. When it ships, they get the changelog entry that says so, with their request linked.</p>
-            <p>None of it is configured. Turn the board on and the loop runs the same day.</p>
+            <p>Post, vote or comment and you follow the request. When it moves to Planned, you get an email. When it ships, you get the changelog entry that says so, with your request linked. One click unsubscribes.</p>
+            <p>Status emails are on by default for verified accounts. Turn the board on and the loop runs the same day.</p>
           </div>
         </div>
         <div className="flex flex-col p-6" role="list">
@@ -209,8 +210,8 @@ export function Loop() {
 /* ------------------------------------------------------------------- own */
 
 const own = [
-  ["One command on Cloudflare", "A Worker and a D1 database on the free tier. Point a domain at it and you have a board."],
-  ["SQLite or D1, nothing else", "No Postgres, no Redis, no queue. One Worker, one database, your domain."],
+  ["Two commands on Cloudflare", "A Worker, D1, KV and an R2 bucket, all on the free tier. Point a domain at it and you have a board."],
+  ["Cloudflare and nothing else", "No Postgres, no Redis, no queue. One Worker and its storage, on your domain."],
   ["AGPL-3, fork it", "Read every line. Change what you want. Running it for your own users is always free."],
   ["Cloud when you want it", "Same code, we host it. Move between the two with a CSV."],
 ];
@@ -223,6 +224,7 @@ export function Own() {
   const [progress, setProgress] = useState(0);
   const startRef = useRef(Date.now());
   const rafRef = useRef<number>(0);
+  const reduce = useReducedMotion();
 
   const advance = useCallback(() => {
     setActive((i) => (i + 1) % own.length);
@@ -230,8 +232,9 @@ export function Own() {
     startRef.current = Date.now();
   }, []);
 
+  // No auto-advance under reduced motion; the tabs still work on click.
   useEffect(() => {
-    if (paused) {
+    if (paused || reduce) {
       cancelAnimationFrame(rafRef.current);
       return;
     }
@@ -250,7 +253,7 @@ export function Own() {
     };
     rafRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [paused, active, advance, progress]);
+  }, [paused, reduce, active, advance, progress]);
 
   const select = (i: number) => {
     setActive(i);
@@ -276,11 +279,12 @@ export function Own() {
           ))}
         </div>
         <Terminal title="zsh — ~/openheard" className="min-h-[280px] md:min-h-[320px]">
-          <TypingAnimation delay={200}>$ bunx openheard deploy</TypingAnimation>
-          <AnimatedSpan delay={1600} className="pl-4 text-status-shipped">✓ Worker openheard-acme created</AnimatedSpan>
-          <AnimatedSpan delay={2100} className="pl-4 text-status-shipped">✓ D1 database migrated (7 tables)</AnimatedSpan>
-          <AnimatedSpan delay={2600} className="pl-4 text-status-shipped">✓ First sign-up becomes admin</AnimatedSpan>
-          <AnimatedSpan delay={3200} className="pl-4 text-link">→ https://feedback.acme.com</AnimatedSpan>
+          <TypingAnimation delay={200}>$ cd packages/infra && bunx alchemy login --configure</TypingAnimation>
+          <TypingAnimation delay={2600}>$ bun run deploy</TypingAnimation>
+          <AnimatedSpan delay={4200} className="pl-4 text-status-shipped">✓ Worker, KV and R2 bucket created</AnimatedSpan>
+          <AnimatedSpan delay={4700} className="pl-4 text-status-shipped">✓ D1 database migrated (28 tables)</AnimatedSpan>
+          <AnimatedSpan delay={5300} className="pl-4 text-link">→ https://openheard.acme.workers.dev</AnimatedSpan>
+          <AnimatedSpan delay={5900} className="text-muted-foreground"># The first account to sign up becomes the admin.</AnimatedSpan>
         </Terminal>
       </div>
     </section>
@@ -290,8 +294,8 @@ export function Own() {
 /* --------------------------------------------------------------- pricing */
 
 const plans = [
-  { name: "Free", price: "$0", per: "/month", desc: "Everything you need to start collecting feedback.", cta: "Start for free", lead: "Included", items: ["Unlimited users and votes", "2 boards, public roadmap and changelog", "3 admins", "openheard.com subdomain", "CSV import and export"] },
-  { name: "Pro", price: "$19", per: "/month", desc: "For teams that ship every week.", cta: "Start free trial", primary: true, lead: "Everything in Free, plus", items: ["Unlimited boards and admins", "Custom domain", "Email notifications to voters", "API keys and MCP server", "Image uploads", "Priority support"] },
+  { name: "Free", price: "$0", per: "/month", desc: "The whole product. Every feature, no seat limits.", cta: "Start for free", lead: "Included", items: ["Unlimited users and votes", "2 workspaces", "Board, roadmap, changelog, help center, widget", "Email updates, Slack, Discord, webhooks", "API and MCP server", "CSV import and export"] },
+  { name: "Pro", price: "$19", per: "/month", desc: "For teams running more than one product.", cta: "Upgrade to Pro", primary: true, lead: "Everything in Free, plus", items: ["5 workspaces", "Priority support"] },
 ];
 
 // Template pricing: plain section gap-10 pb-10, SectionHeader, cards in a
@@ -299,12 +303,12 @@ const plans = [
 export function Pricing() {
   return (
     <section id="pricing" className="relative flex w-full scroll-mt-16 flex-col items-center justify-center gap-10 pb-10">
-      <SectionHeader title="Unlimited users. Every plan." sub="Charging per seat for a feedback tool is backwards. Pay for hosting, never for people." />
+      <SectionHeader title="Unlimited users. Every plan." sub="Every feature is on Free. Pro adds workspaces and support, never seats." />
       <div className="mx-auto grid w-full max-w-[820px] gap-4 px-6 min-[650px]:grid-cols-2">
         {plans.map((p) => (
           <div key={p.name} className={cn("relative grid h-full grid-rows-[auto_auto_auto_1fr] rounded-xl border", p.primary ? "border-input bg-accent" : "border-border bg-[#f9fafb]/[0.02]")}>
             <div className="flex flex-col gap-4 p-4">
-              <p className="text-sm">
+              <p className="flex h-6 items-center text-sm">
                 {p.name}
                 {p.primary ? <span className="ml-2 inline-flex h-6 w-fit items-center justify-center rounded-full bg-[#4a6ae0] px-2 text-xs font-medium text-white">Popular</span> : null}
               </p>
@@ -350,12 +354,12 @@ export function Pricing() {
 /* ------------------------------------------------------------------- faq */
 
 const faq = [
-  ["Is it really free to self-host?", "Yes. AGPL-3 means the code is free to use, modify and deploy. Running it on your own infrastructure for your own users is always free. The licence only asks that you publish changes if you distribute a modified version."],
+  ["Is it really free to self-host?", "Yes. AGPL-3 means the code is free to use, modify and deploy. Running it on your own infrastructure for your own users is always free. If you change the code and let others use it, by download or over the network, you share your changes under the same licence."],
   ["Can I import my existing board?", "Yes. Export a CSV from your current tool and drop it into Settings. Posts, votes, authors and statuses come across in one step."],
-  ["What is the stack?", "TanStack Start, Drizzle, SQLite locally and D1 on Cloudflare, Better Auth. One Worker, one database. No Postgres, no Redis, no queue."],
+  ["What is the stack?", "TanStack Start, Drizzle, SQLite locally and D1 on Cloudflare, Better Auth. One Worker with D1, KV and R2. No Postgres, no Redis, no queue."],
   ["Is there a managed cloud?", "Yes, with a free tier. Same code as self-host. Start in the cloud and move to your own account later with a CSV, or the other way round."],
   ["What does AGPL-3 mean for me?", "Use it, change it, run it. If you distribute a modified version or offer it as a service to others, you publish your changes. Using it for your own product is not that."],
-  ["How do I contribute?", "Read CONTRIBUTING.md in the repo. Local setup is one command and takes about two minutes."],
+  ["How do I contribute?", "Read CONTRIBUTING.md in the repo. Local setup is three commands and takes about two minutes."],
 ];
 
 // Template FAQ: plain section gap-10 pb-10, max-w-3xl px-10, each row a
@@ -400,7 +404,7 @@ export function Closing() {
               <Button size="lg" arrow nativeButton={false} render={<Link to="/start" />}>
                 Start for free
               </Button>
-              <span className="text-sm text-muted-foreground">Or self-host in one command</span>
+              <span className="text-sm text-muted-foreground">Or self-host on your own Cloudflare account</span>
             </div>
           </div>
         </div>

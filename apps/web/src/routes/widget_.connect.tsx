@@ -2,7 +2,7 @@ import { CheckCircleIcon } from "@phosphor-icons/react";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 
-import Logo from "@/components/logo";
+import { WorkspaceLogo } from "@/components/logo";
 import { getUser } from "@/functions/get-user";
 import { connectWidget } from "@/functions/widget";
 import { MSG } from "@/lib/widget-auth";
@@ -55,7 +55,7 @@ function Connect() {
   return (
     <main className="flex flex-1 items-center justify-center px-6 py-16">
       <div className="flex max-w-[320px] flex-col items-center gap-4 text-center">
-        <Logo size={28} />
+        <WorkspaceLogo size={28} />
         {state === "working" ? (
           <p className="text-sm text-muted-foreground">Signing you in…</p>
         ) : (
