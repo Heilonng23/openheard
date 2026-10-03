@@ -138,7 +138,7 @@ function PostPage() {
 
   const rail = (
     <>
-      <Button full arrow size="lg" onClick={() => router.navigate({ to: "/" })}>
+      <Button full arrow size="lg" onClick={() => router.navigate({ to: "/" })} className="brand-cta">
         Post idea
       </Button>
       <section>

@@ -1,6 +1,7 @@
 import { board, createDb, helpArticle, membership, post, status, tag, workspace } from "@openheard/db";
 import { createServerFn } from "@tanstack/react-start";
 import { and, asc, count, eq } from "drizzle-orm";
+import { z } from "zod";
 
 import { getCached, setCached } from "@/lib/kv-cache";
 import { rootDomain, sessionMiddleware } from "@/lib/session";
@@ -62,7 +63,7 @@ async function siteLinks() {
 
 // /terms and /privacy send visitors to the self-hoster's own page when one is set.
 export const getLegalUrl = createServerFn({ method: "GET" })
-  .validator((page: "terms" | "privacy") => page)
+  .validator((page: unknown) => z.enum(["terms", "privacy"]).parse(page))
   .handler(async ({ data }) => {
     const url = (await siteLinks())[data];
     return url.startsWith("/") ? null : url;

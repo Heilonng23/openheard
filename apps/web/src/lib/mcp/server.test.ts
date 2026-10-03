@@ -104,6 +104,16 @@ describe("workspace keys", () => {
     expect(r.data.posts.map((p: { id: number }) => p.id).sort()).toEqual([1, 2]);
   });
 
+  it("treats LIKE wildcards in post searches as literal characters", async () => {
+    await db.insert(schema.post).values([
+      { id: 4, workspaceId: "acme", boardId: "acme-features", title: "Save 50% on annual billing", body: "" },
+      { id: 5, workspaceId: "acme", boardId: "acme-features", title: "500 errors after deploy", body: "" },
+    ]);
+    const call = await connect(keys.acmekey!);
+    const r = await call("list_posts", { q: "50%" });
+    expect(r.data.posts.map((p: { id: number }) => p.id)).toEqual([4]);
+  });
+
   it("can never name another workspace", async () => {
     const call = await connect(keys.acmekey!);
     for (const workspace of ["other", "beta"]) {
