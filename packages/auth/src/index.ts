@@ -11,12 +11,18 @@ import { eq } from "drizzle-orm";
 import { accessConfigFrom, cloudflareAccess } from "./cloudflare-access";
 import { createKvSecondaryStorage, type KV } from "./kv-secondary-storage";
 
-const AUTH_FROM = { email: "hello@openheard.com", name: "openheard" };
+// Self-hosters send from their own Email Sending domain via EMAIL_FROM / EMAIL_FROM_NAME.
+function authFrom() {
+  const vars = env as unknown as { EMAIL_FROM?: string; EMAIL_FROM_NAME?: string };
+  return vars.EMAIL_FROM
+    ? { email: vars.EMAIL_FROM, name: vars.EMAIL_FROM_NAME || "openheard" }
+    : { email: "hello@openheard.com", name: "openheard" };
+}
 
 async function authSendEmail(to: string, subject: string, html: string, text: string) {
   try {
     if ((env as any).EMAIL) {
-      const result = await (env as any).EMAIL.send({ to, from: AUTH_FROM, subject, html, text });
+      const result = await (env as any).EMAIL.send({ to, from: authFrom(), subject, html, text });
       console.log(`[auth] email sent: ${subject} → ${to}`, result?.messageId ?? "");
     } else {
       console.log(`[auth] ${subject} → ${to}\n  ${text.replace(/\n/g, "\n  ")}`);
